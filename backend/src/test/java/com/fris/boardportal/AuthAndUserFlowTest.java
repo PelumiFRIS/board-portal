@@ -11,10 +11,7 @@ import com.fris.boardportal.user.UserStatus;
 import com.fris.boardportal.user.dto.CreateUserRequest;
 import com.fris.boardportal.user.dto.UpdateUserRequest;
 import com.fris.boardportal.user.dto.UserSummary;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -133,26 +130,4 @@ class AuthAndUserFlowTest extends IntegrationTestSupport {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    private AuthResponse signup(String email, String organizationName) {
-        ResponseEntity<AuthResponse> response = restTemplate.postForEntity(
-                "/api/organizations/signup",
-                new OrganizationSignupRequest(organizationName, "Ada", "Admin", email, "password123"),
-                AuthResponse.class);
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        return response.getBody();
-    }
-
-    private String uniqueEmail() {
-        return "user-" + UUID.randomUUID() + "@example.com";
-    }
-
-    private <T> HttpEntity<T> authedRequest(String token) {
-        return authedRequest(token, null);
-    }
-
-    private <T> HttpEntity<T> authedRequest(String token, T body) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
-        return new HttpEntity<>(body, headers);
-    }
 }

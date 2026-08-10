@@ -2,12 +2,13 @@ import { useEffect, useState, type FormEvent } from "react";
 import { createUser, listOrganizationUsers, updateUserStatus } from "../api/auth";
 import { extractErrorMessage } from "../api/client";
 import type { Role, UserSummary } from "../api/types";
+import { AppHeader } from "../components/AppHeader";
 import { useAuth } from "../context/AuthContext";
 
 const ROLE_OPTIONS: Role[] = ["BOARD_MEMBER", "EXECUTIVE", "ADMIN"];
 
 export function DashboardPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
 
   const [users, setUsers] = useState<UserSummary[]>([]);
@@ -69,17 +70,7 @@ export function DashboardPage() {
 
   return (
     <div className="dashboard">
-      <header className="dashboard-header">
-        <div>
-          <h1>{user.organizationName}</h1>
-          <p>
-            Welcome, {user.firstName} {user.lastName} &middot; {user.role}
-          </p>
-        </div>
-        <button className="secondary" onClick={logout}>
-          Sign out
-        </button>
-      </header>
+      <AppHeader />
 
       {isAdmin && (
         <section className="dashboard-section">
