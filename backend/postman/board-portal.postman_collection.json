@@ -1,0 +1,291 @@
+{
+  "info": {
+    "name": "Board Portal - Phase 1 (Users & Auth)",
+    "description": "Foundation API: organization signup, login, and org-scoped user management. Run top to bottom - later requests depend on variables captured by earlier ones.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "tokenA", "value": "" },
+    { "key": "tokenB", "value": "" },
+    { "key": "orgBAdminId", "value": "" },
+    { "key": "createdUserId", "value": "" },
+    { "key": "runSuffix", "value": "" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.collectionVariables.get('runSuffix')) {",
+          "    pm.collectionVariables.set('runSuffix', Date.now());",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Signup - Organization A (admin)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/organizations/signup",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"organizationName\": \"Acme Governance {{runSuffix}}\",\n  \"adminFirstName\": \"Ada\",\n  \"adminLastName\": \"Admin\",\n  \"adminEmail\": \"ada-{{runSuffix}}@acme.test\",\n  \"adminPassword\": \"password123\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('has accessToken', () => pm.expect(body.accessToken).to.be.a('string'));",
+              "pm.test('user role is ADMIN', () => pm.expect(body.user.role).to.eql('ADMIN'));",
+              "pm.collectionVariables.set('tokenA', body.accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Signup - Organization B (admin, for isolation test)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/organizations/signup",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"organizationName\": \"Beta Corp {{runSuffix}}\",\n  \"adminFirstName\": \"Bo\",\n  \"adminLastName\": \"Boss\",\n  \"adminEmail\": \"bo-{{runSuffix}}@beta.test\",\n  \"adminPassword\": \"password123\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('tokenB', body.accessToken);",
+              "pm.collectionVariables.set('orgBAdminId', body.user.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Signup - duplicate email (expect 409)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/organizations/signup",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"organizationName\": \"Dup\",\n  \"adminFirstName\": \"X\",\n  \"adminLastName\": \"Y\",\n  \"adminEmail\": \"ada-{{runSuffix}}@acme.test\",\n  \"adminPassword\": \"password123\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.test('409 Conflict', () => pm.response.to.have.status(409));"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Login - wrong password (expect 401)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"ada-{{runSuffix}}@acme.test\",\n  \"password\": \"wrong-password\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Login - correct credentials",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"ada-{{runSuffix}}@acme.test\",\n  \"password\": \"password123\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set('tokenA', pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Me - without auth (expect 403)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/users/me"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.test('403 Forbidden', () => pm.response.to.have.status(403));"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Me - as Org A admin",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+        "url": "{{baseUrl}}/api/users/me"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('role is ADMIN', () => pm.expect(pm.response.json().role).to.eql('ADMIN'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Users - Org A admin creates a board member",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{tokenA}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/api/users",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"firstName\": \"Bola\",\n  \"lastName\": \"Board\",\n  \"email\": \"bola-{{runSuffix}}@acme.test\",\n  \"password\": \"password123\",\n  \"role\": \"BOARD_MEMBER\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('createdUserId', pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Users - Org A admin lists users (expect 2)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+        "url": "{{baseUrl}}/api/users"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('exactly 2 users in Org A', () => pm.expect(pm.response.json().length).to.eql(2));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Users - board member (non-admin) tries to list users (expect 403)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{tokenBoardMember}}" }],
+        "url": "{{baseUrl}}/api/users"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.sendRequest({",
+              "  url: pm.collectionVariables.get('baseUrl') + '/api/auth/login',",
+              "  method: 'POST',",
+              "  header: { 'Content-Type': 'application/json' },",
+              "  body: { mode: 'raw', raw: JSON.stringify({ email: 'bola-' + pm.collectionVariables.get('runSuffix') + '@acme.test', password: 'password123' }) }",
+              "}, (err, res) => {",
+              "  if (!err) pm.collectionVariables.set('tokenBoardMember', res.json().accessToken);",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.test('403 Forbidden', () => pm.response.to.have.status(403));"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Users - Org A admin patches Org B admin (expect 404, tenant isolation)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{tokenA}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/api/users/{{orgBAdminId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"DISABLED\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('404 Not Found (not a data leak, not a 200)', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

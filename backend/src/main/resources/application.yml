@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: board-portal
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:board_portal}
+    username: ${DB_USER:board_portal}
+    password: ${DB_PASSWORD:board_portal}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+jwt:
+  secret: ${JWT_SECRET:dev-only-secret-do-not-use-in-production-please-change-me-1234}
+  expiration-minutes: 480
