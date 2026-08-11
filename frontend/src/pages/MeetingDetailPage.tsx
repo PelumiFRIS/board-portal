@@ -7,6 +7,7 @@ import {
   updateAgendaItem,
   updateMeeting,
 } from "../api/meetings";
+import { downloadDocument } from "../api/documents";
 import { extractErrorMessage } from "../api/client";
 import type { AgendaItem, MeetingDetail as MeetingDetailType } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
@@ -107,6 +108,14 @@ export function MeetingDetailPage() {
       setActionError(extractErrorMessage(err));
     } finally {
       setSavingMinutes(false);
+    }
+  }
+
+  async function handleDownload(documentId: string, fileName: string) {
+    try {
+      await downloadDocument(documentId, fileName);
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
     }
   }
 
@@ -223,6 +232,29 @@ export function MeetingDetailPage() {
                   </button>
                 </form>
               )}
+            </section>
+
+            <section className="dashboard-section">
+              <h2>Documents</h2>
+              {meeting.documents.length === 0 && (
+                <div className="empty-state">
+                  <p>No documents linked to this meeting.</p>
+                </div>
+              )}
+              {meeting.documents.map((doc) => (
+                <div key={doc.id} className="document-row">
+                  <div>
+                    <strong>{doc.title}</strong>{" "}
+                    <span className="badge badge-category">{doc.category.replace("_", " ")}</span>
+                  </div>
+                  <button className="secondary small" onClick={() => handleDownload(doc.id, doc.fileName)}>
+                    Download
+                  </button>
+                </div>
+              ))}
+              <p>
+                <Link to="/documents">Manage documents &rarr;</Link>
+              </p>
             </section>
 
             <section className="dashboard-section">

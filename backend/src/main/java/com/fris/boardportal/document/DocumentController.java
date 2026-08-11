@@ -1,0 +1,75 @@
+package com.fris.boardportal.document;
+
+import com.fris.boardportal.document.dto.DocumentSummary;
+import com.fris.boardportal.security.AppUserPrincipal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.UUID;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+@RestController
+@RequestMapping("/api/documents")
+public class DocumentController {
+
+    private final DocumentService documentService;
+
+    public DocumentController(DocumentService documentService) {
+        this.documentService = documentService;
+    }
+
+    @GetMapping
+    public List<DocumentSummary> list(@AuthenticationPrincipal AppUserPrincipal principal,
+            @RequestParam(required = false) UUID meetingId,
+            @RequestParam(required = false) DocumentCategory category) {
+        return documentService.listForOrganization(principal, meetingId, category);
+    }
+
+    @GetMapping("/{id}")
+    public DocumentSummary detail(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
+        return documentService.getSummary(principal, id);
+    }
+
+    @GetMapping("/{id}/content")
+    public ResponseEntity<byte[]> content(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
+        Document document = documentService.getContent(principal, id);
+        String encodedName = URLEncoder.encode(document.getFileName(), StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(document.getContentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedName)
+                .body(document.getFileData());
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DocumentSummary> upload(
+            @AuthenticationPrincipal AppUserPrincipal principal,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam String title,
+            @RequestParam(required = false) String description,
+            @RequestParam DocumentCategory category,
+            @RequestParam(required = false) UUID meetingId) {
+        DocumentSummary created = documentService.upload(principal, file, title, description, category, meetingId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> delete(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
+        documentService.delete(principal, id);
+        return ResponseEntity.noContent().build();
+    }
+}

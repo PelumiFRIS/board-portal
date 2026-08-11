@@ -204,6 +204,10 @@ button.small {
   background: var(--primary);
   display: flex;
   flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .sidebar-logo {
@@ -449,6 +453,24 @@ button.small {
 .badge-cancelled {
   background: var(--danger-bg);
   color: var(--danger);
+}
+
+.badge-category {
+  background: var(--primary-tint);
+  color: var(--primary);
+}
+
+.document-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.document-row:last-child {
+  border-bottom: none;
 }
 
 /* Empty states */

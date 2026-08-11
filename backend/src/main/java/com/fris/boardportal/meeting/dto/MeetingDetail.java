@@ -1,5 +1,6 @@
 package com.fris.boardportal.meeting.dto;
 
+import com.fris.boardportal.document.dto.DocumentSummary;
 import com.fris.boardportal.meeting.Meeting;
 import com.fris.boardportal.meeting.MeetingStatus;
 import java.time.Instant;
@@ -15,9 +16,10 @@ public record MeetingDetail(
         Instant scheduledEnd,
         MeetingStatus status,
         String minutesContent,
-        List<AgendaItemDto> agendaItems) {
+        List<AgendaItemDto> agendaItems,
+        List<DocumentSummary> documents) {
 
-    public static MeetingDetail from(Meeting meeting, List<AgendaItemDto> agendaItems) {
+    public static MeetingDetail from(Meeting meeting, List<AgendaItemDto> agendaItems, List<DocumentSummary> documents) {
         return new MeetingDetail(
                 meeting.getId(),
                 meeting.getTitle(),
@@ -27,6 +29,7 @@ public record MeetingDetail(
                 meeting.getScheduledEnd(),
                 meeting.getStatus(),
                 meeting.getMinutesContent(),
-                agendaItems);
+                agendaItems,
+                documents);
     }
 }

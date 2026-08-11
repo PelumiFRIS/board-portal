@@ -6,6 +6,7 @@ import { SignupPage } from "./pages/SignupPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { MeetingsListPage } from "./pages/MeetingsListPage";
 import { MeetingDetailPage } from "./pages/MeetingDetailPage";
+import { DocumentsListPage } from "./pages/DocumentsListPage";
 
 function App() {
   return (
@@ -34,6 +35,14 @@ function App() {
           element={
             <ProtectedRoute>
               <MeetingDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/documents"
+          element={
+            <ProtectedRoute>
+              <DocumentsListPage />
             </ProtectedRoute>
           }
         />

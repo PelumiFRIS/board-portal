@@ -71,6 +71,7 @@ export interface MeetingDetail {
   status: MeetingStatus;
   minutesContent: string | null;
   agendaItems: AgendaItem[];
+  documents: DocumentSummary[];
 }
 
 export interface CreateMeetingPayload {
@@ -101,4 +102,26 @@ export interface UpdateAgendaItemPayload {
   title?: string;
   description?: string;
   position?: number;
+}
+
+export type DocumentCategory =
+  | "BOARD_PACK"
+  | "MINUTES"
+  | "REPORT"
+  | "POLICY"
+  | "BYLAW"
+  | "CHARTER"
+  | "GOVERNANCE"
+  | "OTHER";
+
+export interface DocumentSummary {
+  id: string;
+  title: string;
+  description: string | null;
+  category: DocumentCategory;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+  meetingId: string | null;
+  createdAt: string;
 }

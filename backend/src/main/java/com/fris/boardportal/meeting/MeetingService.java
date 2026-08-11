@@ -1,6 +1,7 @@
 package com.fris.boardportal.meeting;
 
 import com.fris.boardportal.common.ApiException;
+import com.fris.boardportal.document.DocumentRepository;
 import com.fris.boardportal.meeting.dto.AgendaItemDto;
 import com.fris.boardportal.meeting.dto.CreateAgendaItemRequest;
 import com.fris.boardportal.meeting.dto.CreateMeetingRequest;
@@ -20,10 +21,13 @@ public class MeetingService {
 
     private final MeetingRepository meetingRepository;
     private final AgendaItemRepository agendaItemRepository;
+    private final DocumentRepository documentRepository;
 
-    public MeetingService(MeetingRepository meetingRepository, AgendaItemRepository agendaItemRepository) {
+    public MeetingService(MeetingRepository meetingRepository, AgendaItemRepository agendaItemRepository,
+            DocumentRepository documentRepository) {
         this.meetingRepository = meetingRepository;
         this.agendaItemRepository = agendaItemRepository;
+        this.documentRepository = documentRepository;
     }
 
     public List<MeetingSummary> listForOrganization(AppUserPrincipal principal) {
@@ -131,6 +135,7 @@ public class MeetingService {
                 .stream()
                 .map(AgendaItemDto::from)
                 .toList();
-        return MeetingDetail.from(meeting, agendaItems);
+        var documents = documentRepository.findSummariesByMeetingId(meeting.getId());
+        return MeetingDetail.from(meeting, agendaItems, documents);
     }
 }

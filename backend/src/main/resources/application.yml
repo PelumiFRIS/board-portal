@@ -11,6 +11,10 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 16MB
 
 jwt:
   secret: ${JWT_SECRET:dev-only-secret-do-not-use-in-production-please-change-me-1234}
