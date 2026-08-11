@@ -9,7 +9,8 @@ import {
 } from "../api/meetings";
 import { extractErrorMessage } from "../api/client";
 import type { AgendaItem, MeetingDetail as MeetingDetailType } from "../api/types";
-import { AppHeader } from "../components/AppHeader";
+import { Sidebar } from "../components/Sidebar";
+import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 
 export function MeetingDetailPage() {
@@ -123,121 +124,129 @@ export function MeetingDetailPage() {
   if (!user) return null;
 
   return (
-    <div className="dashboard">
-      <AppHeader />
+    <div className="app-shell">
+      <Sidebar />
+      <main className="main-content">
+        <p>
+          <Link to="/meetings">&larr; Back to meetings</Link>
+        </p>
 
-      <p>
-        <Link to="/meetings">&larr; Back to meetings</Link>
-      </p>
+        {loading && <p>Loading meeting...</p>}
+        {loadError && <p className="form-error">{loadError}</p>}
 
-      {loading && <p>Loading meeting...</p>}
-      {loadError && <p className="form-error">{loadError}</p>}
+        {meeting && (
+          <>
+            <div className="page-header">
+              <h1>{meeting.title}</h1>
+              {meeting.description && <p>{meeting.description}</p>}
+            </div>
 
-      {meeting && (
-        <>
-          <section className="dashboard-section">
-            <h2>{meeting.title}</h2>
-            <p>{meeting.description}</p>
-            <p>
-              <strong>When:</strong> {new Date(meeting.scheduledStart).toLocaleString()}
-              {meeting.scheduledEnd ? ` – ${new Date(meeting.scheduledEnd).toLocaleString()}` : ""}
-            </p>
-            <p>
-              <strong>Location:</strong> {meeting.location ?? "—"}
-            </p>
-            <p>
-              <strong>Status:</strong> {meeting.status}
-            </p>
-            {actionError && <p className="form-error">{actionError}</p>}
-            {isAdmin && meeting.status === "SCHEDULED" && (
-              <div className="field-row">
-                <button onClick={() => handleStatusChange("COMPLETED")}>Mark completed</button>
-                <button className="secondary" onClick={() => handleStatusChange("CANCELLED")}>
-                  Cancel meeting
-                </button>
-              </div>
-            )}
-          </section>
+            <section className="dashboard-section">
+              <p>
+                <strong>When:</strong> {new Date(meeting.scheduledStart).toLocaleString()}
+                {meeting.scheduledEnd ? ` – ${new Date(meeting.scheduledEnd).toLocaleString()}` : ""}
+              </p>
+              <p>
+                <strong>Location:</strong> {meeting.location ?? "—"}
+              </p>
+              <p>
+                <strong>Status:</strong> <StatusBadge status={meeting.status} />
+              </p>
+              {actionError && <p className="form-error">{actionError}</p>}
+              {isAdmin && meeting.status === "SCHEDULED" && (
+                <div className="field-row">
+                  <button onClick={() => handleStatusChange("COMPLETED")}>Mark completed</button>
+                  <button className="secondary" onClick={() => handleStatusChange("CANCELLED")}>
+                    Cancel meeting
+                  </button>
+                </div>
+              )}
+            </section>
 
-          <section className="dashboard-section">
-            <h2>Agenda</h2>
-            {meeting.agendaItems.length === 0 && <p>No agenda items yet.</p>}
-            {meeting.agendaItems.map((item) =>
-              editingItemId === item.id ? (
-                <div key={item.id} className="add-user-form">
+            <section className="dashboard-section">
+              <h2>Agenda</h2>
+              {meeting.agendaItems.length === 0 && (
+                <div className="empty-state">
+                  <p>No agenda items yet.</p>
+                </div>
+              )}
+              {meeting.agendaItems.map((item) =>
+                editingItemId === item.id ? (
+                  <div key={item.id} className="add-user-form">
+                    <label>
+                      Title
+                      <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+                    </label>
+                    <label>
+                      Description
+                      <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+                    </label>
+                    <div className="field-row">
+                      <button onClick={() => handleSaveEdit(item.id)}>Save</button>
+                      <button className="secondary" onClick={() => setEditingItemId(null)}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={item.id} className="agenda-item-row">
+                    <div className="agenda-item-body">
+                      <strong>{item.title}</strong>
+                      {item.description && <p>{item.description}</p>}
+                    </div>
+                    {isAdmin && (
+                      <>
+                        <button className="secondary small" onClick={() => startEditing(item)}>
+                          Edit
+                        </button>
+                        <button className="secondary small" onClick={() => handleDeleteAgendaItem(item.id)}>
+                          Remove
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ),
+              )}
+
+              {isAdmin && (
+                <form className="add-user-form" onSubmit={handleAddAgendaItem}>
                   <label>
-                    Title
-                    <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+                    New agenda item
+                    <input value={newItemTitle} onChange={(e) => setNewItemTitle(e.target.value)} required />
                   </label>
                   <label>
                     Description
-                    <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+                    <input value={newItemDescription} onChange={(e) => setNewItemDescription(e.target.value)} />
                   </label>
-                  <div className="field-row">
-                    <button onClick={() => handleSaveEdit(item.id)}>Save</button>
-                    <button className="secondary" onClick={() => setEditingItemId(null)}>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
+                  <button type="submit" disabled={addingItem}>
+                    {addingItem ? "Adding..." : "Add agenda item"}
+                  </button>
+                </form>
+              )}
+            </section>
+
+            <section className="dashboard-section">
+              <h2>Minutes</h2>
+              {isAdmin ? (
+                <>
+                  <textarea
+                    className="minutes-textarea"
+                    value={minutesDraft}
+                    onChange={(e) => setMinutesDraft(e.target.value)}
+                    rows={6}
+                    placeholder="Record minutes here..."
+                  />
+                  <button onClick={handleSaveMinutes} disabled={savingMinutes}>
+                    {savingMinutes ? "Saving..." : "Save minutes"}
+                  </button>
+                </>
               ) : (
-                <div key={item.id} className="agenda-item-row">
-                  <div className="agenda-item-body">
-                    <strong>{item.title}</strong>
-                    {item.description && <p>{item.description}</p>}
-                  </div>
-                  {isAdmin && (
-                    <>
-                      <button className="secondary small" onClick={() => startEditing(item)}>
-                        Edit
-                      </button>
-                      <button className="secondary small" onClick={() => handleDeleteAgendaItem(item.id)}>
-                        Remove
-                      </button>
-                    </>
-                  )}
-                </div>
-              ),
-            )}
-
-            {isAdmin && (
-              <form className="add-user-form" onSubmit={handleAddAgendaItem}>
-                <label>
-                  New agenda item
-                  <input value={newItemTitle} onChange={(e) => setNewItemTitle(e.target.value)} required />
-                </label>
-                <label>
-                  Description
-                  <input value={newItemDescription} onChange={(e) => setNewItemDescription(e.target.value)} />
-                </label>
-                <button type="submit" disabled={addingItem}>
-                  {addingItem ? "Adding..." : "Add agenda item"}
-                </button>
-              </form>
-            )}
-          </section>
-
-          <section className="dashboard-section">
-            <h2>Minutes</h2>
-            {isAdmin ? (
-              <>
-                <textarea
-                  className="minutes-textarea"
-                  value={minutesDraft}
-                  onChange={(e) => setMinutesDraft(e.target.value)}
-                  rows={6}
-                  placeholder="Record minutes here..."
-                />
-                <button onClick={handleSaveMinutes} disabled={savingMinutes}>
-                  {savingMinutes ? "Saving..." : "Save minutes"}
-                </button>
-              </>
-            ) : (
-              <p>{meeting.minutesContent ?? "No minutes published yet."}</p>
-            )}
-          </section>
-        </>
-      )}
+                <p>{meeting.minutesContent ?? "No minutes published yet."}</p>
+              )}
+            </section>
+          </>
+        )}
+      </main>
     </div>
   );
 }

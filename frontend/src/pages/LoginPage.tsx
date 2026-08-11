@@ -28,8 +28,9 @@ export function LoginPage() {
   return (
     <div className="auth-page">
       <form className="auth-card" onSubmit={handleSubmit}>
+        <img src="/logo.png" alt="FirstRegistrars" className="auth-logo" />
         <h1>Sign in</h1>
-        <p className="auth-subtitle">Welcome back to Board Portal.</p>
+        <p className="auth-subtitle">Welcome back to the Board Portal.</p>
 
         <label>
           Email

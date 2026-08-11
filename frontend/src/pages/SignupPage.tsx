@@ -31,6 +31,7 @@ export function SignupPage() {
   return (
     <div className="auth-page">
       <form className="auth-card" onSubmit={handleSubmit}>
+        <img src="/logo.png" alt="FirstRegistrars" className="auth-logo" />
         <h1>Set up your board</h1>
         <p className="auth-subtitle">Create your organization and admin account.</p>
 
