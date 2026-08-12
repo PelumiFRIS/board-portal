@@ -3,6 +3,7 @@ package com.fris.boardportal.meeting.dto;
 import com.fris.boardportal.document.dto.DocumentSummary;
 import com.fris.boardportal.meeting.Meeting;
 import com.fris.boardportal.meeting.MeetingStatus;
+import com.fris.boardportal.resolution.dto.ResolutionSummary;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -17,9 +18,11 @@ public record MeetingDetail(
         MeetingStatus status,
         String minutesContent,
         List<AgendaItemDto> agendaItems,
-        List<DocumentSummary> documents) {
+        List<DocumentSummary> documents,
+        List<ResolutionSummary> resolutions) {
 
-    public static MeetingDetail from(Meeting meeting, List<AgendaItemDto> agendaItems, List<DocumentSummary> documents) {
+    public static MeetingDetail from(Meeting meeting, List<AgendaItemDto> agendaItems, List<DocumentSummary> documents,
+            List<ResolutionSummary> resolutions) {
         return new MeetingDetail(
                 meeting.getId(),
                 meeting.getTitle(),
@@ -30,6 +33,7 @@ public record MeetingDetail(
                 meeting.getStatus(),
                 meeting.getMinutesContent(),
                 agendaItems,
-                documents);
+                documents,
+                resolutions);
     }
 }

@@ -72,6 +72,7 @@ export interface MeetingDetail {
   minutesContent: string | null;
   agendaItems: AgendaItem[];
   documents: DocumentSummary[];
+  resolutions: ResolutionSummary[];
 }
 
 export interface CreateMeetingPayload {
@@ -124,4 +125,41 @@ export interface DocumentSummary {
   fileSize: number;
   meetingId: string | null;
   createdAt: string;
+}
+
+export type ResolutionStatus = "DRAFT" | "OPEN" | "CLOSED";
+export type ResolutionOutcome = "PASSED" | "FAILED";
+export type VoteChoice = "FOR" | "AGAINST" | "ABSTAIN";
+
+export interface ResolutionSummary {
+  id: string;
+  meetingId: string;
+  title: string;
+  description: string | null;
+  status: ResolutionStatus;
+  outcome: ResolutionOutcome | null;
+  forCount: number;
+  againstCount: number;
+  abstainCount: number;
+  myVote: VoteChoice | null;
+  createdAt: string;
+  openedAt: string | null;
+  closedAt: string | null;
+}
+
+export interface VoteRecord {
+  voterId: string;
+  voterName: string;
+  choice: VoteChoice;
+  castAt: string;
+}
+
+export interface ResolutionDetail extends ResolutionSummary {
+  votes: VoteRecord[];
+}
+
+export interface CreateResolutionPayload {
+  meetingId: string;
+  title: string;
+  description?: string;
 }

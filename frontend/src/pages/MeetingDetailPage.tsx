@@ -8,8 +8,21 @@ import {
   updateMeeting,
 } from "../api/meetings";
 import { downloadDocument } from "../api/documents";
+import {
+  castVote,
+  closeResolution,
+  createResolution,
+  getResolution,
+  openResolution,
+} from "../api/resolutions";
 import { extractErrorMessage } from "../api/client";
-import type { AgendaItem, MeetingDetail as MeetingDetailType } from "../api/types";
+import type {
+  AgendaItem,
+  MeetingDetail as MeetingDetailType,
+  ResolutionSummary,
+  VoteChoice,
+  VoteRecord,
+} from "../api/types";
 import { Sidebar } from "../components/Sidebar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
@@ -34,6 +47,13 @@ export function MeetingDetailPage() {
 
   const [minutesDraft, setMinutesDraft] = useState("");
   const [savingMinutes, setSavingMinutes] = useState(false);
+
+  const [newResolutionTitle, setNewResolutionTitle] = useState("");
+  const [newResolutionDescription, setNewResolutionDescription] = useState("");
+  const [creatingResolution, setCreatingResolution] = useState(false);
+  const [busyResolutionId, setBusyResolutionId] = useState<string | null>(null);
+  const [expandedResolutionId, setExpandedResolutionId] = useState<string | null>(null);
+  const [resolutionVotes, setResolutionVotes] = useState<Record<string, VoteRecord[]>>({});
 
   useEffect(() => {
     if (!id) return;
@@ -114,6 +134,91 @@ export function MeetingDetailPage() {
   async function handleDownload(documentId: string, fileName: string) {
     try {
       await downloadDocument(documentId, fileName);
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    }
+  }
+
+  function replaceResolution(updated: ResolutionSummary) {
+    setMeeting((prev) =>
+      prev
+        ? { ...prev, resolutions: prev.resolutions.map((r) => (r.id === updated.id ? updated : r)) }
+        : prev,
+    );
+  }
+
+  async function handleCreateResolution(event: FormEvent) {
+    event.preventDefault();
+    if (!id) return;
+    setActionError(null);
+    setCreatingResolution(true);
+    try {
+      const resolution = await createResolution({
+        meetingId: id,
+        title: newResolutionTitle,
+        description: newResolutionDescription || undefined,
+      });
+      setMeeting((prev) => (prev ? { ...prev, resolutions: [resolution, ...prev.resolutions] } : prev));
+      setNewResolutionTitle("");
+      setNewResolutionDescription("");
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setCreatingResolution(false);
+    }
+  }
+
+  async function handleOpenResolution(resolutionId: string) {
+    setActionError(null);
+    setBusyResolutionId(resolutionId);
+    try {
+      replaceResolution(await openResolution(resolutionId));
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setBusyResolutionId(null);
+    }
+  }
+
+  async function handleCloseResolution(resolutionId: string) {
+    setActionError(null);
+    setBusyResolutionId(resolutionId);
+    try {
+      replaceResolution(await closeResolution(resolutionId));
+      setResolutionVotes((prev) => {
+        const next = { ...prev };
+        delete next[resolutionId];
+        return next;
+      });
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setBusyResolutionId(null);
+    }
+  }
+
+  async function handleCastVote(resolutionId: string, choice: VoteChoice) {
+    setActionError(null);
+    setBusyResolutionId(resolutionId);
+    try {
+      replaceResolution(await castVote(resolutionId, choice));
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setBusyResolutionId(null);
+    }
+  }
+
+  async function handleToggleVotes(resolutionId: string) {
+    if (expandedResolutionId === resolutionId) {
+      setExpandedResolutionId(null);
+      return;
+    }
+    setExpandedResolutionId(resolutionId);
+    if (resolutionVotes[resolutionId]) return;
+    try {
+      const detail = await getResolution(resolutionId);
+      setResolutionVotes((prev) => ({ ...prev, [resolutionId]: detail.votes }));
     } catch (err) {
       setActionError(extractErrorMessage(err));
     }
@@ -229,6 +334,113 @@ export function MeetingDetailPage() {
                   </label>
                   <button type="submit" disabled={addingItem}>
                     {addingItem ? "Adding..." : "Add agenda item"}
+                  </button>
+                </form>
+              )}
+            </section>
+
+            <section className="dashboard-section">
+              <h2>Resolutions</h2>
+              {meeting.resolutions.length === 0 && (
+                <div className="empty-state">
+                  <p>No resolutions on this meeting yet.</p>
+                </div>
+              )}
+              {meeting.resolutions.map((resolution) => {
+                const isBusy = busyResolutionId === resolution.id;
+                const totalVotes = resolution.forCount + resolution.againstCount + resolution.abstainCount;
+                return (
+                  <div key={resolution.id} className="resolution-card">
+                    <div className="resolution-card-header">
+                      <strong>{resolution.title}</strong>
+                      <div className="field-row">
+                        <StatusBadge status={resolution.status} />
+                        {resolution.outcome && <StatusBadge status={resolution.outcome} />}
+                      </div>
+                    </div>
+                    {resolution.description && <p>{resolution.description}</p>}
+
+                    {resolution.status === "DRAFT" && isAdmin && (
+                      <button className="small" disabled={isBusy} onClick={() => handleOpenResolution(resolution.id)}>
+                        {isBusy ? "Opening..." : "Open for voting"}
+                      </button>
+                    )}
+
+                    {resolution.status === "OPEN" && (
+                      <>
+                        <div className="vote-tally">
+                          <span>For: {resolution.forCount}</span>
+                          <span>Against: {resolution.againstCount}</span>
+                          <span>Abstain: {resolution.abstainCount}</span>
+                        </div>
+                        <div className="field-row">
+                          <button
+                            className={`small ${resolution.myVote === "FOR" ? "" : "secondary"}`}
+                            disabled={isBusy}
+                            onClick={() => handleCastVote(resolution.id, "FOR")}
+                          >
+                            Vote for
+                          </button>
+                          <button
+                            className={`small ${resolution.myVote === "AGAINST" ? "" : "secondary"}`}
+                            disabled={isBusy}
+                            onClick={() => handleCastVote(resolution.id, "AGAINST")}
+                          >
+                            Vote against
+                          </button>
+                          <button
+                            className={`small ${resolution.myVote === "ABSTAIN" ? "" : "secondary"}`}
+                            disabled={isBusy}
+                            onClick={() => handleCastVote(resolution.id, "ABSTAIN")}
+                          >
+                            Abstain
+                          </button>
+                          {isAdmin && (
+                            <button className="secondary small" disabled={isBusy} onClick={() => handleCloseResolution(resolution.id)}>
+                              {isBusy ? "Closing..." : "Close voting"}
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {resolution.status === "CLOSED" && (
+                      <>
+                        <div className="vote-tally">
+                          <span>For: {resolution.forCount}</span>
+                          <span>Against: {resolution.againstCount}</span>
+                          <span>Abstain: {resolution.abstainCount}</span>
+                        </div>
+                        <button className="secondary small" onClick={() => handleToggleVotes(resolution.id)}>
+                          {expandedResolutionId === resolution.id ? "Hide votes" : `Show votes (${totalVotes})`}
+                        </button>
+                        {expandedResolutionId === resolution.id && (
+                          <ul className="vote-record-list">
+                            {(resolutionVotes[resolution.id] ?? []).map((v) => (
+                              <li key={v.voterId}>
+                                {v.voterName} — {v.choice}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+
+              {isAdmin && (
+                <form className="add-user-form" onSubmit={handleCreateResolution}>
+                  <label>
+                    New resolution
+                    <input value={newResolutionTitle} onChange={(e) => setNewResolutionTitle(e.target.value)} required />
+                  </label>
+                  <label>
+                    Description
+                    <input value={newResolutionDescription} onChange={(e) => setNewResolutionDescription(e.target.value)} />
+                  </label>
+                  <button type="submit" disabled={creatingResolution}>
+                    {creatingResolution ? "Creating..." : "Add resolution"}
                   </button>
                 </form>
               )}

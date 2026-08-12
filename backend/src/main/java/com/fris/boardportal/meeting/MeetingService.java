@@ -9,6 +9,7 @@ import com.fris.boardportal.meeting.dto.MeetingDetail;
 import com.fris.boardportal.meeting.dto.MeetingSummary;
 import com.fris.boardportal.meeting.dto.UpdateAgendaItemRequest;
 import com.fris.boardportal.meeting.dto.UpdateMeetingRequest;
+import com.fris.boardportal.resolution.ResolutionService;
 import com.fris.boardportal.security.AppUserPrincipal;
 import java.time.Instant;
 import java.util.List;
@@ -22,12 +23,14 @@ public class MeetingService {
     private final MeetingRepository meetingRepository;
     private final AgendaItemRepository agendaItemRepository;
     private final DocumentRepository documentRepository;
+    private final ResolutionService resolutionService;
 
     public MeetingService(MeetingRepository meetingRepository, AgendaItemRepository agendaItemRepository,
-            DocumentRepository documentRepository) {
+            DocumentRepository documentRepository, ResolutionService resolutionService) {
         this.meetingRepository = meetingRepository;
         this.agendaItemRepository = agendaItemRepository;
         this.documentRepository = documentRepository;
+        this.resolutionService = resolutionService;
     }
 
     public List<MeetingSummary> listForOrganization(AppUserPrincipal principal) {
@@ -38,7 +41,7 @@ public class MeetingService {
 
     public MeetingDetail getDetail(AppUserPrincipal principal, UUID meetingId) {
         Meeting meeting = findMeetingInOrg(principal, meetingId);
-        return toDetail(meeting);
+        return toDetail(meeting, principal);
     }
 
     @Transactional
@@ -82,7 +85,7 @@ public class MeetingService {
         }
         meeting.setUpdatedAt(Instant.now());
         meetingRepository.save(meeting);
-        return toDetail(meeting);
+        return toDetail(meeting, admin);
     }
 
     @Transactional
@@ -130,12 +133,13 @@ public class MeetingService {
                 .orElseThrow(() -> ApiException.notFound("Meeting not found"));
     }
 
-    private MeetingDetail toDetail(Meeting meeting) {
+    private MeetingDetail toDetail(Meeting meeting, AppUserPrincipal principal) {
         List<AgendaItemDto> agendaItems = agendaItemRepository.findByMeetingIdOrderByPositionAsc(meeting.getId())
                 .stream()
                 .map(AgendaItemDto::from)
                 .toList();
         var documents = documentRepository.findSummariesByMeetingId(meeting.getId());
-        return MeetingDetail.from(meeting, agendaItems, documents);
+        var resolutions = resolutionService.listForMeeting(principal, meeting.getId());
+        return MeetingDetail.from(meeting, agendaItems, documents, resolutions);
     }
 }
