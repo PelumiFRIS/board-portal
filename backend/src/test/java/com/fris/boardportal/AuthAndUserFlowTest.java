@@ -66,7 +66,14 @@ class AuthAndUserFlowTest extends IntegrationTestSupport {
     @Test
     void meRequiresAuthentication() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/users/me", String.class);
-        assertThat(response.getStatusCode().is4xxClientError()).isTrue();
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void meWithInvalidTokenReturnsUnauthorized() {
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/users/me", HttpMethod.GET, authedRequest("not-a-real-token"), String.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test

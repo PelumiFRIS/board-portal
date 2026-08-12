@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { extractErrorMessage } from "../api/client";
+import { extractErrorMessage, SESSION_EXPIRED_KEY } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
 export function LoginPage() {
@@ -10,6 +10,11 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [sessionExpired] = useState(() => {
+    const expired = sessionStorage.getItem(SESSION_EXPIRED_KEY) === "1";
+    if (expired) sessionStorage.removeItem(SESSION_EXPIRED_KEY);
+    return expired;
+  });
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -31,6 +36,10 @@ export function LoginPage() {
         <img src="/logo.png" alt="FirstRegistrars" className="auth-logo" />
         <h1>Sign in</h1>
         <p className="auth-subtitle">Welcome back to the Board Portal.</p>
+
+        {sessionExpired && (
+          <p className="session-notice">Your session has expired. Please sign in again.</p>
+        )}
 
         <label>
           Email

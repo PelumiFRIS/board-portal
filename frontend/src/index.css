@@ -183,6 +183,15 @@ button.small {
   margin: 0;
 }
 
+.session-notice {
+  background: var(--info-bg);
+  color: var(--info-text);
+  font-size: 14px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
 .page-status {
   display: flex;
   align-items: center;

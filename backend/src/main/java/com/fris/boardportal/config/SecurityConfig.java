@@ -2,6 +2,7 @@ package com.fris.boardportal.config;
 
 import com.fris.boardportal.security.JwtAuthenticationFilter;
 import com.fris.boardportal.security.JwtService;
+import com.fris.boardportal.security.RestAuthenticationEntryPoint;
 import com.fris.boardportal.user.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -44,11 +45,13 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtService jwtService,
-            UserRepository userRepository, CorsConfigurationSource corsConfigurationSource) throws Exception {
+            UserRepository userRepository, CorsConfigurationSource corsConfigurationSource,
+            RestAuthenticationEntryPoint restAuthenticationEntryPoint) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(restAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/organizations/signup", "/api/auth/login").permitAll()
                         .anyRequest().authenticated())
