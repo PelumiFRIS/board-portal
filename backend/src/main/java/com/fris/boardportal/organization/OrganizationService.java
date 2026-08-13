@@ -1,8 +1,12 @@
 package com.fris.boardportal.organization;
 
+import com.fris.boardportal.audit.AuditAction;
+import com.fris.boardportal.audit.AuditEntityType;
+import com.fris.boardportal.audit.AuditLogService;
 import com.fris.boardportal.auth.dto.AuthResponse;
 import com.fris.boardportal.common.ApiException;
 import com.fris.boardportal.organization.dto.OrganizationSignupRequest;
+import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.security.JwtService;
 import com.fris.boardportal.user.Role;
 import com.fris.boardportal.user.User;
@@ -19,13 +23,15 @@ public class OrganizationService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final AuditLogService auditLogService;
 
     public OrganizationService(OrganizationRepository organizationRepository, UserRepository userRepository,
-            PasswordEncoder passwordEncoder, JwtService jwtService) {
+            PasswordEncoder passwordEncoder, JwtService jwtService, AuditLogService auditLogService) {
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -45,6 +51,10 @@ public class OrganizationService {
                 request.adminLastName(),
                 Role.ADMIN);
         userRepository.save(admin);
+
+        auditLogService.record(new AppUserPrincipal(admin), AuditAction.ORGANIZATION_SIGNUP,
+                AuditEntityType.ORGANIZATION, organization.getId(),
+                "Created organization \"" + organization.getName() + "\" and admin account");
 
         String token = jwtService.issueToken(admin.getId(), organization.getId(), admin.getEmail(), admin.getRole());
         return new AuthResponse(token, UserSummary.from(admin, organization.getName()));

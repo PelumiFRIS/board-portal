@@ -1,5 +1,8 @@
 package com.fris.boardportal.meeting;
 
+import com.fris.boardportal.audit.AuditAction;
+import com.fris.boardportal.audit.AuditEntityType;
+import com.fris.boardportal.audit.AuditLogService;
 import com.fris.boardportal.common.ApiException;
 import com.fris.boardportal.document.DocumentRepository;
 import com.fris.boardportal.meeting.dto.AgendaItemDto;
@@ -24,13 +27,16 @@ public class MeetingService {
     private final AgendaItemRepository agendaItemRepository;
     private final DocumentRepository documentRepository;
     private final ResolutionService resolutionService;
+    private final AuditLogService auditLogService;
 
     public MeetingService(MeetingRepository meetingRepository, AgendaItemRepository agendaItemRepository,
-            DocumentRepository documentRepository, ResolutionService resolutionService) {
+            DocumentRepository documentRepository, ResolutionService resolutionService,
+            AuditLogService auditLogService) {
         this.meetingRepository = meetingRepository;
         this.agendaItemRepository = agendaItemRepository;
         this.documentRepository = documentRepository;
         this.resolutionService = resolutionService;
+        this.auditLogService = auditLogService;
     }
 
     public List<MeetingSummary> listForOrganization(AppUserPrincipal principal) {
@@ -55,6 +61,10 @@ public class MeetingService {
                 request.scheduledStart(),
                 request.scheduledEnd());
         meetingRepository.save(meeting);
+
+        auditLogService.record(admin, AuditAction.MEETING_CREATED, AuditEntityType.MEETING, meeting.getId(),
+                "Scheduled meeting \"" + meeting.getTitle() + "\"");
+
         return MeetingSummary.from(meeting);
     }
 
@@ -77,6 +87,9 @@ public class MeetingService {
         if (request.scheduledEnd() != null) {
             meeting.setScheduledEnd(request.scheduledEnd());
         }
+        String summary = request.status() != null
+                ? "Marked meeting \"" + meeting.getTitle() + "\" as " + request.status()
+                : "Updated meeting \"" + meeting.getTitle() + "\"";
         if (request.status() != null) {
             meeting.setStatus(request.status());
         }
@@ -85,6 +98,9 @@ public class MeetingService {
         }
         meeting.setUpdatedAt(Instant.now());
         meetingRepository.save(meeting);
+
+        auditLogService.record(admin, AuditAction.MEETING_UPDATED, AuditEntityType.MEETING, meeting.getId(), summary);
+
         return toDetail(meeting, admin);
     }
 

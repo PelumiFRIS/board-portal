@@ -1,11 +1,15 @@
 package com.fris.boardportal.user;
 
+import com.fris.boardportal.audit.AuditAction;
+import com.fris.boardportal.audit.AuditEntityType;
+import com.fris.boardportal.audit.AuditLogService;
 import com.fris.boardportal.common.ApiException;
 import com.fris.boardportal.organization.OrganizationRepository;
 import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.user.dto.CreateUserRequest;
 import com.fris.boardportal.user.dto.UpdateUserRequest;
 import com.fris.boardportal.user.dto.UserSummary;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,12 +22,14 @@ public class UserService {
     private final UserRepository userRepository;
     private final OrganizationRepository organizationRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditLogService auditLogService;
 
     public UserService(UserRepository userRepository, OrganizationRepository organizationRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder, AuditLogService auditLogService) {
         this.userRepository = userRepository;
         this.organizationRepository = organizationRepository;
         this.passwordEncoder = passwordEncoder;
+        this.auditLogService = auditLogService;
     }
 
     public UserSummary getCurrentUser(AppUserPrincipal principal) {
@@ -52,6 +58,10 @@ public class UserService {
                 request.lastName(),
                 request.role());
         userRepository.save(user);
+
+        auditLogService.record(admin, AuditAction.USER_CREATED, AuditEntityType.USER, user.getId(),
+                "Added " + user.getFirstName() + " " + user.getLastName() + " (" + user.getRole() + ")");
+
         return UserSummary.from(user, organizationName(admin.getOrganizationId()));
     }
 
@@ -60,14 +70,23 @@ public class UserService {
         User user = userRepository.findByIdAndOrganizationId(targetUserId, admin.getOrganizationId())
                 .orElseThrow(() -> ApiException.notFound("User not found"));
 
-        if (request.role() != null) {
+        List<String> changes = new ArrayList<>();
+        if (request.role() != null && request.role() != user.getRole()) {
+            changes.add("role to " + request.role());
             user.setRole(request.role());
         }
-        if (request.status() != null) {
+        if (request.status() != null && request.status() != user.getStatus()) {
+            changes.add("status to " + request.status());
             user.setStatus(request.status());
         }
         user.setUpdatedAt(java.time.Instant.now());
         userRepository.save(user);
+
+        if (!changes.isEmpty()) {
+            auditLogService.record(admin, AuditAction.USER_UPDATED, AuditEntityType.USER, user.getId(),
+                    "Changed " + user.getFirstName() + " " + user.getLastName() + "'s " + String.join(", ", changes));
+        }
+
         return UserSummary.from(user, organizationName(admin.getOrganizationId()));
     }
 

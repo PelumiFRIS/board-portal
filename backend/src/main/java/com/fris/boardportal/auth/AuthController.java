@@ -1,5 +1,8 @@
 package com.fris.boardportal.auth;
 
+import com.fris.boardportal.audit.AuditAction;
+import com.fris.boardportal.audit.AuditEntityType;
+import com.fris.boardportal.audit.AuditLogService;
 import com.fris.boardportal.auth.dto.AuthResponse;
 import com.fris.boardportal.auth.dto.LoginRequest;
 import com.fris.boardportal.common.ApiException;
@@ -25,13 +28,16 @@ public class AuthController {
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final OrganizationRepository organizationRepository;
+    private final AuditLogService auditLogService;
 
     public AuthController(AuthenticationManager authenticationManager, JwtService jwtService,
-            UserRepository userRepository, OrganizationRepository organizationRepository) {
+            UserRepository userRepository, OrganizationRepository organizationRepository,
+            AuditLogService auditLogService) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.userRepository = userRepository;
         this.organizationRepository = organizationRepository;
+        this.auditLogService = auditLogService;
     }
 
     @PostMapping("/login")
@@ -48,6 +54,8 @@ public class AuthController {
 
         String token = jwtService.issueToken(
                 principal.getUserId(), principal.getOrganizationId(), principal.getUsername(), principal.getRole());
+
+        auditLogService.record(principal, AuditAction.LOGIN, AuditEntityType.AUTH, null, "Signed in");
 
         return new AuthResponse(token, UserSummary.from(user, organizationName));
     }

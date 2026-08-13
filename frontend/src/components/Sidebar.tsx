@@ -41,10 +41,24 @@ function DocumentsIcon() {
   );
 }
 
+function AuditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M12 8v4l2.5 2.5M21 12a9 9 0 11-9-9 9 9 0 019 9z"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 const NAV_ITEMS = [
-  { to: "/dashboard", label: "Dashboard", icon: DashboardIcon },
-  { to: "/meetings", label: "Meetings", icon: MeetingsIcon },
-  { to: "/documents", label: "Documents", icon: DocumentsIcon },
+  { to: "/dashboard", label: "Dashboard", icon: DashboardIcon, adminOnly: false },
+  { to: "/meetings", label: "Meetings", icon: MeetingsIcon, adminOnly: false },
+  { to: "/documents", label: "Documents", icon: DocumentsIcon, adminOnly: false },
+  { to: "/audit", label: "Audit Trail", icon: AuditIcon, adminOnly: true },
 ];
 
 export function Sidebar() {
@@ -53,6 +67,8 @@ export function Sidebar() {
 
   if (!user) return null;
 
+  const visibleNavItems = NAV_ITEMS.filter((item) => !item.adminOnly || user.role === "ADMIN");
+
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
@@ -60,7 +76,7 @@ export function Sidebar() {
       </div>
       <div className="sidebar-org">{user.organizationName}</div>
       <nav className="sidebar-nav">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+        {visibleNavItems.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}

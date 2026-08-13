@@ -163,3 +163,30 @@ export interface CreateResolutionPayload {
   title: string;
   description?: string;
 }
+
+export type AuditAction =
+  | "ORGANIZATION_SIGNUP"
+  | "LOGIN"
+  | "USER_CREATED"
+  | "USER_UPDATED"
+  | "MEETING_CREATED"
+  | "MEETING_UPDATED"
+  | "DOCUMENT_UPLOADED"
+  | "DOCUMENT_DELETED"
+  | "RESOLUTION_CREATED"
+  | "RESOLUTION_OPENED"
+  | "RESOLUTION_CLOSED"
+  | "RESOLUTION_DELETED"
+  | "VOTE_CAST";
+
+export type AuditEntityType = "ORGANIZATION" | "AUTH" | "USER" | "MEETING" | "DOCUMENT" | "RESOLUTION";
+
+export interface AuditLogEntry {
+  id: string;
+  action: AuditAction;
+  entityType: AuditEntityType;
+  entityId: string | null;
+  summary: string;
+  actorName: string;
+  createdAt: string;
+}

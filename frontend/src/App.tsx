@@ -7,6 +7,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { MeetingsListPage } from "./pages/MeetingsListPage";
 import { MeetingDetailPage } from "./pages/MeetingDetailPage";
 import { DocumentsListPage } from "./pages/DocumentsListPage";
+import { AuditLogPage } from "./pages/AuditLogPage";
 
 function App() {
   return (
@@ -43,6 +44,14 @@ function App() {
           element={
             <ProtectedRoute>
               <DocumentsListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/audit"
+          element={
+            <ProtectedRoute>
+              <AuditLogPage />
             </ProtectedRoute>
           }
         />

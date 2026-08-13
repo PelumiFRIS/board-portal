@@ -1,5 +1,8 @@
 package com.fris.boardportal.resolution;
 
+import com.fris.boardportal.audit.AuditAction;
+import com.fris.boardportal.audit.AuditEntityType;
+import com.fris.boardportal.audit.AuditLogService;
 import com.fris.boardportal.common.ApiException;
 import com.fris.boardportal.meeting.MeetingRepository;
 import com.fris.boardportal.resolution.dto.CreateResolutionRequest;
@@ -24,13 +27,15 @@ public class ResolutionService {
     private final VoteRepository voteRepository;
     private final MeetingRepository meetingRepository;
     private final UserRepository userRepository;
+    private final AuditLogService auditLogService;
 
     public ResolutionService(ResolutionRepository resolutionRepository, VoteRepository voteRepository,
-            MeetingRepository meetingRepository, UserRepository userRepository) {
+            MeetingRepository meetingRepository, UserRepository userRepository, AuditLogService auditLogService) {
         this.resolutionRepository = resolutionRepository;
         this.voteRepository = voteRepository;
         this.meetingRepository = meetingRepository;
         this.userRepository = userRepository;
+        this.auditLogService = auditLogService;
     }
 
     public List<ResolutionSummary> listForOrganization(AppUserPrincipal principal, UUID meetingId) {
@@ -62,6 +67,10 @@ public class ResolutionService {
         Resolution resolution = Resolution.create(admin.getOrganizationId(), request.meetingId(), request.title(),
                 request.description(), admin.getUserId());
         resolutionRepository.save(resolution);
+
+        auditLogService.record(admin, AuditAction.RESOLUTION_CREATED, AuditEntityType.RESOLUTION, resolution.getId(),
+                "Proposed resolution \"" + resolution.getTitle() + "\"");
+
         return toSummary(resolution, admin);
     }
 
@@ -74,6 +83,10 @@ public class ResolutionService {
         resolution.setStatus(ResolutionStatus.OPEN);
         resolution.setOpenedAt(Instant.now());
         resolutionRepository.save(resolution);
+
+        auditLogService.record(admin, AuditAction.RESOLUTION_OPENED, AuditEntityType.RESOLUTION, resolution.getId(),
+                "Opened \"" + resolution.getTitle() + "\" for voting");
+
         return toSummary(resolution, admin);
     }
 
@@ -91,6 +104,10 @@ public class ResolutionService {
         resolution.setOutcome(forCount > againstCount ? ResolutionOutcome.PASSED : ResolutionOutcome.FAILED);
         resolution.setClosedAt(Instant.now());
         resolutionRepository.save(resolution);
+
+        auditLogService.record(admin, AuditAction.RESOLUTION_CLOSED, AuditEntityType.RESOLUTION, resolution.getId(),
+                "Closed voting on \"" + resolution.getTitle() + "\" — " + resolution.getOutcome());
+
         return toSummary(resolution, admin);
     }
 
@@ -106,6 +123,10 @@ public class ResolutionService {
         vote.setChoice(choice);
         vote.setCastAt(Instant.now());
         voteRepository.save(vote);
+
+        auditLogService.record(principal, AuditAction.VOTE_CAST, AuditEntityType.RESOLUTION, resolution.getId(),
+                "Voted " + choice + " on \"" + resolution.getTitle() + "\"");
+
         return toSummary(resolution, principal);
     }
 
@@ -116,6 +137,9 @@ public class ResolutionService {
             throw ApiException.badRequest("Only a draft resolution can be deleted");
         }
         resolutionRepository.delete(resolution);
+
+        auditLogService.record(admin, AuditAction.RESOLUTION_DELETED, AuditEntityType.RESOLUTION, resolution.getId(),
+                "Deleted draft resolution \"" + resolution.getTitle() + "\"");
     }
 
     private Resolution findInOrg(AppUserPrincipal principal, UUID id) {

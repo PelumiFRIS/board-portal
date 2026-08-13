@@ -1,5 +1,8 @@
 package com.fris.boardportal.document;
 
+import com.fris.boardportal.audit.AuditAction;
+import com.fris.boardportal.audit.AuditEntityType;
+import com.fris.boardportal.audit.AuditLogService;
 import com.fris.boardportal.common.ApiException;
 import com.fris.boardportal.document.dto.DocumentSummary;
 import com.fris.boardportal.meeting.MeetingRepository;
@@ -17,10 +20,13 @@ public class DocumentService {
 
     private final DocumentRepository documentRepository;
     private final MeetingRepository meetingRepository;
+    private final AuditLogService auditLogService;
 
-    public DocumentService(DocumentRepository documentRepository, MeetingRepository meetingRepository) {
+    public DocumentService(DocumentRepository documentRepository, MeetingRepository meetingRepository,
+            AuditLogService auditLogService) {
         this.documentRepository = documentRepository;
         this.meetingRepository = meetingRepository;
+        this.auditLogService = auditLogService;
     }
 
     public List<DocumentSummary> listForOrganization(AppUserPrincipal principal, UUID meetingId,
@@ -68,6 +74,10 @@ public class DocumentService {
                 fileData,
                 admin.getUserId());
         documentRepository.save(document);
+
+        auditLogService.record(admin, AuditAction.DOCUMENT_UPLOADED, AuditEntityType.DOCUMENT, document.getId(),
+                "Uploaded \"" + document.getTitle() + "\" (" + document.getCategory() + ")");
+
         return toSummary(document);
     }
 
@@ -75,6 +85,9 @@ public class DocumentService {
     public void delete(AppUserPrincipal admin, UUID id) {
         Document document = findInOrg(admin, id);
         documentRepository.delete(document);
+
+        auditLogService.record(admin, AuditAction.DOCUMENT_DELETED, AuditEntityType.DOCUMENT, document.getId(),
+                "Deleted \"" + document.getTitle() + "\"");
     }
 
     private Document findInOrg(AppUserPrincipal principal, UUID id) {
