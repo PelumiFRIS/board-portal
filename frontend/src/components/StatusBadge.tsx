@@ -1,4 +1,4 @@
-import type { MeetingStatus, ResolutionOutcome, ResolutionStatus, UserStatus } from "../api/types";
+import type { ActionItemStatus, MeetingStatus, ResolutionOutcome, ResolutionStatus, UserStatus } from "../api/types";
 
 const CLASS_MAP: Record<string, string> = {
   ACTIVE: "badge-active",
@@ -11,8 +11,13 @@ const CLASS_MAP: Record<string, string> = {
   CLOSED: "badge-completed",
   PASSED: "badge-active",
   FAILED: "badge-cancelled",
+  DONE: "badge-active",
 };
 
-export function StatusBadge({ status }: { status: UserStatus | MeetingStatus | ResolutionStatus | ResolutionOutcome }) {
+export function StatusBadge({
+  status,
+}: {
+  status: UserStatus | MeetingStatus | ResolutionStatus | ResolutionOutcome | ActionItemStatus;
+}) {
   return <span className={`badge ${CLASS_MAP[status] ?? "badge-disabled"}`}>{status}</span>;
 }

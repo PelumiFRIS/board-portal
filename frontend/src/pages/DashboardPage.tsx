@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { createUser, listOrganizationUsers, updateUserStatus } from "../api/auth";
+import { listActionItems, updateActionItemStatus } from "../api/actionItems";
 import { extractErrorMessage } from "../api/client";
 import { listDocuments } from "../api/documents";
 import { listMeetings } from "../api/meetings";
 import { castVote, listResolutions } from "../api/resolutions";
 import type {
+  ActionItemSummary,
   DocumentSummary,
   MeetingSummary,
   ResolutionSummary,
@@ -54,20 +56,24 @@ function formatFileSize(bytes: number): string {
 }
 
 function MemberDashboard() {
+  const { user } = useAuth();
   const [meetings, setMeetings] = useState<MeetingSummary[]>([]);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [resolutions, setResolutions] = useState<ResolutionSummary[]>([]);
+  const [actionItems, setActionItems] = useState<ActionItemSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [votingId, setVotingId] = useState<string | null>(null);
   const [voteError, setVoteError] = useState<string | null>(null);
+  const [busyActionItemId, setBusyActionItemId] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([listMeetings(), listDocuments(), listResolutions()])
-      .then(([m, d, r]) => {
+    Promise.all([listMeetings(), listDocuments(), listResolutions(), listActionItems()])
+      .then(([m, d, r, a]) => {
         setMeetings(m);
         setDocuments(d);
         setResolutions(r);
+        setActionItems(a);
       })
       .catch((err) => setLoadError(extractErrorMessage(err)))
       .finally(() => setLoading(false));
@@ -86,18 +92,40 @@ function MemberDashboard() {
     }
   }
 
+  async function handleMarkDone(itemId: string) {
+    setVoteError(null);
+    setBusyActionItemId(itemId);
+    try {
+      const updated = await updateActionItemStatus(itemId, "DONE");
+      setActionItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+    } catch (err) {
+      setVoteError(extractErrorMessage(err));
+    } finally {
+      setBusyActionItemId(null);
+    }
+  }
+
   if (loading) return <p>Loading your dashboard...</p>;
   if (loadError) return <p className="form-error">{loadError}</p>;
+  if (!user) return null;
 
   const meetingTitleById = new Map(meetings.map((m) => [m.id, m.title]));
   const needsVote = resolutions.filter((r) => r.status === "OPEN" && r.myVote === null);
+  const myActionItems = actionItems
+    .filter((i) => i.assigneeId === user.id && i.status === "OPEN")
+    .sort((a, b) => {
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    });
   const upcomingMeetings = meetings
     .filter((m) => m.status === "SCHEDULED")
     .sort((a, b) => new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime())
     .slice(0, 3);
   const recentDocuments = documents.slice(0, 5);
 
-  const nothingToShow = needsVote.length === 0 && upcomingMeetings.length === 0 && recentDocuments.length === 0;
+  const nothingToShow =
+    needsVote.length === 0 && myActionItems.length === 0 && upcomingMeetings.length === 0 && recentDocuments.length === 0;
 
   if (nothingToShow) {
     return (
@@ -105,7 +133,7 @@ function MemberDashboard() {
         <div className="empty-hero">
           <AllCaughtUpIllustration />
           <h2>You&apos;re all caught up</h2>
-          <p>No meetings, resolutions, or documents need your attention right now.</p>
+          <p>No action items, meetings, resolutions, or documents need your attention right now.</p>
           <div className="field-row">
             <Link to="/meetings">
               <button className="secondary small">View meetings</button>
@@ -121,6 +149,28 @@ function MemberDashboard() {
 
   return (
     <>
+      {myActionItems.length > 0 && (
+        <section className="dashboard-section">
+          <h2>My action items</h2>
+          {voteError && <p className="form-error">{voteError}</p>}
+          {myActionItems.map((item) => (
+            <div key={item.id} className="resolution-card">
+              <div className="resolution-card-header">
+                <strong>{item.title}</strong>
+                <Link to={`/meetings/${item.meetingId}`} className="table-hint">
+                  {meetingTitleById.get(item.meetingId) ?? "View meeting"} &rarr;
+                </Link>
+              </div>
+              {item.description && <p>{item.description}</p>}
+              <p className="table-hint">{item.dueDate ? `Due ${new Date(item.dueDate).toLocaleDateString()}` : "No due date"}</p>
+              <button className="small" disabled={busyActionItemId === item.id} onClick={() => handleMarkDone(item.id)}>
+                {busyActionItemId === item.id ? "Saving..." : "Mark done"}
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
+
       {needsVote.length > 0 && (
         <section className="dashboard-section">
           <h2>Needs your vote</h2>

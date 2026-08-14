@@ -6,5 +6,6 @@ public enum AuditEntityType {
     USER,
     MEETING,
     DOCUMENT,
-    RESOLUTION
+    RESOLUTION,
+    ACTION_ITEM
 }

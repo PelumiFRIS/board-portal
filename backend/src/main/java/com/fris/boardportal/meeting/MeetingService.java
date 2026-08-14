@@ -1,5 +1,6 @@
 package com.fris.boardportal.meeting;
 
+import com.fris.boardportal.actionitem.ActionItemService;
 import com.fris.boardportal.audit.AuditAction;
 import com.fris.boardportal.audit.AuditEntityType;
 import com.fris.boardportal.audit.AuditLogService;
@@ -27,15 +28,17 @@ public class MeetingService {
     private final AgendaItemRepository agendaItemRepository;
     private final DocumentRepository documentRepository;
     private final ResolutionService resolutionService;
+    private final ActionItemService actionItemService;
     private final AuditLogService auditLogService;
 
     public MeetingService(MeetingRepository meetingRepository, AgendaItemRepository agendaItemRepository,
             DocumentRepository documentRepository, ResolutionService resolutionService,
-            AuditLogService auditLogService) {
+            ActionItemService actionItemService, AuditLogService auditLogService) {
         this.meetingRepository = meetingRepository;
         this.agendaItemRepository = agendaItemRepository;
         this.documentRepository = documentRepository;
         this.resolutionService = resolutionService;
+        this.actionItemService = actionItemService;
         this.auditLogService = auditLogService;
     }
 
@@ -156,6 +159,7 @@ public class MeetingService {
                 .toList();
         var documents = documentRepository.findSummariesByMeetingId(meeting.getId());
         var resolutions = resolutionService.listForMeeting(principal, meeting.getId());
-        return MeetingDetail.from(meeting, agendaItems, documents, resolutions);
+        var actionItems = actionItemService.listForMeeting(principal, meeting.getId());
+        return MeetingDetail.from(meeting, agendaItems, documents, resolutions, actionItems);
     }
 }

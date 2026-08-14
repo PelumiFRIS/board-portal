@@ -73,6 +73,7 @@ export interface MeetingDetail {
   agendaItems: AgendaItem[];
   documents: DocumentSummary[];
   resolutions: ResolutionSummary[];
+  actionItems: ActionItemSummary[];
 }
 
 export interface CreateMeetingPayload {
@@ -177,9 +178,19 @@ export type AuditAction =
   | "RESOLUTION_OPENED"
   | "RESOLUTION_CLOSED"
   | "RESOLUTION_DELETED"
-  | "VOTE_CAST";
+  | "VOTE_CAST"
+  | "ACTION_ITEM_CREATED"
+  | "ACTION_ITEM_STATUS_CHANGED"
+  | "ACTION_ITEM_DELETED";
 
-export type AuditEntityType = "ORGANIZATION" | "AUTH" | "USER" | "MEETING" | "DOCUMENT" | "RESOLUTION";
+export type AuditEntityType =
+  | "ORGANIZATION"
+  | "AUTH"
+  | "USER"
+  | "MEETING"
+  | "DOCUMENT"
+  | "RESOLUTION"
+  | "ACTION_ITEM";
 
 export interface AuditLogEntry {
   id: string;
@@ -189,4 +200,26 @@ export interface AuditLogEntry {
   summary: string;
   actorName: string;
   createdAt: string;
+}
+
+export type ActionItemStatus = "OPEN" | "DONE";
+
+export interface ActionItemSummary {
+  id: string;
+  meetingId: string;
+  title: string;
+  description: string | null;
+  assigneeId: string;
+  assigneeName: string;
+  dueDate: string | null;
+  status: ActionItemStatus;
+  createdAt: string;
+}
+
+export interface CreateActionItemPayload {
+  meetingId: string;
+  title: string;
+  description?: string;
+  assigneeId: string;
+  dueDate?: string;
 }

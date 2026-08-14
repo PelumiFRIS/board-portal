@@ -1,5 +1,6 @@
 package com.fris.boardportal.meeting.dto;
 
+import com.fris.boardportal.actionitem.dto.ActionItemSummary;
 import com.fris.boardportal.document.dto.DocumentSummary;
 import com.fris.boardportal.meeting.Meeting;
 import com.fris.boardportal.meeting.MeetingStatus;
@@ -19,10 +20,11 @@ public record MeetingDetail(
         String minutesContent,
         List<AgendaItemDto> agendaItems,
         List<DocumentSummary> documents,
-        List<ResolutionSummary> resolutions) {
+        List<ResolutionSummary> resolutions,
+        List<ActionItemSummary> actionItems) {
 
     public static MeetingDetail from(Meeting meeting, List<AgendaItemDto> agendaItems, List<DocumentSummary> documents,
-            List<ResolutionSummary> resolutions) {
+            List<ResolutionSummary> resolutions, List<ActionItemSummary> actionItems) {
         return new MeetingDetail(
                 meeting.getId(),
                 meeting.getTitle(),
@@ -34,6 +36,7 @@ public record MeetingDetail(
                 meeting.getMinutesContent(),
                 agendaItems,
                 documents,
-                resolutions);
+                resolutions,
+                actionItems);
     }
 }
