@@ -45,6 +45,14 @@ public class UserService {
                 .toList();
     }
 
+    public List<UserSummary> listDirectory(AppUserPrincipal principal) {
+        String orgName = organizationName(principal.getOrganizationId());
+        return userRepository.findByOrganizationId(principal.getOrganizationId()).stream()
+                .filter(user -> user.getStatus() == UserStatus.ACTIVE)
+                .map(user -> UserSummary.from(user, orgName))
+                .toList();
+    }
+
     @Transactional
     public UserSummary createUser(AppUserPrincipal admin, CreateUserRequest request) {
         if (userRepository.existsByEmailIgnoreCase(request.email())) {
@@ -78,6 +86,22 @@ public class UserService {
         if (request.status() != null && request.status() != user.getStatus()) {
             changes.add("status to " + request.status());
             user.setStatus(request.status());
+        }
+        if (request.title() != null && !request.title().equals(user.getTitle())) {
+            changes.add("title");
+            user.setTitle(request.title());
+        }
+        if (request.phone() != null && !request.phone().equals(user.getPhone())) {
+            changes.add("phone");
+            user.setPhone(request.phone());
+        }
+        if (request.bio() != null && !request.bio().equals(user.getBio())) {
+            changes.add("bio");
+            user.setBio(request.bio());
+        }
+        if (request.committees() != null && !request.committees().equals(user.getCommittees())) {
+            changes.add("committees");
+            user.setCommittees(request.committees());
         }
         user.setUpdatedAt(java.time.Instant.now());
         userRepository.save(user);

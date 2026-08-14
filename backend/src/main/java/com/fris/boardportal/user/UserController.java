@@ -40,6 +40,11 @@ public class UserController {
         return userService.listOrganizationUsers(principal);
     }
 
+    @GetMapping("/directory")
+    public List<UserSummary> directory(@AuthenticationPrincipal AppUserPrincipal principal) {
+        return userService.listDirectory(principal);
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserSummary> createUser(@AuthenticationPrincipal AppUserPrincipal principal,

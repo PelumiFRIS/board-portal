@@ -555,3 +555,22 @@ button.small {
   max-width: 38ch;
   margin: 0 0 20px;
 }
+
+.member-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.member-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.03),
+    0 1px 3px rgba(16, 24, 40, 0.04);
+}

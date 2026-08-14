@@ -10,6 +10,17 @@ export interface UserSummary {
   status: UserStatus;
   organizationId: string;
   organizationName: string;
+  title: string | null;
+  phone: string | null;
+  bio: string | null;
+  committees: string | null;
+}
+
+export interface UpdateUserProfilePayload {
+  title?: string;
+  phone?: string;
+  bio?: string;
+  committees?: string;
 }
 
 export interface AuthResponse {

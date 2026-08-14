@@ -8,6 +8,7 @@ import { MeetingsListPage } from "./pages/MeetingsListPage";
 import { MeetingDetailPage } from "./pages/MeetingDetailPage";
 import { DocumentsListPage } from "./pages/DocumentsListPage";
 import { AuditLogPage } from "./pages/AuditLogPage";
+import { DirectoryPage } from "./pages/DirectoryPage";
 
 function App() {
   return (
@@ -52,6 +53,14 @@ function App() {
           element={
             <ProtectedRoute>
               <AuditLogPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/directory"
+          element={
+            <ProtectedRoute>
+              <DirectoryPage />
             </ProtectedRoute>
           }
         />
