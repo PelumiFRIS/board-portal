@@ -27,6 +27,7 @@ import type {
   VoteChoice,
   VoteRecord,
 } from "../api/types";
+import { CommentThread } from "../components/CommentThread";
 import { Sidebar } from "../components/Sidebar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
@@ -644,6 +645,11 @@ export function MeetingDetailPage() {
               ) : (
                 <p>{meeting.minutesContent ?? "No minutes published yet."}</p>
               )}
+            </section>
+
+            <section className="dashboard-section">
+              <h2>Discussion</h2>
+              <CommentThread entityType="MEETING" entityId={meeting.id} />
             </section>
           </>
         )}

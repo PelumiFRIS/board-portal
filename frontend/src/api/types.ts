@@ -234,3 +234,21 @@ export interface CreateActionItemPayload {
   assigneeId: string;
   dueDate?: string;
 }
+
+export type CommentEntityType = "MEETING" | "RESOLUTION" | "DOCUMENT" | "ACTION_ITEM";
+
+export interface Comment {
+  id: string;
+  entityType: CommentEntityType;
+  entityId: string;
+  authorId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface CreateCommentPayload {
+  entityType: CommentEntityType;
+  entityId: string;
+  body: string;
+}
