@@ -57,6 +57,6 @@ public class OrganizationService {
                 "Created organization \"" + organization.getName() + "\" and admin account");
 
         String token = jwtService.issueToken(admin.getId(), organization.getId(), admin.getEmail(), admin.getRole());
-        return new AuthResponse(token, UserSummary.from(admin, organization.getName()));
+        return new AuthResponse(token, UserSummary.from(admin, organization.getName(), null));
     }
 }

@@ -10,6 +10,8 @@ import com.fris.boardportal.organization.OrganizationRepository;
 import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.security.JwtService;
 import com.fris.boardportal.user.User;
+import com.fris.boardportal.user.UserPhoto;
+import com.fris.boardportal.user.UserPhotoRepository;
 import com.fris.boardportal.user.UserRepository;
 import com.fris.boardportal.user.dto.UserSummary;
 import jakarta.validation.Valid;
@@ -27,15 +29,17 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final UserPhotoRepository userPhotoRepository;
     private final OrganizationRepository organizationRepository;
     private final AuditLogService auditLogService;
 
     public AuthController(AuthenticationManager authenticationManager, JwtService jwtService,
-            UserRepository userRepository, OrganizationRepository organizationRepository,
-            AuditLogService auditLogService) {
+            UserRepository userRepository, UserPhotoRepository userPhotoRepository,
+            OrganizationRepository organizationRepository, AuditLogService auditLogService) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.userRepository = userRepository;
+        this.userPhotoRepository = userPhotoRepository;
         this.organizationRepository = organizationRepository;
         this.auditLogService = auditLogService;
     }
@@ -57,6 +61,9 @@ public class AuthController {
 
         auditLogService.record(principal, AuditAction.LOGIN, AuditEntityType.AUTH, null, "Signed in");
 
-        return new AuthResponse(token, UserSummary.from(user, organizationName));
+        var photoUpdatedAt = userPhotoRepository.findById(user.getId())
+                .map(UserPhoto::getUpdatedAt)
+                .orElse(null);
+        return new AuthResponse(token, UserSummary.from(user, organizationName, photoUpdatedAt));
     }
 }

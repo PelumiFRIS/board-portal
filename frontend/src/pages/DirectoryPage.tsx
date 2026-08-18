@@ -1,13 +1,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { listDirectory, updateUserProfile } from "../api/auth";
 import { extractErrorMessage } from "../api/client";
+import { deleteUserPhoto, uploadUserPhoto } from "../api/userPhotos";
 import type { UserSummary } from "../api/types";
 import { Avatar } from "../components/Avatar";
 import { Sidebar } from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
 
 export function DirectoryPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const isAdmin = user?.role === "ADMIN";
 
   const [members, setMembers] = useState<UserSummary[]>([]);
@@ -20,7 +21,9 @@ export function DirectoryPage() {
   const [editPhone, setEditPhone] = useState("");
   const [editBio, setEditBio] = useState("");
   const [editCommittees, setEditCommittees] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [removingPhotoId, setRemovingPhotoId] = useState<string | null>(null);
 
   useEffect(() => {
     listDirectory()
@@ -36,6 +39,7 @@ export function DirectoryPage() {
     setEditPhone(member.phone ?? "");
     setEditBio(member.bio ?? "");
     setEditCommittees(member.committees ?? "");
+    setPhotoFile(null);
   }
 
   async function handleSave(event: FormEvent, memberId: string) {
@@ -43,6 +47,9 @@ export function DirectoryPage() {
     setActionError(null);
     setSaving(true);
     try {
+      if (photoFile) {
+        await uploadUserPhoto(memberId, photoFile);
+      }
       const updated = await updateUserProfile(memberId, {
         title: editTitle,
         phone: editPhone,
@@ -51,10 +58,26 @@ export function DirectoryPage() {
       });
       setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
       setEditingId(null);
+      setPhotoFile(null);
+      if (memberId === user?.id) await refreshUser();
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleRemovePhoto(memberId: string) {
+    setActionError(null);
+    setRemovingPhotoId(memberId);
+    try {
+      await deleteUserPhoto(memberId);
+      setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, photoUpdatedAt: null } : m)));
+      if (memberId === user?.id) await refreshUser();
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setRemovingPhotoId(null);
     }
   }
 
@@ -75,15 +98,35 @@ export function DirectoryPage() {
 
         {!loading && !loadError && (
           <div className="member-grid">
-            {members.map((member) =>
-              editingId === member.id ? (
+            {members.map((member) => {
+              const canEdit = isAdmin || member.id === user.id;
+              return editingId === member.id ? (
                 <form key={member.id} className="member-card add-user-form" onSubmit={(e) => handleSave(e, member.id)}>
                   <div className="name-cell">
-                    <Avatar firstName={member.firstName} lastName={member.lastName} />
+                    <Avatar
+                      userId={member.id}
+                      photoUpdatedAt={member.photoUpdatedAt}
+                      firstName={member.firstName}
+                      lastName={member.lastName}
+                    />
                     <strong>
                       {member.firstName} {member.lastName}
                     </strong>
                   </div>
+                  <label>
+                    Photo
+                    <input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)} />
+                  </label>
+                  {member.photoUpdatedAt && (
+                    <button
+                      type="button"
+                      className="secondary small"
+                      disabled={removingPhotoId === member.id}
+                      onClick={() => handleRemovePhoto(member.id)}
+                    >
+                      {removingPhotoId === member.id ? "Removing..." : "Remove photo"}
+                    </button>
+                  )}
                   <label>
                     Title
                     <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="e.g. Chairperson" />
@@ -116,7 +159,12 @@ export function DirectoryPage() {
               ) : (
                 <div key={member.id} className="member-card">
                   <div className="name-cell">
-                    <Avatar firstName={member.firstName} lastName={member.lastName} />
+                    <Avatar
+                      userId={member.id}
+                      photoUpdatedAt={member.photoUpdatedAt}
+                      firstName={member.firstName}
+                      lastName={member.lastName}
+                    />
                     <div>
                       <div>
                         <strong>
@@ -130,14 +178,14 @@ export function DirectoryPage() {
                   {member.phone && <p className="table-hint">{member.phone}</p>}
                   {member.committees && <p className="table-hint">{member.committees}</p>}
                   {member.bio && <p>{member.bio}</p>}
-                  {isAdmin && (
+                  {canEdit && (
                     <button className="secondary small" onClick={() => startEditing(member)}>
                       Edit
                     </button>
                   )}
                 </div>
-              ),
-            )}
+              );
+            })}
           </div>
         )}
       </main>

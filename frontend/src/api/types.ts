@@ -14,6 +14,7 @@ export interface UserSummary {
   phone: string | null;
   bio: string | null;
   committees: string | null;
+  photoUpdatedAt: string | null;
 }
 
 export interface UpdateUserProfilePayload {

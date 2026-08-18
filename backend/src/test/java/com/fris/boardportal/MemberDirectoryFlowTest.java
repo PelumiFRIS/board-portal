@@ -51,18 +51,42 @@ class MemberDirectoryFlowTest extends IntegrationTestSupport {
     }
 
     @Test
-    void adminCanEditProfileFieldsAndNonAdminCannot() {
-        AuthResponse admin = signup(uniqueEmail(), "Profile Edit Org");
+    void memberCanEditOwnProfileButNotSomeoneElses() {
+        AuthResponse admin = signup(uniqueEmail(), "Self Edit Org");
         String memberEmail = uniqueEmail();
         UserSummary member = createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse memberAuth = login(memberEmail);
 
-        ResponseEntity<String> blocked = restTemplate.exchange(
+        // a member can edit their own profile fields
+        ResponseEntity<UserSummary> ownEdit = restTemplate.exchange(
                 "/api/users/" + member.id(), HttpMethod.PATCH,
                 authedRequest(memberAuth.accessToken(),
                         new UpdateUserRequest(null, null, "Independent Director", null, null, null)),
+                UserSummary.class);
+        assertThat(ownEdit.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(ownEdit.getBody().title()).isEqualTo("Independent Director");
+
+        // but not the admin's profile
+        ResponseEntity<String> blockedOther = restTemplate.exchange(
+                "/api/users/" + admin.user().id(), HttpMethod.PATCH,
+                authedRequest(memberAuth.accessToken(),
+                        new UpdateUserRequest(null, null, "Hijacked", null, null, null)),
                 String.class);
-        assertThat(blocked.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(blockedOther.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        // and a member can never change their own role or status, even on themselves
+        ResponseEntity<String> blockedRole = restTemplate.exchange(
+                "/api/users/" + member.id(), HttpMethod.PATCH,
+                authedRequest(memberAuth.accessToken(), new UpdateUserRequest(Role.ADMIN, null, null, null, null, null)),
+                String.class);
+        assertThat(blockedRole.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void adminCanEditProfileFields() {
+        AuthResponse admin = signup(uniqueEmail(), "Profile Edit Org");
+        String memberEmail = uniqueEmail();
+        UserSummary member = createBoardMember(admin.accessToken(), memberEmail);
 
         ResponseEntity<UserSummary> updated = restTemplate.exchange(
                 "/api/users/" + member.id(), HttpMethod.PATCH,

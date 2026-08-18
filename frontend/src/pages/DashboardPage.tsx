@@ -344,7 +344,7 @@ export function DashboardPage() {
                     <tr key={u.id}>
                       <td>
                         <div className="name-cell">
-                          <Avatar firstName={u.firstName} lastName={u.lastName} />
+                          <Avatar userId={u.id} photoUpdatedAt={u.photoUpdatedAt} firstName={u.firstName} lastName={u.lastName} />
                           {u.firstName} {u.lastName}
                         </div>
                       </td>

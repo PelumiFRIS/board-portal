@@ -103,7 +103,7 @@ export function Sidebar() {
       </nav>
       <div className="sidebar-footer">
         <div className="sidebar-user">
-          <Avatar firstName={user.firstName} lastName={user.lastName} />
+          <Avatar userId={user.id} photoUpdatedAt={user.photoUpdatedAt} firstName={user.firstName} lastName={user.lastName} />
           <div>
             <div className="sidebar-user-name">
               {user.firstName} {user.lastName}
