@@ -131,7 +131,7 @@ class AuthAndUserFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/users/" + orgBAdmin.user().id(), HttpMethod.PATCH,
-                authedRequest(orgAAdmin.accessToken(), new UpdateUserRequest(null, UserStatus.DISABLED, null, null, null, null)),
+                authedRequest(orgAAdmin.accessToken(), new UpdateUserRequest(null, UserStatus.DISABLED, null, null, null)),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);

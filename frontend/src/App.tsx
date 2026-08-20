@@ -9,6 +9,7 @@ import { MeetingDetailPage } from "./pages/MeetingDetailPage";
 import { DocumentsListPage } from "./pages/DocumentsListPage";
 import { AuditLogPage } from "./pages/AuditLogPage";
 import { DirectoryPage } from "./pages/DirectoryPage";
+import { CommitteesPage } from "./pages/CommitteesPage";
 
 function App() {
   return (
@@ -61,6 +62,14 @@ function App() {
           element={
             <ProtectedRoute>
               <DirectoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/committees"
+          element={
+            <ProtectedRoute>
+              <CommitteesPage />
             </ProtectedRoute>
           }
         />

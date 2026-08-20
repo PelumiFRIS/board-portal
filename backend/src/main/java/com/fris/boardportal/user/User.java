@@ -62,9 +62,6 @@ public class User {
     @Column
     private String bio;
 
-    @Column
-    private String committees;
-
     public static User create(UUID organizationId, String email, String passwordHash,
             String firstName, String lastName, Role role) {
         User user = new User();

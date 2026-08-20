@@ -12,6 +12,7 @@ import com.fris.boardportal.user.Role;
 import com.fris.boardportal.user.User;
 import com.fris.boardportal.user.UserRepository;
 import com.fris.boardportal.user.dto.UserSummary;
+import java.util.List;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +58,6 @@ public class OrganizationService {
                 "Created organization \"" + organization.getName() + "\" and admin account");
 
         String token = jwtService.issueToken(admin.getId(), organization.getId(), admin.getEmail(), admin.getRole());
-        return new AuthResponse(token, UserSummary.from(admin, organization.getName(), null));
+        return new AuthResponse(token, UserSummary.from(admin, organization.getName(), null, List.of()));
     }
 }

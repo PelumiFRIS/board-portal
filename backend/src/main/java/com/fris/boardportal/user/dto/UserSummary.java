@@ -4,6 +4,7 @@ import com.fris.boardportal.user.Role;
 import com.fris.boardportal.user.User;
 import com.fris.boardportal.user.UserStatus;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record UserSummary(
@@ -18,10 +19,11 @@ public record UserSummary(
         String title,
         String phone,
         String bio,
-        String committees,
+        List<MemberCommitteeSummary> committees,
         Instant photoUpdatedAt) {
 
-    public static UserSummary from(User user, String organizationName, Instant photoUpdatedAt) {
+    public static UserSummary from(User user, String organizationName, Instant photoUpdatedAt,
+            List<MemberCommitteeSummary> committees) {
         return new UserSummary(
                 user.getId(),
                 user.getFirstName(),
@@ -34,7 +36,7 @@ public record UserSummary(
                 user.getTitle(),
                 user.getPhone(),
                 user.getBio(),
-                user.getCommittees(),
+                committees,
                 photoUpdatedAt);
     }
 }

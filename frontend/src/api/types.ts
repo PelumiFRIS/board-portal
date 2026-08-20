@@ -1,6 +1,12 @@
 export type Role = "ADMIN" | "BOARD_MEMBER" | "EXECUTIVE";
 export type UserStatus = "ACTIVE" | "DISABLED";
 
+export interface MemberCommitteeSummary {
+  committeeId: string;
+  committeeName: string;
+  isChair: boolean;
+}
+
 export interface UserSummary {
   id: string;
   firstName: string;
@@ -13,7 +19,7 @@ export interface UserSummary {
   title: string | null;
   phone: string | null;
   bio: string | null;
-  committees: string | null;
+  committees: MemberCommitteeSummary[];
   photoUpdatedAt: string | null;
 }
 
@@ -21,7 +27,30 @@ export interface UpdateUserProfilePayload {
   title?: string;
   phone?: string;
   bio?: string;
-  committees?: string;
+}
+
+export interface CommitteeMemberDto {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  isChair: boolean;
+}
+
+export interface CommitteeSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  members: CommitteeMemberDto[];
+}
+
+export interface CreateCommitteePayload {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateCommitteePayload {
+  name?: string;
+  description?: string;
 }
 
 export interface AuthResponse {
@@ -193,7 +222,13 @@ export type AuditAction =
   | "VOTE_CAST"
   | "ACTION_ITEM_CREATED"
   | "ACTION_ITEM_STATUS_CHANGED"
-  | "ACTION_ITEM_DELETED";
+  | "ACTION_ITEM_DELETED"
+  | "COMMENT_POSTED"
+  | "COMMENT_DELETED"
+  | "COMMITTEE_CREATED"
+  | "COMMITTEE_UPDATED"
+  | "COMMITTEE_DELETED"
+  | "COMMITTEE_MEMBERSHIP_CHANGED";
 
 export type AuditEntityType =
   | "ORGANIZATION"
@@ -202,7 +237,9 @@ export type AuditEntityType =
   | "MEETING"
   | "DOCUMENT"
   | "RESOLUTION"
-  | "ACTION_ITEM";
+  | "ACTION_ITEM"
+  | "COMMENT"
+  | "COMMITTEE";
 
 export interface AuditLogEntry {
   id: string;

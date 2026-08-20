@@ -8,6 +8,5 @@ public record UpdateUserRequest(
         UserStatus status,
         String title,
         String phone,
-        String bio,
-        String committees) {
+        String bio) {
 }

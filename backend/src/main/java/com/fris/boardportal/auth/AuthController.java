@@ -5,6 +5,7 @@ import com.fris.boardportal.audit.AuditEntityType;
 import com.fris.boardportal.audit.AuditLogService;
 import com.fris.boardportal.auth.dto.AuthResponse;
 import com.fris.boardportal.auth.dto.LoginRequest;
+import com.fris.boardportal.committee.CommitteeService;
 import com.fris.boardportal.common.ApiException;
 import com.fris.boardportal.organization.OrganizationRepository;
 import com.fris.boardportal.security.AppUserPrincipal;
@@ -31,16 +32,19 @@ public class AuthController {
     private final UserRepository userRepository;
     private final UserPhotoRepository userPhotoRepository;
     private final OrganizationRepository organizationRepository;
+    private final CommitteeService committeeService;
     private final AuditLogService auditLogService;
 
     public AuthController(AuthenticationManager authenticationManager, JwtService jwtService,
             UserRepository userRepository, UserPhotoRepository userPhotoRepository,
-            OrganizationRepository organizationRepository, AuditLogService auditLogService) {
+            OrganizationRepository organizationRepository, CommitteeService committeeService,
+            AuditLogService auditLogService) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.userRepository = userRepository;
         this.userPhotoRepository = userPhotoRepository;
         this.organizationRepository = organizationRepository;
+        this.committeeService = committeeService;
         this.auditLogService = auditLogService;
     }
 
@@ -64,6 +68,7 @@ public class AuthController {
         var photoUpdatedAt = userPhotoRepository.findById(user.getId())
                 .map(UserPhoto::getUpdatedAt)
                 .orElse(null);
-        return new AuthResponse(token, UserSummary.from(user, organizationName, photoUpdatedAt));
+        return new AuthResponse(token, UserSummary.from(user, organizationName, photoUpdatedAt,
+                committeeService.committeesForUser(user.getId())));
     }
 }

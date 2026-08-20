@@ -67,11 +67,25 @@ function DirectoryIcon() {
   );
 }
 
+function CommitteesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: DashboardIcon, adminOnly: false },
   { to: "/meetings", label: "Meetings", icon: MeetingsIcon, adminOnly: false },
   { to: "/documents", label: "Documents", icon: DocumentsIcon, adminOnly: false },
   { to: "/directory", label: "Directory", icon: DirectoryIcon, adminOnly: false },
+  { to: "/committees", label: "Committees", icon: CommitteesIcon, adminOnly: false },
   { to: "/audit", label: "Audit Trail", icon: AuditIcon, adminOnly: true },
 ];
 

@@ -20,7 +20,6 @@ export function DirectoryPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editBio, setEditBio] = useState("");
-  const [editCommittees, setEditCommittees] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [removingPhotoId, setRemovingPhotoId] = useState<string | null>(null);
@@ -38,7 +37,6 @@ export function DirectoryPage() {
     setEditTitle(member.title ?? "");
     setEditPhone(member.phone ?? "");
     setEditBio(member.bio ?? "");
-    setEditCommittees(member.committees ?? "");
     setPhotoFile(null);
   }
 
@@ -54,7 +52,6 @@ export function DirectoryPage() {
         title: editTitle,
         phone: editPhone,
         bio: editBio,
-        committees: editCommittees,
       });
       setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
       setEditingId(null);
@@ -139,14 +136,6 @@ export function DirectoryPage() {
                     Bio
                     <input value={editBio} onChange={(e) => setEditBio(e.target.value)} />
                   </label>
-                  <label>
-                    Committees
-                    <input
-                      value={editCommittees}
-                      onChange={(e) => setEditCommittees(e.target.value)}
-                      placeholder="e.g. Audit Committee, Risk Committee"
-                    />
-                  </label>
                   <div className="field-row">
                     <button type="submit" disabled={saving}>
                       {saving ? "Saving..." : "Save"}
@@ -176,7 +165,13 @@ export function DirectoryPage() {
                   </div>
                   <p className="table-hint">{member.email}</p>
                   {member.phone && <p className="table-hint">{member.phone}</p>}
-                  {member.committees && <p className="table-hint">{member.committees}</p>}
+                  {member.committees.length > 0 && (
+                    <p className="table-hint">
+                      {member.committees
+                        .map((c) => (c.isChair ? `${c.committeeName} (Chair)` : c.committeeName))
+                        .join(", ")}
+                    </p>
+                  )}
                   {member.bio && <p>{member.bio}</p>}
                   {canEdit && (
                     <button className="secondary small" onClick={() => startEditing(member)}>

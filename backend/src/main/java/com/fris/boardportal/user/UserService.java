@@ -3,6 +3,7 @@ package com.fris.boardportal.user;
 import com.fris.boardportal.audit.AuditAction;
 import com.fris.boardportal.audit.AuditEntityType;
 import com.fris.boardportal.audit.AuditLogService;
+import com.fris.boardportal.committee.CommitteeService;
 import com.fris.boardportal.common.ApiException;
 import com.fris.boardportal.organization.OrganizationRepository;
 import com.fris.boardportal.security.AppUserPrincipal;
@@ -28,15 +29,17 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserPhotoRepository userPhotoRepository;
     private final OrganizationRepository organizationRepository;
+    private final CommitteeService committeeService;
     private final PasswordEncoder passwordEncoder;
     private final AuditLogService auditLogService;
 
     public UserService(UserRepository userRepository, UserPhotoRepository userPhotoRepository,
-            OrganizationRepository organizationRepository, PasswordEncoder passwordEncoder,
-            AuditLogService auditLogService) {
+            OrganizationRepository organizationRepository, CommitteeService committeeService,
+            PasswordEncoder passwordEncoder, AuditLogService auditLogService) {
         this.userRepository = userRepository;
         this.userPhotoRepository = userPhotoRepository;
         this.organizationRepository = organizationRepository;
+        this.committeeService = committeeService;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
     }
@@ -44,13 +47,15 @@ public class UserService {
     public UserSummary getCurrentUser(AppUserPrincipal principal) {
         User user = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> ApiException.notFound("User not found"));
-        return UserSummary.from(user, organizationName(user.getOrganizationId()), photoUpdatedAt(user.getId()));
+        return UserSummary.from(user, organizationName(user.getOrganizationId()), photoUpdatedAt(user.getId()),
+                committeeService.committeesForUser(user.getId()));
     }
 
     public List<UserSummary> listOrganizationUsers(AppUserPrincipal principal) {
         String orgName = organizationName(principal.getOrganizationId());
         return userRepository.findByOrganizationId(principal.getOrganizationId()).stream()
-                .map(user -> UserSummary.from(user, orgName, photoUpdatedAt(user.getId())))
+                .map(user -> UserSummary.from(user, orgName, photoUpdatedAt(user.getId()),
+                        committeeService.committeesForUser(user.getId())))
                 .toList();
     }
 
@@ -58,7 +63,8 @@ public class UserService {
         String orgName = organizationName(principal.getOrganizationId());
         return userRepository.findByOrganizationId(principal.getOrganizationId()).stream()
                 .filter(user -> user.getStatus() == UserStatus.ACTIVE)
-                .map(user -> UserSummary.from(user, orgName, photoUpdatedAt(user.getId())))
+                .map(user -> UserSummary.from(user, orgName, photoUpdatedAt(user.getId()),
+                        committeeService.committeesForUser(user.getId())))
                 .toList();
     }
 
@@ -79,7 +85,7 @@ public class UserService {
         auditLogService.record(admin, AuditAction.USER_CREATED, AuditEntityType.USER, user.getId(),
                 "Added " + user.getFirstName() + " " + user.getLastName() + " (" + user.getRole() + ")");
 
-        return UserSummary.from(user, organizationName(admin.getOrganizationId()), null);
+        return UserSummary.from(user, organizationName(admin.getOrganizationId()), null, List.of());
     }
 
     @Transactional
@@ -118,10 +124,6 @@ public class UserService {
             changes.add("bio");
             user.setBio(request.bio());
         }
-        if (request.committees() != null && !request.committees().equals(user.getCommittees())) {
-            changes.add("committees");
-            user.setCommittees(request.committees());
-        }
         user.setUpdatedAt(Instant.now());
         userRepository.save(user);
 
@@ -132,7 +134,8 @@ public class UserService {
             auditLogService.record(principal, AuditAction.USER_UPDATED, AuditEntityType.USER, user.getId(), summary);
         }
 
-        return UserSummary.from(user, organizationName(principal.getOrganizationId()), photoUpdatedAt(user.getId()));
+        return UserSummary.from(user, organizationName(principal.getOrganizationId()), photoUpdatedAt(user.getId()),
+                committeeService.committeesForUser(user.getId()));
     }
 
     @Transactional

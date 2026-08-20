@@ -42,7 +42,7 @@ class MemberDirectoryFlowTest extends IntegrationTestSupport {
 
         restTemplate.exchange(
                 "/api/users/" + member.id(), HttpMethod.PATCH,
-                authedRequest(admin.accessToken(), new UpdateUserRequest(null, UserStatus.DISABLED, null, null, null, null)),
+                authedRequest(admin.accessToken(), new UpdateUserRequest(null, UserStatus.DISABLED, null, null, null)),
                 UserSummary.class);
 
         ResponseEntity<UserSummary[]> directory = restTemplate.exchange(
@@ -61,7 +61,7 @@ class MemberDirectoryFlowTest extends IntegrationTestSupport {
         ResponseEntity<UserSummary> ownEdit = restTemplate.exchange(
                 "/api/users/" + member.id(), HttpMethod.PATCH,
                 authedRequest(memberAuth.accessToken(),
-                        new UpdateUserRequest(null, null, "Independent Director", null, null, null)),
+                        new UpdateUserRequest(null, null, "Independent Director", null, null)),
                 UserSummary.class);
         assertThat(ownEdit.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(ownEdit.getBody().title()).isEqualTo("Independent Director");
@@ -70,14 +70,14 @@ class MemberDirectoryFlowTest extends IntegrationTestSupport {
         ResponseEntity<String> blockedOther = restTemplate.exchange(
                 "/api/users/" + admin.user().id(), HttpMethod.PATCH,
                 authedRequest(memberAuth.accessToken(),
-                        new UpdateUserRequest(null, null, "Hijacked", null, null, null)),
+                        new UpdateUserRequest(null, null, "Hijacked", null, null)),
                 String.class);
         assertThat(blockedOther.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
         // and a member can never change their own role or status, even on themselves
         ResponseEntity<String> blockedRole = restTemplate.exchange(
                 "/api/users/" + member.id(), HttpMethod.PATCH,
-                authedRequest(memberAuth.accessToken(), new UpdateUserRequest(Role.ADMIN, null, null, null, null, null)),
+                authedRequest(memberAuth.accessToken(), new UpdateUserRequest(Role.ADMIN, null, null, null, null)),
                 String.class);
         assertThat(blockedRole.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
@@ -92,13 +92,12 @@ class MemberDirectoryFlowTest extends IntegrationTestSupport {
                 "/api/users/" + member.id(), HttpMethod.PATCH,
                 authedRequest(admin.accessToken(),
                         new UpdateUserRequest(null, null, "Independent Director", "+234-800-000-0000",
-                                "Governance professional.", "Audit Committee")),
+                                "Governance professional.")),
                 UserSummary.class);
         assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(updated.getBody().title()).isEqualTo("Independent Director");
         assertThat(updated.getBody().phone()).isEqualTo("+234-800-000-0000");
         assertThat(updated.getBody().bio()).isEqualTo("Governance professional.");
-        assertThat(updated.getBody().committees()).isEqualTo("Audit Committee");
 
         ResponseEntity<UserSummary[]> directory = restTemplate.exchange(
                 "/api/users/directory", HttpMethod.GET, authedRequest(admin.accessToken()), UserSummary[].class);

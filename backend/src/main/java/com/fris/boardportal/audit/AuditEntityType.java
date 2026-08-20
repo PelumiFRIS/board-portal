@@ -8,5 +8,6 @@ public enum AuditEntityType {
     DOCUMENT,
     RESOLUTION,
     ACTION_ITEM,
-    COMMENT
+    COMMENT,
+    COMMITTEE
 }
