@@ -80,12 +80,26 @@ function CommitteesIcon() {
   );
 }
 
+function ComplianceIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M9 12h3.75M9 15h3.75M9 18h3.75M17.25 4.5v15a.75.75 0 01-.75.75H6a.75.75 0 01-.75-.75v-15A.75.75 0 016 3.75h10.5a.75.75 0 01.75.75zM12.75 7.5a.75.75 0 01-.75.75h-2.25a.75.75 0 01-.75-.75V6.75a.75.75 0 01.75-.75H12a.75.75 0 01.75.75v.75z"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: DashboardIcon, adminOnly: false },
   { to: "/meetings", label: "Meetings", icon: MeetingsIcon, adminOnly: false },
   { to: "/documents", label: "Documents", icon: DocumentsIcon, adminOnly: false },
   { to: "/directory", label: "Directory", icon: DirectoryIcon, adminOnly: false },
   { to: "/committees", label: "Committees", icon: CommitteesIcon, adminOnly: false },
+  { to: "/compliance", label: "Compliance", icon: ComplianceIcon, adminOnly: false },
   { to: "/audit", label: "Audit Trail", icon: AuditIcon, adminOnly: true },
 ];
 

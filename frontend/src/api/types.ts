@@ -228,7 +228,11 @@ export type AuditAction =
   | "COMMITTEE_CREATED"
   | "COMMITTEE_UPDATED"
   | "COMMITTEE_DELETED"
-  | "COMMITTEE_MEMBERSHIP_CHANGED";
+  | "COMMITTEE_MEMBERSHIP_CHANGED"
+  | "FILING_CREATED"
+  | "FILING_UPDATED"
+  | "FILING_SUBMITTED"
+  | "FILING_DELETED";
 
 export type AuditEntityType =
   | "ORGANIZATION"
@@ -239,7 +243,8 @@ export type AuditEntityType =
   | "RESOLUTION"
   | "ACTION_ITEM"
   | "COMMENT"
-  | "COMMITTEE";
+  | "COMMITTEE"
+  | "COMPLIANCE_FILING";
 
 export interface AuditLogEntry {
   id: string;
@@ -289,4 +294,29 @@ export interface CreateCommentPayload {
   entityType: CommentEntityType;
   entityId: string;
   body: string;
+}
+
+export type FilingStatus = "PENDING" | "SUBMITTED";
+
+export interface ComplianceFilingSummary {
+  id: string;
+  title: string;
+  description: string | null;
+  dueDate: string;
+  status: FilingStatus;
+  submittedAt: string | null;
+  submittedByName: string | null;
+  createdAt: string;
+}
+
+export interface CreateComplianceFilingPayload {
+  title: string;
+  description?: string;
+  dueDate: string;
+}
+
+export interface UpdateComplianceFilingPayload {
+  title?: string;
+  description?: string;
+  dueDate?: string;
 }

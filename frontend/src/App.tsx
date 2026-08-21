@@ -10,6 +10,7 @@ import { DocumentsListPage } from "./pages/DocumentsListPage";
 import { AuditLogPage } from "./pages/AuditLogPage";
 import { DirectoryPage } from "./pages/DirectoryPage";
 import { CommitteesPage } from "./pages/CommitteesPage";
+import { CompliancePage } from "./pages/CompliancePage";
 
 function App() {
   return (
@@ -70,6 +71,14 @@ function App() {
           element={
             <ProtectedRoute>
               <CommitteesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/compliance"
+          element={
+            <ProtectedRoute>
+              <CompliancePage />
             </ProtectedRoute>
           }
         />
