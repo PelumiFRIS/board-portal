@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -57,6 +58,9 @@ public class Document {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    @Column(name = "retention_until")
+    private LocalDate retentionUntil;
 
     public static Document create(UUID organizationId, UUID meetingId, String title, String description,
             DocumentCategory category, String fileName, String contentType, byte[] fileData, UUID uploadedBy) {

@@ -1,6 +1,8 @@
 package com.fris.boardportal.document;
 
+import com.fris.boardportal.document.dto.DocumentDetail;
 import com.fris.boardportal.document.dto.DocumentSummary;
+import com.fris.boardportal.document.dto.UpdateDocumentRetentionRequest;
 import com.fris.boardportal.security.AppUserPrincipal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -14,8 +16,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,8 +43,8 @@ public class DocumentController {
     }
 
     @GetMapping("/{id}")
-    public DocumentSummary detail(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
-        return documentService.getSummary(principal, id);
+    public DocumentDetail detail(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
+        return documentService.getDetail(principal, id);
     }
 
     @GetMapping("/{id}/content")
@@ -71,5 +75,17 @@ public class DocumentController {
     public ResponseEntity<Void> delete(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         documentService.delete(principal, id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/retention")
+    @PreAuthorize("hasRole('ADMIN')")
+    public DocumentSummary updateRetention(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id,
+            @RequestBody UpdateDocumentRetentionRequest request) {
+        return documentService.updateRetention(principal, id, request.retentionUntil());
+    }
+
+    @PostMapping("/{id}/sign")
+    public DocumentSummary sign(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
+        return documentService.sign(principal, id);
     }
 }
