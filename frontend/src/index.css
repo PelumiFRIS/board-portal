@@ -325,6 +325,13 @@ button.small {
   margin-bottom: 24px;
 }
 
+.page-header-with-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .page-header p {
   color: var(--text-muted);
   margin: 0;

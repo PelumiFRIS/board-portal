@@ -95,6 +95,26 @@ class AuditLogFlowTest extends IntegrationTestSupport {
         }
     }
 
+    @Test
+    void adminCanExportCsvButNonAdminCannot() {
+        AuthResponse admin = signup(uniqueEmail(), "Export Audit Org");
+        String memberEmail = uniqueEmail();
+        createBoardMember(admin.accessToken(), memberEmail);
+        AuthResponse member = login(memberEmail);
+
+        ResponseEntity<String> blocked = restTemplate.exchange(
+                "/api/audit-logs/export", HttpMethod.GET, authedRequest(member.accessToken()), String.class);
+        assertThat(blocked.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ResponseEntity<String> exported = restTemplate.exchange(
+                "/api/audit-logs/export", HttpMethod.GET, authedRequest(admin.accessToken()), String.class);
+        assertThat(exported.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(exported.getHeaders().getContentType()).isNotNull();
+        assertThat(exported.getHeaders().getContentType().toString()).contains("text/csv");
+        assertThat(exported.getBody()).contains("When,Who,Action,Entity Type,Summary");
+        assertThat(exported.getBody()).contains("Created organization \"\"Export Audit Org\"\" and admin account");
+    }
+
     private List<AuditLogEntry> fetchAuditLog(String adminToken) {
         ResponseEntity<AuditLogEntry[]> response = restTemplate.exchange(
                 "/api/audit-logs", HttpMethod.GET, authedRequest(adminToken), AuditLogEntry[].class);

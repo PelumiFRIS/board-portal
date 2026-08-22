@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listAuditLogs } from "../api/auditLogs";
+import { downloadAuditLogCsv, listAuditLogs } from "../api/auditLogs";
 import { extractErrorMessage } from "../api/client";
 import type { AuditLogEntry } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
@@ -24,6 +24,8 @@ export function AuditLogPage() {
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     listAuditLogs()
@@ -32,16 +34,34 @@ export function AuditLogPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  async function handleExport() {
+    setExportError(null);
+    setExporting(true);
+    try {
+      await downloadAuditLogCsv();
+    } catch (err) {
+      setExportError(extractErrorMessage(err));
+    } finally {
+      setExporting(false);
+    }
+  }
+
   if (!user) return null;
 
   return (
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
-        <div className="page-header">
-          <h1>Audit trail</h1>
-          <p>Recent activity across {user.organizationName}</p>
+        <div className="page-header page-header-with-actions">
+          <div>
+            <h1>Audit trail</h1>
+            <p>Recent activity across {user.organizationName}</p>
+          </div>
+          <button className="secondary small" disabled={exporting} onClick={handleExport}>
+            {exporting ? "Exporting..." : "Export CSV"}
+          </button>
         </div>
+        {exportError && <p className="form-error">{exportError}</p>}
 
         <section className="dashboard-section">
           {loading && <p>Loading activity...</p>}
