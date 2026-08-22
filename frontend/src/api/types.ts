@@ -167,6 +167,19 @@ export interface DocumentSummary {
   fileSize: number;
   meetingId: string | null;
   createdAt: string;
+  retentionUntil: string | null;
+  signatureCount: number;
+  signedByMe: boolean;
+}
+
+export interface DocumentSignature {
+  userId: string;
+  userName: string;
+  signedAt: string;
+}
+
+export interface DocumentDetail extends DocumentSummary {
+  signatures: DocumentSignature[];
 }
 
 export type ResolutionStatus = "DRAFT" | "OPEN" | "CLOSED";
@@ -233,7 +246,9 @@ export type AuditAction =
   | "FILING_UPDATED"
   | "FILING_SUBMITTED"
   | "FILING_DELETED"
-  | "CONFLICT_DECLARED";
+  | "CONFLICT_DECLARED"
+  | "DOCUMENT_RETENTION_SET"
+  | "DOCUMENT_SIGNED";
 
 export type AuditEntityType =
   | "ORGANIZATION"

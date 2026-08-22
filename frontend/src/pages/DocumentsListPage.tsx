@@ -1,8 +1,16 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { deleteDocument, downloadDocument, listDocuments, uploadDocument } from "../api/documents";
+import { Fragment, useEffect, useState, type FormEvent } from "react";
+import {
+  deleteDocument,
+  downloadDocument,
+  getDocument,
+  listDocuments,
+  signDocument,
+  updateDocumentRetention,
+  uploadDocument,
+} from "../api/documents";
 import { extractErrorMessage } from "../api/client";
 import { listMeetings } from "../api/meetings";
-import type { DocumentCategory, DocumentSummary, MeetingSummary } from "../api/types";
+import type { DocumentCategory, DocumentDetail, DocumentSummary, MeetingSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
 
@@ -52,6 +60,15 @@ export function DocumentsListPage() {
   const [category, setCategory] = useState<DocumentCategory>("BOARD_PACK");
   const [meetingId, setMeetingId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const [editingRetentionId, setEditingRetentionId] = useState<string | null>(null);
+  const [retentionDraft, setRetentionDraft] = useState("");
+  const [savingRetention, setSavingRetention] = useState(false);
+
+  const [signingId, setSigningId] = useState<string | null>(null);
+  const [expandedSignaturesId, setExpandedSignaturesId] = useState<string | null>(null);
+  const [signatureDetail, setSignatureDetail] = useState<DocumentDetail | null>(null);
+  const [loadingSignatures, setLoadingSignatures] = useState(false);
 
   useEffect(() => {
     Promise.all([listDocuments(), listMeetings()])
@@ -111,7 +128,65 @@ export function DocumentsListPage() {
     }
   }
 
+  function startEditingRetention(doc: DocumentSummary) {
+    setActionError(null);
+    setEditingRetentionId(doc.id);
+    setRetentionDraft(doc.retentionUntil ?? "");
+  }
+
+  async function handleSaveRetention(docId: string) {
+    setActionError(null);
+    setSavingRetention(true);
+    try {
+      const updated = await updateDocumentRetention(docId, retentionDraft || null);
+      setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+      setEditingRetentionId(null);
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setSavingRetention(false);
+    }
+  }
+
+  async function handleSign(doc: DocumentSummary) {
+    setActionError(null);
+    setSigningId(doc.id);
+    try {
+      const updated = await signDocument(doc.id);
+      setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+      if (expandedSignaturesId === doc.id) {
+        const detail = await getDocument(doc.id);
+        setSignatureDetail(detail);
+      }
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setSigningId(null);
+    }
+  }
+
+  async function handleToggleSignatures(doc: DocumentSummary) {
+    if (expandedSignaturesId === doc.id) {
+      setExpandedSignaturesId(null);
+      setSignatureDetail(null);
+      return;
+    }
+    setActionError(null);
+    setExpandedSignaturesId(doc.id);
+    setLoadingSignatures(true);
+    try {
+      const detail = await getDocument(doc.id);
+      setSignatureDetail(detail);
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setLoadingSignatures(false);
+    }
+  }
+
   if (!user) return null;
+
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="app-shell">
@@ -140,32 +215,111 @@ export function DocumentsListPage() {
                   <th>Category</th>
                   <th>Size</th>
                   <th>Uploaded</th>
+                  <th>Retention</th>
+                  <th>Sign-off</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {documents.map((doc) => (
-                  <tr key={doc.id}>
-                    <td>{doc.title}</td>
-                    <td>
-                      <span className="badge badge-category">{doc.category.replace("_", " ")}</span>
-                    </td>
-                    <td>{formatFileSize(doc.fileSize)}</td>
-                    <td>{new Date(doc.createdAt).toLocaleDateString()}</td>
-                    <td>
-                      <div className="field-row">
-                        <button className="secondary small" onClick={() => handleDownload(doc)}>
-                          Download
-                        </button>
-                        {isAdmin && (
-                          <button className="secondary small" onClick={() => handleDelete(doc)}>
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {documents.map((doc) => {
+                  const isPastRetention = Boolean(doc.retentionUntil) && doc.retentionUntil! < today;
+                  return (
+                    <Fragment key={doc.id}>
+                      <tr>
+                        <td>{doc.title}</td>
+                        <td>
+                          <span className="badge badge-category">{doc.category.replace("_", " ")}</span>
+                        </td>
+                        <td>{formatFileSize(doc.fileSize)}</td>
+                        <td>{new Date(doc.createdAt).toLocaleDateString()}</td>
+                        <td>
+                          {editingRetentionId === doc.id ? (
+                            <div className="field-row">
+                              <input
+                                type="date"
+                                value={retentionDraft}
+                                onChange={(e) => setRetentionDraft(e.target.value)}
+                              />
+                              <button
+                                className="secondary small"
+                                disabled={savingRetention}
+                                onClick={() => handleSaveRetention(doc.id)}
+                              >
+                                {savingRetention ? "Saving..." : "Save"}
+                              </button>
+                              <button className="secondary small" onClick={() => setEditingRetentionId(null)}>
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="field-row">
+                              {doc.retentionUntil ? (
+                                <span className="table-hint">{new Date(doc.retentionUntil).toLocaleDateString()}</span>
+                              ) : (
+                                <span className="table-hint">&mdash;</span>
+                              )}
+                              {isPastRetention && <span className="badge badge-cancelled">Review overdue</span>}
+                              {isAdmin && (
+                                <button className="secondary small" onClick={() => startEditingRetention(doc)}>
+                                  Edit
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <div className="field-row">
+                            <button className="secondary small" onClick={() => handleToggleSignatures(doc)}>
+                              {doc.signatureCount} signed
+                            </button>
+                            {doc.signedByMe ? (
+                              <span className="table-hint">Signed &#10003;</span>
+                            ) : (
+                              <button
+                                className="small"
+                                disabled={signingId === doc.id}
+                                onClick={() => handleSign(doc)}
+                              >
+                                {signingId === doc.id ? "Signing..." : "Sign off"}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="field-row">
+                            <button className="secondary small" onClick={() => handleDownload(doc)}>
+                              Download
+                            </button>
+                            {isAdmin && (
+                              <button className="secondary small" onClick={() => handleDelete(doc)}>
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedSignaturesId === doc.id && (
+                        <tr>
+                          <td colSpan={7}>
+                            {loadingSignatures && <p className="table-hint">Loading signers...</p>}
+                            {!loadingSignatures && signatureDetail && signatureDetail.signatures.length === 0 && (
+                              <p className="table-hint">No one has signed yet.</p>
+                            )}
+                            {!loadingSignatures && signatureDetail && signatureDetail.signatures.length > 0 && (
+                              <ul className="vote-record-list">
+                                {signatureDetail.signatures.map((s) => (
+                                  <li key={s.userId}>
+                                    {s.userName} &middot; {new Date(s.signedAt).toLocaleString()}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           )}

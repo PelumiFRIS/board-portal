@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { DocumentCategory, DocumentSummary } from "./types";
+import type { DocumentCategory, DocumentDetail, DocumentSummary } from "./types";
 
 export interface ListDocumentsParams {
   meetingId?: string;
@@ -8,6 +8,21 @@ export interface ListDocumentsParams {
 
 export async function listDocuments(params: ListDocumentsParams = {}): Promise<DocumentSummary[]> {
   const { data } = await apiClient.get<DocumentSummary[]>("/api/documents", { params });
+  return data;
+}
+
+export async function getDocument(id: string): Promise<DocumentDetail> {
+  const { data } = await apiClient.get<DocumentDetail>(`/api/documents/${id}`);
+  return data;
+}
+
+export async function updateDocumentRetention(id: string, retentionUntil: string | null): Promise<DocumentSummary> {
+  const { data } = await apiClient.patch<DocumentSummary>(`/api/documents/${id}/retention`, { retentionUntil });
+  return data;
+}
+
+export async function signDocument(id: string): Promise<DocumentSummary> {
+  const { data } = await apiClient.post<DocumentSummary>(`/api/documents/${id}/sign`);
   return data;
 }
 

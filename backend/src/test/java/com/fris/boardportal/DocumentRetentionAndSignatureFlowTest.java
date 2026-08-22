@@ -13,7 +13,8 @@ import com.fris.boardportal.user.dto.CreateUserRequest;
 import com.fris.boardportal.user.dto.UserSummary;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.util.UUID;
+import java.util.Collections;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
@@ -39,20 +40,20 @@ class DocumentRetentionAndSignatureFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<String> blocked = restTemplate.exchange(
                 "/api/documents/" + doc.id() + "/retention", HttpMethod.PATCH,
-                authedRequest(memberAuth.accessToken(), java.util.Map.of("retentionUntil", "2027-01-01")),
+                authedRequest(memberAuth.accessToken(), Map.of("retentionUntil", "2027-01-01")),
                 String.class);
         assertThat(blocked.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
         ResponseEntity<DocumentSummary> set = restTemplate.exchange(
                 "/api/documents/" + doc.id() + "/retention", HttpMethod.PATCH,
-                authedRequest(admin.accessToken(), java.util.Map.of("retentionUntil", "2027-01-01")),
+                authedRequest(admin.accessToken(), Map.of("retentionUntil", "2027-01-01")),
                 DocumentSummary.class);
         assertThat(set.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(set.getBody().retentionUntil()).isEqualTo(LocalDate.of(2027, 1, 1));
 
         ResponseEntity<DocumentSummary> cleared = restTemplate.exchange(
                 "/api/documents/" + doc.id() + "/retention", HttpMethod.PATCH,
-                authedRequest(admin.accessToken(), java.util.Collections.singletonMap("retentionUntil", null)),
+                authedRequest(admin.accessToken(), Collections.singletonMap("retentionUntil", null)),
                 DocumentSummary.class);
         assertThat(cleared.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(cleared.getBody().retentionUntil()).isNull();
@@ -98,7 +99,7 @@ class DocumentRetentionAndSignatureFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/documents/" + orgBDoc.id() + "/retention", HttpMethod.PATCH,
-                authedRequest(orgAAdmin.accessToken(), java.util.Map.of("retentionUntil", "2027-01-01")),
+                authedRequest(orgAAdmin.accessToken(), Map.of("retentionUntil", "2027-01-01")),
                 String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
