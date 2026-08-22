@@ -93,6 +93,19 @@ function ComplianceIcon() {
   );
 }
 
+function ConflictIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M12 9v3.75m0 3.75h.008v.008H12v-.008zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: DashboardIcon, adminOnly: false },
   { to: "/meetings", label: "Meetings", icon: MeetingsIcon, adminOnly: false },
@@ -100,6 +113,7 @@ const NAV_ITEMS = [
   { to: "/directory", label: "Directory", icon: DirectoryIcon, adminOnly: false },
   { to: "/committees", label: "Committees", icon: CommitteesIcon, adminOnly: false },
   { to: "/compliance", label: "Compliance", icon: ComplianceIcon, adminOnly: false },
+  { to: "/conflicts", label: "Conflicts of Interest", icon: ConflictIcon, adminOnly: false },
   { to: "/audit", label: "Audit Trail", icon: AuditIcon, adminOnly: true },
 ];
 

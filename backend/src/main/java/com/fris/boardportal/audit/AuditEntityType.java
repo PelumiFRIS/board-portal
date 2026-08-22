@@ -10,5 +10,6 @@ public enum AuditEntityType {
     ACTION_ITEM,
     COMMENT,
     COMMITTEE,
-    COMPLIANCE_FILING
+    COMPLIANCE_FILING,
+    CONFLICT_DECLARATION
 }

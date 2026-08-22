@@ -232,7 +232,8 @@ export type AuditAction =
   | "FILING_CREATED"
   | "FILING_UPDATED"
   | "FILING_SUBMITTED"
-  | "FILING_DELETED";
+  | "FILING_DELETED"
+  | "CONFLICT_DECLARED";
 
 export type AuditEntityType =
   | "ORGANIZATION"
@@ -244,7 +245,8 @@ export type AuditEntityType =
   | "ACTION_ITEM"
   | "COMMENT"
   | "COMMITTEE"
-  | "COMPLIANCE_FILING";
+  | "COMPLIANCE_FILING"
+  | "CONFLICT_DECLARATION";
 
 export interface AuditLogEntry {
   id: string;
@@ -319,4 +321,20 @@ export interface UpdateComplianceFilingPayload {
   title?: string;
   description?: string;
   dueDate?: string;
+}
+
+export interface ConflictDeclarationSummary {
+  id: string;
+  userId: string;
+  userName: string;
+  hasConflict: boolean;
+  details: string | null;
+  declaredAt: string;
+  declaredByName: string;
+}
+
+export interface CreateConflictDeclarationPayload {
+  userId?: string;
+  hasConflict: boolean;
+  details?: string;
 }

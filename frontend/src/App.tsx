@@ -11,6 +11,7 @@ import { AuditLogPage } from "./pages/AuditLogPage";
 import { DirectoryPage } from "./pages/DirectoryPage";
 import { CommitteesPage } from "./pages/CommitteesPage";
 import { CompliancePage } from "./pages/CompliancePage";
+import { ConflictOfInterestPage } from "./pages/ConflictOfInterestPage";
 
 function App() {
   return (
@@ -79,6 +80,14 @@ function App() {
           element={
             <ProtectedRoute>
               <CompliancePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/conflicts"
+          element={
+            <ProtectedRoute>
+              <ConflictOfInterestPage />
             </ProtectedRoute>
           }
         />
