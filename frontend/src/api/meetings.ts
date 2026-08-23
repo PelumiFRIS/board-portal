@@ -46,3 +46,15 @@ export async function updateAgendaItem(
 export async function deleteAgendaItem(meetingId: string, itemId: string): Promise<void> {
   await apiClient.delete(`/api/meetings/${meetingId}/agenda-items/${itemId}`);
 }
+
+export async function downloadMeetingIcs(id: string, title: string): Promise<void> {
+  const response = await apiClient.get(`/api/meetings/${id}/ics`, { responseType: "blob" });
+  const url = URL.createObjectURL(response.data as Blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.ics`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

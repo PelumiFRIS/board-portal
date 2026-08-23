@@ -9,9 +9,13 @@ import com.fris.boardportal.meeting.dto.UpdateAgendaItemRequest;
 import com.fris.boardportal.meeting.dto.UpdateMeetingRequest;
 import com.fris.boardportal.security.AppUserPrincipal;
 import jakarta.validation.Valid;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -42,6 +46,16 @@ public class MeetingController {
     @GetMapping("/{id}")
     public MeetingDetail detail(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         return meetingService.getDetail(principal, id);
+    }
+
+    @GetMapping("/{id}/ics")
+    public ResponseEntity<byte[]> ics(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
+        byte[] ics = meetingService.generateIcs(principal, id);
+        String encodedName = URLEncoder.encode(id + ".ics", StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("text/calendar"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedName)
+                .body(ics);
     }
 
     @PostMapping

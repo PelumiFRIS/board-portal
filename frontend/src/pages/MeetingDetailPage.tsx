@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import {
   addAgendaItem,
   deleteAgendaItem,
+  downloadMeetingIcs,
   getMeeting,
   updateAgendaItem,
   updateMeeting,
@@ -305,6 +306,16 @@ export function MeetingDetailPage() {
     }
   }
 
+  async function handleDownloadIcs() {
+    if (!id || !meeting) return;
+    setActionError(null);
+    try {
+      await downloadMeetingIcs(id, meeting.title);
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    }
+  }
+
   if (!user) return null;
 
   return (
@@ -337,6 +348,11 @@ export function MeetingDetailPage() {
                 <strong>Status:</strong> <StatusBadge status={meeting.status} />
               </p>
               {actionError && <p className="form-error">{actionError}</p>}
+              <div className="field-row">
+                <button className="secondary small" onClick={handleDownloadIcs}>
+                  Add to calendar
+                </button>
+              </div>
               {isAdmin && meeting.status === "SCHEDULED" && (
                 <div className="field-row">
                   <button onClick={() => handleStatusChange("COMPLETED")}>Mark completed</button>

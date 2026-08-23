@@ -15,7 +15,11 @@ import com.fris.boardportal.meeting.dto.UpdateAgendaItemRequest;
 import com.fris.boardportal.meeting.dto.UpdateMeetingRequest;
 import com.fris.boardportal.resolution.ResolutionService;
 import com.fris.boardportal.security.AppUserPrincipal;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -51,6 +55,43 @@ public class MeetingService {
     public MeetingDetail getDetail(AppUserPrincipal principal, UUID meetingId) {
         Meeting meeting = findMeetingInOrg(principal, meetingId);
         return toDetail(meeting, principal);
+    }
+
+    public byte[] generateIcs(AppUserPrincipal principal, UUID meetingId) {
+        Meeting meeting = findMeetingInOrg(principal, meetingId);
+
+        DateTimeFormatter icsFormat = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").withZone(ZoneOffset.UTC);
+        Instant end = meeting.getScheduledEnd() != null
+                ? meeting.getScheduledEnd()
+                : meeting.getScheduledStart().plus(1, ChronoUnit.HOURS);
+
+        StringBuilder ics = new StringBuilder();
+        ics.append("BEGIN:VCALENDAR\r\n");
+        ics.append("VERSION:2.0\r\n");
+        ics.append("PRODID:-//FirstRegistrars Board Portal//EN\r\n");
+        ics.append("BEGIN:VEVENT\r\n");
+        ics.append("UID:").append(meeting.getId()).append("@board-portal\r\n");
+        ics.append("DTSTAMP:").append(icsFormat.format(Instant.now())).append("\r\n");
+        ics.append("DTSTART:").append(icsFormat.format(meeting.getScheduledStart())).append("\r\n");
+        ics.append("DTEND:").append(icsFormat.format(end)).append("\r\n");
+        ics.append("SUMMARY:").append(icsEscape(meeting.getTitle())).append("\r\n");
+        if (meeting.getLocation() != null) {
+            ics.append("LOCATION:").append(icsEscape(meeting.getLocation())).append("\r\n");
+        }
+        if (meeting.getDescription() != null) {
+            ics.append("DESCRIPTION:").append(icsEscape(meeting.getDescription())).append("\r\n");
+        }
+        ics.append("END:VEVENT\r\n");
+        ics.append("END:VCALENDAR\r\n");
+
+        return ics.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private String icsEscape(String value) {
+        return value.replace("\\", "\\\\")
+                .replace(",", "\\,")
+                .replace(";", "\\;")
+                .replace("\n", "\\n");
     }
 
     @Transactional

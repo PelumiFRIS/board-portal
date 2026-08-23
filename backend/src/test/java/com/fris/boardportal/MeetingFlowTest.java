@@ -102,6 +102,31 @@ class MeetingFlowTest extends IntegrationTestSupport {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    @Test
+    void anyOrgMemberCanDownloadIcsButNotForAnotherOrgsMeeting() {
+        AuthResponse admin = signup(uniqueEmail(), "Calendar Org");
+        String memberEmail = uniqueEmail();
+        createBoardMember(admin.accessToken(), memberEmail);
+        AuthResponse member = login(memberEmail);
+        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+
+        ResponseEntity<String> ics = restTemplate.exchange(
+                "/api/meetings/" + meeting.id() + "/ics", HttpMethod.GET,
+                authedRequest(member.accessToken()), String.class);
+        assertThat(ics.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(ics.getHeaders().getContentType()).isNotNull();
+        assertThat(ics.getHeaders().getContentType().toString()).contains("text/calendar");
+        assertThat(ics.getBody()).contains("BEGIN:VCALENDAR");
+        assertThat(ics.getBody()).contains("SUMMARY:Q3 Board Meeting");
+        assertThat(ics.getBody()).contains("UID:" + meeting.id() + "@board-portal");
+
+        AuthResponse otherOrgAdmin = signup(uniqueEmail(), "Calendar Org B");
+        ResponseEntity<String> blocked = restTemplate.exchange(
+                "/api/meetings/" + meeting.id() + "/ics", HttpMethod.GET,
+                authedRequest(otherOrgAdmin.accessToken()), String.class);
+        assertThat(blocked.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
     private MeetingSummary scheduleMeeting(String adminToken) {
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST, authedRequest(adminToken, newMeetingRequest()), MeetingSummary.class);
