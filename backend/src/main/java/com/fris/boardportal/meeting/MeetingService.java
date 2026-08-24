@@ -13,8 +13,12 @@ import com.fris.boardportal.meeting.dto.MeetingDetail;
 import com.fris.boardportal.meeting.dto.MeetingSummary;
 import com.fris.boardportal.meeting.dto.UpdateAgendaItemRequest;
 import com.fris.boardportal.meeting.dto.UpdateMeetingRequest;
+import com.fris.boardportal.notification.EmailNotificationService;
 import com.fris.boardportal.resolution.ResolutionService;
 import com.fris.boardportal.security.AppUserPrincipal;
+import com.fris.boardportal.user.User;
+import com.fris.boardportal.user.UserRepository;
+import com.fris.boardportal.user.UserStatus;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -34,16 +38,21 @@ public class MeetingService {
     private final ResolutionService resolutionService;
     private final ActionItemService actionItemService;
     private final AuditLogService auditLogService;
+    private final UserRepository userRepository;
+    private final EmailNotificationService emailNotificationService;
 
     public MeetingService(MeetingRepository meetingRepository, AgendaItemRepository agendaItemRepository,
             DocumentRepository documentRepository, ResolutionService resolutionService,
-            ActionItemService actionItemService, AuditLogService auditLogService) {
+            ActionItemService actionItemService, AuditLogService auditLogService, UserRepository userRepository,
+            EmailNotificationService emailNotificationService) {
         this.meetingRepository = meetingRepository;
         this.agendaItemRepository = agendaItemRepository;
         this.documentRepository = documentRepository;
         this.resolutionService = resolutionService;
         this.actionItemService = actionItemService;
         this.auditLogService = auditLogService;
+        this.userRepository = userRepository;
+        this.emailNotificationService = emailNotificationService;
     }
 
     public List<MeetingSummary> listForOrganization(AppUserPrincipal principal) {
@@ -108,6 +117,11 @@ public class MeetingService {
 
         auditLogService.record(admin, AuditAction.MEETING_CREATED, AuditEntityType.MEETING, meeting.getId(),
                 "Scheduled meeting \"" + meeting.getTitle() + "\"");
+
+        List<User> activeMembers = userRepository.findByOrganizationId(admin.getOrganizationId()).stream()
+                .filter(u -> u.getStatus() == UserStatus.ACTIVE)
+                .toList();
+        emailNotificationService.notifyMeetingScheduled(meeting, activeMembers);
 
         return MeetingSummary.from(meeting);
     }
