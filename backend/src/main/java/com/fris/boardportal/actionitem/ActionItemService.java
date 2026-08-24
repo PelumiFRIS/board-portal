@@ -6,7 +6,9 @@ import com.fris.boardportal.audit.AuditAction;
 import com.fris.boardportal.audit.AuditEntityType;
 import com.fris.boardportal.audit.AuditLogService;
 import com.fris.boardportal.common.ApiException;
+import com.fris.boardportal.meeting.Meeting;
 import com.fris.boardportal.meeting.MeetingRepository;
+import com.fris.boardportal.notification.EmailNotificationService;
 import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.user.Role;
 import com.fris.boardportal.user.User;
@@ -26,13 +28,16 @@ public class ActionItemService {
     private final MeetingRepository meetingRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final EmailNotificationService emailNotificationService;
 
     public ActionItemService(ActionItemRepository actionItemRepository, MeetingRepository meetingRepository,
-            UserRepository userRepository, AuditLogService auditLogService) {
+            UserRepository userRepository, AuditLogService auditLogService,
+            EmailNotificationService emailNotificationService) {
         this.actionItemRepository = actionItemRepository;
         this.meetingRepository = meetingRepository;
         this.userRepository = userRepository;
         this.auditLogService = auditLogService;
+        this.emailNotificationService = emailNotificationService;
     }
 
     public List<ActionItemSummary> listForOrganization(AppUserPrincipal principal, UUID meetingId) {
@@ -54,7 +59,7 @@ public class ActionItemService {
 
     @Transactional
     public ActionItemSummary create(AppUserPrincipal admin, CreateActionItemRequest request) {
-        meetingRepository.findByIdAndOrganizationId(request.meetingId(), admin.getOrganizationId())
+        Meeting meeting = meetingRepository.findByIdAndOrganizationId(request.meetingId(), admin.getOrganizationId())
                 .orElseThrow(() -> ApiException.notFound("Meeting not found"));
         User assignee = userRepository.findByIdAndOrganizationId(request.assigneeId(), admin.getOrganizationId())
                 .orElseThrow(() -> ApiException.notFound("Assignee not found"));
@@ -65,6 +70,8 @@ public class ActionItemService {
 
         auditLogService.record(admin, AuditAction.ACTION_ITEM_CREATED, AuditEntityType.ACTION_ITEM, item.getId(),
                 "Assigned \"" + item.getTitle() + "\" to " + assignee.getFirstName() + " " + assignee.getLastName());
+
+        emailNotificationService.notifyActionItemAssigned(item, assignee, meeting.getTitle());
 
         return toSummary(item, assignee);
     }

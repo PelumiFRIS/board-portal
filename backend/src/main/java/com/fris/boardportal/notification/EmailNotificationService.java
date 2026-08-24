@@ -1,6 +1,8 @@
 package com.fris.boardportal.notification;
 
+import com.fris.boardportal.actionitem.ActionItem;
 import com.fris.boardportal.meeting.Meeting;
+import com.fris.boardportal.resolution.Resolution;
 import com.fris.boardportal.user.User;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -46,6 +48,59 @@ public class EmailNotificationService {
         } catch (MailException e) {
             log.warn("Failed to send meeting-scheduled email for meeting {}", meeting.getId(), e);
         }
+    }
+
+    public void notifyResolutionOpened(Resolution resolution, String meetingTitle, List<User> recipients) {
+        if (recipients.isEmpty()) {
+            return;
+        }
+        String[] bcc = recipients.stream().map(User::getEmail).toArray(String[]::new);
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setBcc(bcc);
+        message.setSubject("Resolution open for voting: " + resolution.getTitle());
+        message.setText(buildResolutionBody(resolution, meetingTitle));
+
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            log.warn("Failed to send resolution-opened email for resolution {}", resolution.getId(), e);
+        }
+    }
+
+    public void notifyActionItemAssigned(ActionItem item, User assignee, String meetingTitle) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(assignee.getEmail());
+        message.setSubject("Action item assigned: " + item.getTitle());
+        message.setText(buildActionItemBody(item, meetingTitle));
+
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            log.warn("Failed to send action-item-assigned email for action item {}", item.getId(), e);
+        }
+    }
+
+    private String buildResolutionBody(Resolution resolution, String meetingTitle) {
+        StringBuilder body = new StringBuilder();
+        body.append('"').append(resolution.getTitle()).append("\" is open for voting.\n\n");
+        body.append("Meeting: ").append(meetingTitle).append('\n');
+        body.append('\n').append(frontendUrl).append("/meetings/").append(resolution.getMeetingId());
+        return body.toString();
+    }
+
+    private String buildActionItemBody(ActionItem item, String meetingTitle) {
+        StringBuilder body = new StringBuilder();
+        body.append("You've been assigned: ").append(item.getTitle()).append("\n\n");
+        if (item.getDescription() != null) {
+            body.append(item.getDescription()).append("\n\n");
+        }
+        body.append("Meeting: ").append(meetingTitle).append('\n');
+        if (item.getDueDate() != null) {
+            body.append("Due: ").append(item.getDueDate()).append('\n');
+        }
+        body.append('\n').append(frontendUrl).append("/meetings/").append(item.getMeetingId());
+        return body.toString();
     }
 
     private String buildBody(Meeting meeting) {

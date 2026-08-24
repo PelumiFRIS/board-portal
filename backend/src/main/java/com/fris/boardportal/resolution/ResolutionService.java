@@ -4,7 +4,9 @@ import com.fris.boardportal.audit.AuditAction;
 import com.fris.boardportal.audit.AuditEntityType;
 import com.fris.boardportal.audit.AuditLogService;
 import com.fris.boardportal.common.ApiException;
+import com.fris.boardportal.meeting.Meeting;
 import com.fris.boardportal.meeting.MeetingRepository;
+import com.fris.boardportal.notification.EmailNotificationService;
 import com.fris.boardportal.resolution.dto.CreateResolutionRequest;
 import com.fris.boardportal.resolution.dto.ResolutionDetail;
 import com.fris.boardportal.resolution.dto.ResolutionSummary;
@@ -12,6 +14,7 @@ import com.fris.boardportal.resolution.dto.VoteRecord;
 import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.user.User;
 import com.fris.boardportal.user.UserRepository;
+import com.fris.boardportal.user.UserStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -28,14 +31,17 @@ public class ResolutionService {
     private final MeetingRepository meetingRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final EmailNotificationService emailNotificationService;
 
     public ResolutionService(ResolutionRepository resolutionRepository, VoteRepository voteRepository,
-            MeetingRepository meetingRepository, UserRepository userRepository, AuditLogService auditLogService) {
+            MeetingRepository meetingRepository, UserRepository userRepository, AuditLogService auditLogService,
+            EmailNotificationService emailNotificationService) {
         this.resolutionRepository = resolutionRepository;
         this.voteRepository = voteRepository;
         this.meetingRepository = meetingRepository;
         this.userRepository = userRepository;
         this.auditLogService = auditLogService;
+        this.emailNotificationService = emailNotificationService;
     }
 
     public List<ResolutionSummary> listForOrganization(AppUserPrincipal principal, UUID meetingId) {
@@ -86,6 +92,13 @@ public class ResolutionService {
 
         auditLogService.record(admin, AuditAction.RESOLUTION_OPENED, AuditEntityType.RESOLUTION, resolution.getId(),
                 "Opened \"" + resolution.getTitle() + "\" for voting");
+
+        Meeting meeting = meetingRepository.findById(resolution.getMeetingId()).orElse(null);
+        List<User> activeMembers = userRepository.findByOrganizationId(admin.getOrganizationId()).stream()
+                .filter(u -> u.getStatus() == UserStatus.ACTIVE)
+                .toList();
+        emailNotificationService.notifyResolutionOpened(resolution,
+                meeting != null ? meeting.getTitle() : "Unknown meeting", activeMembers);
 
         return toSummary(resolution, admin);
     }
