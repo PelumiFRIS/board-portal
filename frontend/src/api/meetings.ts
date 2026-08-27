@@ -58,3 +58,22 @@ export async function downloadMeetingIcs(id: string, title: string): Promise<voi
   link.remove();
   URL.revokeObjectURL(url);
 }
+
+export interface CalendarTokenResponse {
+  token: string;
+}
+
+export async function getCalendarToken(): Promise<CalendarTokenResponse> {
+  const { data } = await apiClient.get<CalendarTokenResponse>("/api/users/me/calendar-token");
+  return data;
+}
+
+export async function regenerateCalendarToken(): Promise<CalendarTokenResponse> {
+  const { data } = await apiClient.post<CalendarTokenResponse>("/api/users/me/calendar-token/regenerate");
+  return data;
+}
+
+export function buildCalendarFeedUrl(token: string): string {
+  const base = apiClient.defaults.baseURL ?? "";
+  return `${base}/api/calendar/feed/${token}`;
+}

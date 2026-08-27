@@ -195,6 +195,26 @@ public class UserService {
                 isSelf ? "Removed their own photo" : "Removed " + user.getFirstName() + " " + user.getLastName() + "'s photo");
     }
 
+    @Transactional
+    public String getOrCreateCalendarToken(AppUserPrincipal principal) {
+        User user = userRepository.findById(principal.getUserId())
+                .orElseThrow(() -> ApiException.notFound("User not found"));
+        if (user.getCalendarToken() == null) {
+            user.setCalendarToken(UUID.randomUUID().toString());
+            userRepository.save(user);
+        }
+        return user.getCalendarToken();
+    }
+
+    @Transactional
+    public String regenerateCalendarToken(AppUserPrincipal principal) {
+        User user = userRepository.findById(principal.getUserId())
+                .orElseThrow(() -> ApiException.notFound("User not found"));
+        user.setCalendarToken(UUID.randomUUID().toString());
+        userRepository.save(user);
+        return user.getCalendarToken();
+    }
+
     private void requireAdminOrSelf(AppUserPrincipal principal, UUID targetUserId) {
         boolean isAdmin = principal.getRole() == Role.ADMIN;
         boolean isSelf = targetUserId.equals(principal.getUserId());

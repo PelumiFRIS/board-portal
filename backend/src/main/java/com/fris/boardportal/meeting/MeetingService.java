@@ -69,31 +69,55 @@ public class MeetingService {
     public byte[] generateIcs(AppUserPrincipal principal, UUID meetingId) {
         Meeting meeting = findMeetingInOrg(principal, meetingId);
 
-        DateTimeFormatter icsFormat = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").withZone(ZoneOffset.UTC);
-        Instant end = meeting.getScheduledEnd() != null
-                ? meeting.getScheduledEnd()
-                : meeting.getScheduledStart().plus(1, ChronoUnit.HOURS);
+        StringBuilder ics = new StringBuilder();
+        ics.append("BEGIN:VCALENDAR\r\n");
+        ics.append("VERSION:2.0\r\n");
+        ics.append("PRODID:-//FirstRegistrars Board Portal//EN\r\n");
+        ics.append(buildEventBlock(meeting));
+        ics.append("END:VCALENDAR\r\n");
+
+        return ics.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    public byte[] generateFeed(String token) {
+        User user = userRepository.findByCalendarToken(token)
+                .orElseThrow(() -> ApiException.notFound("Calendar feed not found"));
+        List<Meeting> meetings = meetingRepository.findByOrganizationIdOrderByScheduledStartDesc(
+                user.getOrganizationId());
 
         StringBuilder ics = new StringBuilder();
         ics.append("BEGIN:VCALENDAR\r\n");
         ics.append("VERSION:2.0\r\n");
         ics.append("PRODID:-//FirstRegistrars Board Portal//EN\r\n");
-        ics.append("BEGIN:VEVENT\r\n");
-        ics.append("UID:").append(meeting.getId()).append("@board-portal\r\n");
-        ics.append("DTSTAMP:").append(icsFormat.format(Instant.now())).append("\r\n");
-        ics.append("DTSTART:").append(icsFormat.format(meeting.getScheduledStart())).append("\r\n");
-        ics.append("DTEND:").append(icsFormat.format(end)).append("\r\n");
-        ics.append("SUMMARY:").append(icsEscape(meeting.getTitle())).append("\r\n");
-        if (meeting.getLocation() != null) {
-            ics.append("LOCATION:").append(icsEscape(meeting.getLocation())).append("\r\n");
+        for (Meeting meeting : meetings) {
+            ics.append(buildEventBlock(meeting));
         }
-        if (meeting.getDescription() != null) {
-            ics.append("DESCRIPTION:").append(icsEscape(meeting.getDescription())).append("\r\n");
-        }
-        ics.append("END:VEVENT\r\n");
         ics.append("END:VCALENDAR\r\n");
 
         return ics.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private String buildEventBlock(Meeting meeting) {
+        DateTimeFormatter icsFormat = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").withZone(ZoneOffset.UTC);
+        Instant end = meeting.getScheduledEnd() != null
+                ? meeting.getScheduledEnd()
+                : meeting.getScheduledStart().plus(1, ChronoUnit.HOURS);
+
+        StringBuilder event = new StringBuilder();
+        event.append("BEGIN:VEVENT\r\n");
+        event.append("UID:").append(meeting.getId()).append("@board-portal\r\n");
+        event.append("DTSTAMP:").append(icsFormat.format(Instant.now())).append("\r\n");
+        event.append("DTSTART:").append(icsFormat.format(meeting.getScheduledStart())).append("\r\n");
+        event.append("DTEND:").append(icsFormat.format(end)).append("\r\n");
+        event.append("SUMMARY:").append(icsEscape(meeting.getTitle())).append("\r\n");
+        if (meeting.getLocation() != null) {
+            event.append("LOCATION:").append(icsEscape(meeting.getLocation())).append("\r\n");
+        }
+        if (meeting.getDescription() != null) {
+            event.append("DESCRIPTION:").append(icsEscape(meeting.getDescription())).append("\r\n");
+        }
+        event.append("END:VEVENT\r\n");
+        return event.toString();
     }
 
     private String icsEscape(String value) {

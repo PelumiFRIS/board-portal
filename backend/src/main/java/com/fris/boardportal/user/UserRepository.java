@@ -14,4 +14,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     List<User> findByOrganizationId(UUID organizationId);
 
     Optional<User> findByIdAndOrganizationId(UUID id, UUID organizationId);
+
+    Optional<User> findByCalendarToken(String calendarToken);
 }

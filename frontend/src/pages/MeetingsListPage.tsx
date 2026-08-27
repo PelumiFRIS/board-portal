@@ -1,6 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { createMeeting, listMeetings } from "../api/meetings";
+import {
+  buildCalendarFeedUrl,
+  createMeeting,
+  getCalendarToken,
+  listMeetings,
+  regenerateCalendarToken,
+} from "../api/meetings";
 import { extractErrorMessage } from "../api/client";
 import type { MeetingSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
@@ -36,12 +42,51 @@ export function MeetingsListPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [feedUrl, setFeedUrl] = useState<string | null>(null);
+  const [feedError, setFeedError] = useState<string | null>(null);
+  const [feedLoading, setFeedLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   useEffect(() => {
     listMeetings()
       .then(setMeetings)
       .catch((err) => setLoadError(extractErrorMessage(err)))
       .finally(() => setLoading(false));
   }, []);
+
+  async function handleShowFeedLink() {
+    setFeedError(null);
+    setFeedLoading(true);
+    try {
+      const { token } = await getCalendarToken();
+      setFeedUrl(buildCalendarFeedUrl(token));
+    } catch (err) {
+      setFeedError(extractErrorMessage(err));
+    } finally {
+      setFeedLoading(false);
+    }
+  }
+
+  async function handleCopyFeedLink() {
+    if (!feedUrl) return;
+    await navigator.clipboard.writeText(feedUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleRegenerateFeedLink() {
+    setFeedError(null);
+    setFeedLoading(true);
+    try {
+      const { token } = await regenerateCalendarToken();
+      setFeedUrl(buildCalendarFeedUrl(token));
+      setCopied(false);
+    } catch (err) {
+      setFeedError(extractErrorMessage(err));
+    } finally {
+      setFeedLoading(false);
+    }
+  }
 
   async function handleSchedule(event: FormEvent) {
     event.preventDefault();
@@ -113,6 +158,30 @@ export function MeetingsListPage() {
                 ))}
               </tbody>
             </table>
+          )}
+
+          <h3>Subscribe to calendar</h3>
+          <p className="table-hint">
+            Get a personal link you can add to Google Calendar, Outlook, or Apple Calendar as a subscription — new
+            meetings show up automatically. Treat the link like a password; anyone with it can see your meeting
+            schedule.
+          </p>
+          {feedError && <p className="form-error">{feedError}</p>}
+          {!feedUrl && (
+            <button className="secondary small" disabled={feedLoading} onClick={handleShowFeedLink}>
+              {feedLoading ? "Loading..." : "Get calendar link"}
+            </button>
+          )}
+          {feedUrl && (
+            <div className="field-row">
+              <input value={feedUrl} readOnly onFocus={(e) => e.target.select()} />
+              <button className="secondary small" onClick={handleCopyFeedLink}>
+                {copied ? "Copied!" : "Copy link"}
+              </button>
+              <button className="secondary small" disabled={feedLoading} onClick={handleRegenerateFeedLink}>
+                Regenerate link
+              </button>
+            </div>
           )}
 
           {isAdmin && (

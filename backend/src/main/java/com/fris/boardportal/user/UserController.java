@@ -1,6 +1,7 @@
 package com.fris.boardportal.user;
 
 import com.fris.boardportal.security.AppUserPrincipal;
+import com.fris.boardportal.user.dto.CalendarTokenResponse;
 import com.fris.boardportal.user.dto.CreateUserRequest;
 import com.fris.boardportal.user.dto.UpdateUserRequest;
 import com.fris.boardportal.user.dto.UserSummary;
@@ -83,5 +84,15 @@ public class UserController {
             @PathVariable UUID id) {
         userService.deletePhoto(principal, id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/me/calendar-token")
+    public CalendarTokenResponse calendarToken(@AuthenticationPrincipal AppUserPrincipal principal) {
+        return new CalendarTokenResponse(userService.getOrCreateCalendarToken(principal));
+    }
+
+    @PostMapping("/me/calendar-token/regenerate")
+    public CalendarTokenResponse regenerateCalendarToken(@AuthenticationPrincipal AppUserPrincipal principal) {
+        return new CalendarTokenResponse(userService.regenerateCalendarToken(principal));
     }
 }
