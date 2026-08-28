@@ -59,6 +59,15 @@ public class ActionItemService {
                 .toList();
     }
 
+    public List<ActionItemSummary> listOpenExcludingMeeting(AppUserPrincipal principal, UUID excludeMeetingId) {
+        Map<UUID, User> usersById = usersById(principal.getOrganizationId());
+        return actionItemRepository.findByOrganizationIdOrderByCreatedAtDesc(principal.getOrganizationId()).stream()
+                .filter(i -> i.getStatus() == ActionItemStatus.OPEN)
+                .filter(i -> !i.getMeetingId().equals(excludeMeetingId))
+                .map(i -> toSummary(i, usersById))
+                .toList();
+    }
+
     public byte[] exportCsv(AppUserPrincipal admin) {
         Map<UUID, String> meetingTitlesById = meetingRepository
                 .findByOrganizationIdOrderByScheduledStartDesc(admin.getOrganizationId()).stream()

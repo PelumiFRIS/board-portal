@@ -87,7 +87,7 @@ class CalendarFeedFlowTest extends IntegrationTestSupport {
         Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
-                authedRequest(adminToken, new CreateMeetingRequest(title, null, null, start, null, null)),
+                authedRequest(adminToken, new CreateMeetingRequest(title, null, null, start, null, null, null)),
                 MeetingSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }

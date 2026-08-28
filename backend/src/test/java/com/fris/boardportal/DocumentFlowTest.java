@@ -100,7 +100,7 @@ class DocumentFlowTest extends IntegrationTestSupport {
         Instant start = Instant.now().plus(3, ChronoUnit.DAYS);
         ResponseEntity<MeetingSummary> meeting = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
-                authedRequest(admin.accessToken(), new CreateMeetingRequest("Q1 Meeting", null, null, start, null, null)),
+                authedRequest(admin.accessToken(), new CreateMeetingRequest("Q1 Meeting", null, null, start, null, null, null)),
                 MeetingSummary.class);
 
         uploadDocument(admin.accessToken(), "Q1 Board Pack", DocumentCategory.BOARD_PACK, meeting.getBody().id());

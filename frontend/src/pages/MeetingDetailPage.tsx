@@ -5,6 +5,7 @@ import {
   deleteAgendaItem,
   downloadMeetingIcs,
   exportMeetingRecord,
+  getMattersArising,
   getMeeting,
   updateAgendaItem,
   updateMeeting,
@@ -20,9 +21,11 @@ import {
 import { createActionItem, deleteActionItem, updateActionItemStatus } from "../api/actionItems";
 import { listOrganizationUsers } from "../api/auth";
 import { extractErrorMessage } from "../api/client";
+import { STANDARD_AGENDA_ITEMS } from "../constants/agendaTemplates";
 import type {
   ActionItemSummary,
   AgendaItem,
+  MatterArisingItem,
   MeetingDetail as MeetingDetailType,
   ResolutionSummary,
   UserSummary,
@@ -47,6 +50,12 @@ export function MeetingDetailPage() {
   const [newItemTitle, setNewItemTitle] = useState("");
   const [newItemDescription, setNewItemDescription] = useState("");
   const [addingItem, setAddingItem] = useState(false);
+  const [templatePick, setTemplatePick] = useState("");
+
+  const [mattersArising, setMattersArising] = useState<MatterArisingItem[]>([]);
+  const [loadingMattersArising, setLoadingMattersArising] = useState(true);
+  const [mattersArisingError, setMattersArisingError] = useState<string | null>(null);
+  const [addingToAgendaId, setAddingToAgendaId] = useState<string | null>(null);
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -89,6 +98,15 @@ export function MeetingDetailPage() {
       .catch(() => undefined);
   }, [isAdmin]);
 
+  useEffect(() => {
+    if (!id) return;
+    setLoadingMattersArising(true);
+    getMattersArising(id)
+      .then(setMattersArising)
+      .catch((err) => setMattersArisingError(extractErrorMessage(err)))
+      .finally(() => setLoadingMattersArising(false));
+  }, [id]);
+
   async function handleAddAgendaItem(event: FormEvent) {
     event.preventDefault();
     if (!id) return;
@@ -99,10 +117,29 @@ export function MeetingDetailPage() {
       setMeeting((prev) => (prev ? { ...prev, agendaItems: [...prev.agendaItems, item] } : prev));
       setNewItemTitle("");
       setNewItemDescription("");
+      setTemplatePick("");
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
       setAddingItem(false);
+    }
+  }
+
+  async function handleAddMatterToAgenda(matter: MatterArisingItem) {
+    if (!id) return;
+    setActionError(null);
+    setAddingToAgendaId(matter.id);
+    try {
+      const item = await addAgendaItem(id, {
+        title: matter.title,
+        description: `Carried forward from "${matter.sourceMeetingTitle}"`,
+      });
+      setMeeting((prev) => (prev ? { ...prev, agendaItems: [...prev.agendaItems, item] } : prev));
+      setMattersArising((prev) => prev.filter((m) => m.id !== matter.id));
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setAddingToAgendaId(null);
     }
   }
 
@@ -357,6 +394,12 @@ export function MeetingDetailPage() {
               </p>
               <p>
                 <strong>Status:</strong> <StatusBadge status={meeting.status} />
+                {meeting.meetingType && (
+                  <>
+                    {" "}
+                    <span className="badge badge-category">{meeting.meetingType}</span>
+                  </>
+                )}
               </p>
               {actionError && <p className="form-error">{actionError}</p>}
               <div className="field-row">
@@ -425,6 +468,23 @@ export function MeetingDetailPage() {
               {isAdmin && (
                 <form className="add-user-form" onSubmit={handleAddAgendaItem}>
                   <label>
+                    Quick add from template
+                    <select
+                      value={templatePick}
+                      onChange={(e) => {
+                        setTemplatePick(e.target.value);
+                        if (e.target.value) setNewItemTitle(e.target.value);
+                      }}
+                    >
+                      <option value="">— choose a standard item —</option>
+                      {STANDARD_AGENDA_ITEMS.map((label) => (
+                        <option key={label} value={label}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
                     New agenda item
                     <input value={newItemTitle} onChange={(e) => setNewItemTitle(e.target.value)} required />
                   </label>
@@ -437,6 +497,43 @@ export function MeetingDetailPage() {
                   </button>
                 </form>
               )}
+            </section>
+
+            <section className="dashboard-section">
+              <h2>Matters Arising</h2>
+              <p className="table-hint">
+                Still-open action items from other meetings, so nothing gets lost between meetings.
+              </p>
+              {mattersArisingError && <p className="form-error">{mattersArisingError}</p>}
+              {loadingMattersArising && <p>Loading matters arising...</p>}
+              {!loadingMattersArising && mattersArising.length === 0 && (
+                <div className="empty-state">
+                  <p>Nothing outstanding from previous meetings.</p>
+                </div>
+              )}
+              {!loadingMattersArising &&
+                mattersArising.map((matter) => (
+                  <div key={matter.id} className="resolution-card">
+                    <div className="resolution-card-header">
+                      <strong>{matter.title}</strong>
+                    </div>
+                    {matter.description && <p>{matter.description}</p>}
+                    <p className="table-hint">
+                      From "{matter.sourceMeetingTitle}" ({new Date(matter.sourceMeetingScheduledStart).toLocaleDateString()})
+                      {" · "}Assigned to {matter.assigneeName}
+                      {matter.dueDate ? ` · Due ${new Date(matter.dueDate).toLocaleDateString()}` : ""}
+                    </p>
+                    {isAdmin && (
+                      <button
+                        className="secondary small"
+                        disabled={addingToAgendaId === matter.id}
+                        onClick={() => handleAddMatterToAgenda(matter)}
+                      >
+                        {addingToAgendaId === matter.id ? "Adding..." : "Add to agenda"}
+                      </button>
+                    )}
+                  </div>
+                ))}
             </section>
 
             <section className="dashboard-section">

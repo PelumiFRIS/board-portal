@@ -3,6 +3,7 @@ package com.fris.boardportal.meeting;
 import com.fris.boardportal.meeting.dto.AgendaItemDto;
 import com.fris.boardportal.meeting.dto.CreateAgendaItemRequest;
 import com.fris.boardportal.meeting.dto.CreateMeetingRequest;
+import com.fris.boardportal.meeting.dto.MatterArisingItem;
 import com.fris.boardportal.meeting.dto.MeetingDetail;
 import com.fris.boardportal.meeting.dto.MeetingSummary;
 import com.fris.boardportal.meeting.dto.UpdateAgendaItemRequest;
@@ -48,6 +49,12 @@ public class MeetingController {
     @GetMapping("/{id}")
     public MeetingDetail detail(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         return meetingService.getDetail(principal, id);
+    }
+
+    @GetMapping("/{id}/matters-arising")
+    public List<MatterArisingItem> mattersArising(@AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID id) {
+        return meetingService.getMattersArising(principal, id);
     }
 
     @GetMapping("/{id}/ics")

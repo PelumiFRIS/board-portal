@@ -13,6 +13,7 @@ import com.fris.boardportal.document.DocumentRepository;
 import com.fris.boardportal.meeting.dto.AgendaItemDto;
 import com.fris.boardportal.meeting.dto.CreateAgendaItemRequest;
 import com.fris.boardportal.meeting.dto.CreateMeetingRequest;
+import com.fris.boardportal.meeting.dto.MatterArisingItem;
 import com.fris.boardportal.meeting.dto.MeetingDetail;
 import com.fris.boardportal.meeting.dto.MeetingSummary;
 import com.fris.boardportal.meeting.dto.UpdateAgendaItemRequest;
@@ -32,8 +33,12 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -82,6 +87,26 @@ public class MeetingService {
     public MeetingDetail getDetail(AppUserPrincipal principal, UUID meetingId) {
         Meeting meeting = findMeetingInOrg(principal, meetingId);
         return toDetail(meeting, principal);
+    }
+
+    public List<MatterArisingItem> getMattersArising(AppUserPrincipal principal, UUID meetingId) {
+        Meeting meeting = findMeetingInOrg(principal, meetingId);
+        Map<UUID, Meeting> meetingsById = meetingRepository
+                .findByOrganizationIdOrderByScheduledStartDesc(principal.getOrganizationId()).stream()
+                .collect(Collectors.toMap(Meeting::getId, m -> m));
+
+        return actionItemService.listOpenExcludingMeeting(principal, meetingId).stream()
+                .filter(item -> {
+                    Meeting source = meetingsById.get(item.meetingId());
+                    return source != null && Objects.equals(source.getCommitteeId(), meeting.getCommitteeId());
+                })
+                .sorted(Comparator.comparing(ActionItemSummary::dueDate, Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(item -> {
+                    Meeting source = meetingsById.get(item.meetingId());
+                    return new MatterArisingItem(item.id(), item.title(), item.description(), item.assigneeName(),
+                            item.dueDate(), source.getId(), source.getTitle(), source.getScheduledStart());
+                })
+                .toList();
     }
 
     public byte[] exportRecordHtml(AppUserPrincipal principal, UUID meetingId) {
@@ -249,12 +274,16 @@ public class MeetingService {
                 request.location(),
                 request.scheduledStart(),
                 request.scheduledEnd(),
-                request.committeeId());
+                request.committeeId(),
+                request.meetingType());
         meetingRepository.save(meeting);
 
         String summary = committee != null
                 ? "Scheduled meeting \"" + meeting.getTitle() + "\" for committee \"" + committee.getName() + "\""
                 : "Scheduled meeting \"" + meeting.getTitle() + "\"";
+        if (meeting.getMeetingType() != null) {
+            summary = summary + " (" + meeting.getMeetingType() + ")";
+        }
         auditLogService.record(admin, AuditAction.MEETING_CREATED, AuditEntityType.MEETING, meeting.getId(), summary);
 
         emailNotificationService.notifyMeetingScheduled(meeting, resolveRecipients(admin, meeting));
@@ -312,6 +341,9 @@ public class MeetingService {
         if (request.committeeId() != null) {
             findCommitteeInOrg(admin, request.committeeId());
             meeting.setCommitteeId(request.committeeId());
+        }
+        if (request.meetingType() != null) {
+            meeting.setMeetingType(request.meetingType());
         }
         meeting.setUpdatedAt(Instant.now());
         meetingRepository.save(meeting);

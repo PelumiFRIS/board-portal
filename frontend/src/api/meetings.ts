@@ -3,6 +3,7 @@ import type {
   AgendaItem,
   CreateAgendaItemPayload,
   CreateMeetingPayload,
+  MatterArisingItem,
   MeetingDetail,
   MeetingSummary,
   UpdateAgendaItemPayload,
@@ -20,6 +21,11 @@ export async function listMeetings(params: ListMeetingsParams = {}): Promise<Mee
 
 export async function getMeeting(id: string): Promise<MeetingDetail> {
   const { data } = await apiClient.get<MeetingDetail>(`/api/meetings/${id}`);
+  return data;
+}
+
+export async function getMattersArising(id: string): Promise<MatterArisingItem[]> {
+  const { data } = await apiClient.get<MatterArisingItem[]>(`/api/meetings/${id}/matters-arising`);
   return data;
 }
 

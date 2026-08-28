@@ -63,7 +63,7 @@ class MeetingNotificationFlowTest extends IntegrationTestSupport {
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
                 authedRequest(admin.accessToken(), new CreateMeetingRequest("Audit Committee Meeting", null, null,
-                        start, start.plus(1, ChronoUnit.HOURS), committee.id())),
+                        start, start.plus(1, ChronoUnit.HOURS), committee.id(), null)),
                 MeetingSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
@@ -97,7 +97,7 @@ class MeetingNotificationFlowTest extends IntegrationTestSupport {
     private CreateMeetingRequest newMeetingRequest() {
         Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
         return new CreateMeetingRequest("Notify Test Meeting", "Quarterly review", "Virtual", start,
-                start.plus(1, ChronoUnit.HOURS), null);
+                start.plus(1, ChronoUnit.HOURS), null, null);
     }
 
     private void createBoardMember(String adminToken, String email) {

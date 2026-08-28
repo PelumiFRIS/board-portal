@@ -1,0 +1,15 @@
+export const STANDARD_AGENDA_ITEMS: string[] = [
+  "Commencement/call to order",
+  "Opening prayer",
+  "Review and adoption of meeting agenda",
+  "Apologies & Correspondences, if any",
+  "Chairman's Opening remarks",
+  "Review & adoption of minutes of last meeting",
+  "Matters Arising",
+  "Board committees report presentation",
+  "Questions & Answers",
+  "Recommendations & Alignment",
+  "Any other business",
+  "Closing Remarks",
+  "Closing Prayer",
+];

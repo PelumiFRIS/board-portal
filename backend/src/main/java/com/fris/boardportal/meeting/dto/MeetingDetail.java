@@ -4,6 +4,7 @@ import com.fris.boardportal.actionitem.dto.ActionItemSummary;
 import com.fris.boardportal.document.dto.DocumentSummary;
 import com.fris.boardportal.meeting.Meeting;
 import com.fris.boardportal.meeting.MeetingStatus;
+import com.fris.boardportal.meeting.MeetingType;
 import com.fris.boardportal.resolution.dto.ResolutionSummary;
 import java.time.Instant;
 import java.util.List;
@@ -19,6 +20,7 @@ public record MeetingDetail(
         MeetingStatus status,
         String minutesContent,
         UUID committeeId,
+        MeetingType meetingType,
         List<AgendaItemDto> agendaItems,
         List<DocumentSummary> documents,
         List<ResolutionSummary> resolutions,
@@ -36,6 +38,7 @@ public record MeetingDetail(
                 meeting.getStatus(),
                 meeting.getMinutesContent(),
                 meeting.getCommitteeId(),
+                meeting.getMeetingType(),
                 agendaItems,
                 documents,
                 resolutions,

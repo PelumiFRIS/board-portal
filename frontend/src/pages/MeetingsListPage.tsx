@@ -9,10 +9,16 @@ import {
 } from "../api/meetings";
 import { listCommittees } from "../api/committees";
 import { extractErrorMessage } from "../api/client";
-import type { CommitteeSummary, MeetingSummary } from "../api/types";
+import type { CommitteeSummary, MeetingSummary, MeetingType } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
+
+const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
+  AGM: "Annual General Meeting (AGM)",
+  EGM: "Extra-Ordinary General Meeting (EGM)",
+  COM: "Court-Ordered Meeting (COM)",
+};
 
 function EmptyMeetingsIcon() {
   return (
@@ -43,6 +49,7 @@ export function MeetingsListPage() {
   const [scheduledStart, setScheduledStart] = useState("");
   const [scheduledEnd, setScheduledEnd] = useState("");
   const [committeeId, setCommitteeId] = useState("");
+  const [meetingType, setMeetingType] = useState<MeetingType | "">("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -113,6 +120,7 @@ export function MeetingsListPage() {
         scheduledStart: new Date(scheduledStart).toISOString(),
         scheduledEnd: scheduledEnd ? new Date(scheduledEnd).toISOString() : undefined,
         committeeId: committeeId || undefined,
+        meetingType: meetingType || undefined,
       });
       if (!committeeFilter || committeeFilter === created.committeeId) {
         setMeetings((prev) => [created, ...prev]);
@@ -123,6 +131,7 @@ export function MeetingsListPage() {
       setScheduledStart("");
       setScheduledEnd("");
       setCommitteeId("");
+      setMeetingType("");
     } catch (err) {
       setFormError(extractErrorMessage(err));
     } finally {
@@ -172,6 +181,7 @@ export function MeetingsListPage() {
                   <th>Date</th>
                   <th>Location</th>
                   <th>Committee</th>
+                  <th>Type</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -184,6 +194,9 @@ export function MeetingsListPage() {
                     <td>{new Date(m.scheduledStart).toLocaleString()}</td>
                     <td>{m.location ?? "—"}</td>
                     <td>{flatCommittees.find((c) => c.id === m.committeeId)?.name ?? "—"}</td>
+                    <td>
+                      {m.meetingType ? <span className="badge badge-category">{m.meetingType}</span> : "—"}
+                    </td>
                     <td>
                       <StatusBadge status={m.status} />
                     </td>
@@ -259,6 +272,20 @@ export function MeetingsListPage() {
                     {flatCommittees.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.parentCommitteeId ? `— ${c.name}` : c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Meeting type (optional)
+                  <select
+                    value={meetingType}
+                    onChange={(e) => setMeetingType(e.target.value as MeetingType | "")}
+                  >
+                    <option value="">Ordinary meeting</option>
+                    {(Object.keys(MEETING_TYPE_LABELS) as MeetingType[]).map((type) => (
+                      <option key={type} value={type}>
+                        {MEETING_TYPE_LABELS[type]}
                       </option>
                     ))}
                   </select>
