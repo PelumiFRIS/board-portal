@@ -5,6 +5,7 @@ import com.fris.boardportal.audit.AuditEntityType;
 import com.fris.boardportal.audit.AuditLogService;
 import com.fris.boardportal.committee.CommitteeService;
 import com.fris.boardportal.common.ApiException;
+import com.fris.boardportal.notification.EmailNotificationService;
 import com.fris.boardportal.organization.OrganizationRepository;
 import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.user.dto.CreateUserRequest;
@@ -46,14 +47,17 @@ public class UserService {
     private final CommitteeService committeeService;
     private final PasswordEncoder passwordEncoder;
     private final AuditLogService auditLogService;
+    private final EmailNotificationService emailNotificationService;
 
     public UserService(UserRepository userRepository, UserPhotoRepository userPhotoRepository,
             OrganizationRepository organizationRepository, CommitteeService committeeService,
-            PasswordEncoder passwordEncoder, AuditLogService auditLogService) {
+            PasswordEncoder passwordEncoder, AuditLogService auditLogService,
+            EmailNotificationService emailNotificationService) {
         this.userRepository = userRepository;
         this.userPhotoRepository = userPhotoRepository;
         this.organizationRepository = organizationRepository;
         this.committeeService = committeeService;
+        this.emailNotificationService = emailNotificationService;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
     }
@@ -146,6 +150,10 @@ public class UserService {
                     ? "Updated their own profile: " + String.join(", ", changes)
                     : "Changed " + user.getFirstName() + " " + user.getLastName() + "'s " + String.join(", ", changes);
             auditLogService.record(principal, AuditAction.USER_UPDATED, AuditEntityType.USER, user.getId(), summary);
+
+            if (!isSelf) {
+                emailNotificationService.notifyProfileUpdatedByAdmin(user, changes);
+            }
         }
 
         return UserSummary.from(user, organizationName(principal.getOrganizationId()), photoUpdatedAt(user.getId()),

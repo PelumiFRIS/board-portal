@@ -81,6 +81,27 @@ public class EmailNotificationService {
         }
     }
 
+    public void notifyProfileUpdatedByAdmin(User target, List<String> changes) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(target.getEmail());
+        message.setSubject("Your profile was updated");
+        message.setText(buildProfileUpdateBody(changes));
+
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            log.warn("Failed to send profile-updated email for user {}", target.getId(), e);
+        }
+    }
+
+    private String buildProfileUpdateBody(List<String> changes) {
+        StringBuilder body = new StringBuilder();
+        body.append("An admin updated your profile.\n\n");
+        body.append("Changed: ").append(String.join(", ", changes)).append('\n');
+        body.append('\n').append(frontendUrl).append("/directory");
+        return body.toString();
+    }
+
     private String buildResolutionBody(Resolution resolution, String meetingTitle) {
         StringBuilder body = new StringBuilder();
         body.append('"').append(resolution.getTitle()).append("\" is open for voting.\n\n");
