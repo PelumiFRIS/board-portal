@@ -10,12 +10,24 @@ import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.user.dto.CreateUserRequest;
 import com.fris.boardportal.user.dto.UpdateUserRequest;
 import com.fris.boardportal.user.dto.UserSummary;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +37,8 @@ import org.springframework.web.multipart.MultipartFile;
 public class UserService {
 
     private static final long MAX_PHOTO_SIZE_BYTES = 5L * 1024 * 1024;
+    private static final int MAX_PHOTO_DIMENSION = 512;
+    private static final float PHOTO_JPEG_QUALITY = 0.85f;
 
     private final UserRepository userRepository;
     private final UserPhotoRepository userPhotoRepository;
@@ -156,16 +170,29 @@ public class UserService {
             throw ApiException.badRequest("Photo exceeds the 5MB upload limit");
         }
 
-        byte[] data;
+        byte[] rawData;
         try {
-            data = file.getBytes();
+            rawData = file.getBytes();
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to read uploaded photo", e);
         }
 
+        BufferedImage source;
+        try {
+            source = ImageIO.read(new ByteArrayInputStream(rawData));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to read uploaded photo", e);
+        }
+        if (source == null) {
+            throw ApiException.badRequest("Unsupported image format — please upload a JPEG, PNG, GIF, or BMP");
+        }
+
+        byte[] data = encodeAsJpeg(normalizePhoto(source));
+        String normalizedContentType = "image/jpeg";
+
         UserPhoto photo = userPhotoRepository.findById(user.getId())
-                .orElseGet(() -> UserPhoto.create(user.getId(), contentType, data));
-        photo.setContentType(contentType);
+                .orElseGet(() -> UserPhoto.create(user.getId(), normalizedContentType, data));
+        photo.setContentType(normalizedContentType);
         photo.setPhotoData(data);
         photo.setUpdatedAt(Instant.now());
         userPhotoRepository.save(photo);
@@ -220,6 +247,43 @@ public class UserService {
         boolean isSelf = targetUserId.equals(principal.getUserId());
         if (!isAdmin && !isSelf) {
             throw ApiException.forbidden("You can only manage your own photo");
+        }
+    }
+
+    private BufferedImage normalizePhoto(BufferedImage source) {
+        int size = Math.min(source.getWidth(), source.getHeight());
+        int x = (source.getWidth() - size) / 2;
+        int y = (source.getHeight() - size) / 2;
+        BufferedImage cropped = source.getSubimage(x, y, size, size);
+
+        int targetSize = Math.min(size, MAX_PHOTO_DIMENSION);
+        BufferedImage normalized = new BufferedImage(targetSize, targetSize, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = normalized.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.setColor(Color.WHITE);
+        g.fillRect(0, 0, targetSize, targetSize);
+        g.drawImage(cropped, 0, 0, targetSize, targetSize, null);
+        g.dispose();
+        return normalized;
+    }
+
+    private byte[] encodeAsJpeg(BufferedImage image) {
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpg");
+        ImageWriter writer = writers.next();
+        ImageWriteParam params = writer.getDefaultWriteParam();
+        params.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+        params.setCompressionQuality(PHOTO_JPEG_QUALITY);
+
+        try {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            try (ImageOutputStream ios = ImageIO.createImageOutputStream(output)) {
+                writer.setOutput(ios);
+                writer.write(null, new IIOImage(image, null, null), params);
+            }
+            writer.dispose();
+            return output.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to encode photo", e);
         }
     }
 
