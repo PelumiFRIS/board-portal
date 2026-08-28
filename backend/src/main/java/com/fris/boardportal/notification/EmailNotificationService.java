@@ -1,6 +1,7 @@
 package com.fris.boardportal.notification;
 
 import com.fris.boardportal.actionitem.ActionItem;
+import com.fris.boardportal.compliance.ComplianceFiling;
 import com.fris.boardportal.meeting.Meeting;
 import com.fris.boardportal.resolution.Resolution;
 import com.fris.boardportal.user.User;
@@ -79,6 +80,38 @@ public class EmailNotificationService {
         } catch (MailException e) {
             log.warn("Failed to send action-item-assigned email for action item {}", item.getId(), e);
         }
+    }
+
+    public void notifyFilingDueSoon(ComplianceFiling filing, List<User> recipients, int daysUntilDue) {
+        if (recipients.isEmpty()) {
+            return;
+        }
+        String[] bcc = recipients.stream().map(User::getEmail).toArray(String[]::new);
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setBcc(bcc);
+        message.setSubject(daysUntilDue == 1
+                ? "Filing due tomorrow: " + filing.getTitle()
+                : "Filing due in " + daysUntilDue + " days: " + filing.getTitle());
+        message.setText(buildFilingDueSoonBody(filing, daysUntilDue));
+
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            log.warn("Failed to send filing-due-soon email for filing {}", filing.getId(), e);
+        }
+    }
+
+    private String buildFilingDueSoonBody(ComplianceFiling filing, int daysUntilDue) {
+        StringBuilder body = new StringBuilder();
+        body.append('"').append(filing.getTitle()).append('"')
+                .append(daysUntilDue == 1 ? " is due tomorrow.\n\n" : " is due in " + daysUntilDue + " days.\n\n");
+        body.append("Due date: ").append(filing.getDueDate()).append('\n');
+        if (filing.getDescription() != null) {
+            body.append(filing.getDescription()).append('\n');
+        }
+        body.append('\n').append(frontendUrl).append("/compliance");
+        return body.toString();
     }
 
     public void notifyProfileUpdatedByAdmin(User target, List<String> changes) {
