@@ -5,9 +5,12 @@ import com.fris.boardportal.actionitem.dto.CreateActionItemRequest;
 import com.fris.boardportal.actionitem.dto.UpdateActionItemStatusRequest;
 import com.fris.boardportal.security.AppUserPrincipal;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -35,6 +38,17 @@ public class ActionItemController {
     public List<ActionItemSummary> list(@AuthenticationPrincipal AppUserPrincipal principal,
             @RequestParam(required = false) UUID meetingId) {
         return actionItemService.listForOrganization(principal, meetingId);
+    }
+
+    @GetMapping("/export")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<byte[]> export(@AuthenticationPrincipal AppUserPrincipal principal) {
+        byte[] csv = actionItemService.exportCsv(principal);
+        String filename = "action-items-" + LocalDate.now() + ".csv";
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .body(csv);
     }
 
     @PostMapping

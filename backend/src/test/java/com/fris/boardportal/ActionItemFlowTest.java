@@ -110,6 +110,30 @@ class ActionItemFlowTest extends IntegrationTestSupport {
     }
 
     @Test
+    void adminCanExportActionItemsCsvButNonAdminCannot() {
+        AuthResponse admin = signup(uniqueEmail(), "Export Action Items Org");
+        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        String memberEmail = uniqueEmail();
+        UUID memberId = createBoardMember(admin.accessToken(), memberEmail);
+        AuthResponse member = login(memberEmail);
+        createActionItem(admin.accessToken(), meeting.id(), memberId);
+
+        ResponseEntity<String> blocked = restTemplate.exchange(
+                "/api/action-items/export", HttpMethod.GET, authedRequest(member.accessToken()), String.class);
+        assertThat(blocked.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ResponseEntity<String> exported = restTemplate.exchange(
+                "/api/action-items/export", HttpMethod.GET, authedRequest(admin.accessToken()), String.class);
+        assertThat(exported.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(exported.getHeaders().getContentType()).isNotNull();
+        assertThat(exported.getHeaders().getContentType().toString()).contains("text/csv");
+        assertThat(exported.getBody()).contains("Meeting,Title,Assignee,Due Date,Status");
+        assertThat(exported.getBody()).contains("Action Item Test Meeting");
+        assertThat(exported.getBody()).contains("Finalize the draft");
+        assertThat(exported.getBody()).contains("Board Member");
+    }
+
+    @Test
     void adminCannotAccessActionItemFromAnotherOrganization() {
         AuthResponse orgAAdmin = signup(uniqueEmail(), "Action Items Org A");
         AuthResponse orgBAdmin = signup(uniqueEmail(), "Action Items Org B");

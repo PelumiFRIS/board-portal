@@ -92,6 +92,45 @@ class MeetingFlowTest extends IntegrationTestSupport {
     }
 
     @Test
+    void anyOrgMemberCanDownloadMeetingRecordWithEscapedContent() {
+        AuthResponse admin = signup(uniqueEmail(), "Meeting Record Org");
+        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        String memberEmail = uniqueEmail();
+        createBoardMember(admin.accessToken(), memberEmail);
+        AuthResponse member = login(memberEmail);
+
+        restTemplate.exchange(
+                "/api/meetings/" + meeting.id(), HttpMethod.PATCH,
+                authedRequest(admin.accessToken(),
+                        new UpdateMeetingRequest(null, null, null, null, null, null,
+                                "Discussed <script>alert('x')</script> & approved the budget.", null)),
+                MeetingDetail.class);
+
+        ResponseEntity<String> exported = restTemplate.exchange(
+                "/api/meetings/" + meeting.id() + "/export", HttpMethod.GET,
+                authedRequest(member.accessToken()), String.class);
+        assertThat(exported.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(exported.getHeaders().getContentType()).isNotNull();
+        assertThat(exported.getHeaders().getContentType().toString()).contains("text/html");
+        assertThat(exported.getBody()).contains("Q3 Board Meeting");
+        assertThat(exported.getBody()).contains("&lt;script&gt;alert('x')&lt;/script&gt; &amp; approved");
+        assertThat(exported.getBody()).doesNotContain("<script>alert");
+    }
+
+    @Test
+    void meetingRecordExportIsScopedToOrganization() {
+        AuthResponse orgAAdmin = signup(uniqueEmail(), "Meeting Record Org A");
+        AuthResponse orgBAdmin = signup(uniqueEmail(), "Meeting Record Org B");
+        MeetingSummary orgBMeeting = scheduleMeeting(orgBAdmin.accessToken());
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/meetings/" + orgBMeeting.id() + "/export", HttpMethod.GET,
+                authedRequest(orgAAdmin.accessToken()), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     void adminCannotAccessMeetingFromAnotherOrganization() {
         AuthResponse orgAAdmin = signup(uniqueEmail(), "Meetings Org A");
         AuthResponse orgBAdmin = signup(uniqueEmail(), "Meetings Org B");

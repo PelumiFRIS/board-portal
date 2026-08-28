@@ -129,6 +129,41 @@ class ResolutionFlowTest extends IntegrationTestSupport {
     }
 
     @Test
+    void adminCanExportResolutionsCsvButNonAdminCannot() {
+        AuthResponse admin = signup(uniqueEmail(), "Export Resolutions Org");
+        String memberEmail = uniqueEmail();
+        createBoardMember(admin.accessToken(), memberEmail);
+        AuthResponse member = login(memberEmail);
+
+        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        createResolution(admin.accessToken(), meeting.id());
+
+        ResponseEntity<String> blocked = restTemplate.exchange(
+                "/api/resolutions/export", HttpMethod.GET, authedRequest(member.accessToken()), String.class);
+        assertThat(blocked.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ResponseEntity<String> exported = restTemplate.exchange(
+                "/api/resolutions/export", HttpMethod.GET, authedRequest(admin.accessToken()), String.class);
+        assertThat(exported.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(exported.getHeaders().getContentType()).isNotNull();
+        assertThat(exported.getHeaders().getContentType().toString()).contains("text/csv");
+        assertThat(exported.getBody()).contains("Meeting,Title,Status,Outcome,For,Against,Abstain,Opened At,Closed At");
+        assertThat(exported.getBody()).contains("Q3 Board Meeting");
+        assertThat(exported.getBody()).contains("Approve FY26 budget");
+    }
+
+    @Test
+    void exportingResolutionsForOrgWithNoneReturnsHeaderOnlyCsv() {
+        AuthResponse admin = signup(uniqueEmail(), "Empty Export Resolutions Org");
+
+        ResponseEntity<String> exported = restTemplate.exchange(
+                "/api/resolutions/export", HttpMethod.GET, authedRequest(admin.accessToken()), String.class);
+        assertThat(exported.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(exported.getBody()).isEqualTo(
+                "Meeting,Title,Status,Outcome,For,Against,Abstain,Opened At,Closed At\n");
+    }
+
+    @Test
     void adminCannotAccessResolutionFromAnotherOrganization() {
         AuthResponse orgAAdmin = signup(uniqueEmail(), "Resolutions Org A");
         AuthResponse orgBAdmin = signup(uniqueEmail(), "Resolutions Org B");

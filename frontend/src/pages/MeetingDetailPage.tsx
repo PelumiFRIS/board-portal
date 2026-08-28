@@ -4,6 +4,7 @@ import {
   addAgendaItem,
   deleteAgendaItem,
   downloadMeetingIcs,
+  exportMeetingRecord,
   getMeeting,
   updateAgendaItem,
   updateMeeting,
@@ -316,6 +317,16 @@ export function MeetingDetailPage() {
     }
   }
 
+  async function handleExportRecord() {
+    if (!id) return;
+    setActionError(null);
+    try {
+      await exportMeetingRecord(id);
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    }
+  }
+
   if (!user) return null;
 
   return (
@@ -351,6 +362,9 @@ export function MeetingDetailPage() {
               <div className="field-row">
                 <button className="secondary small" onClick={handleDownloadIcs}>
                   Add to calendar
+                </button>
+                <button className="secondary small" onClick={handleExportRecord}>
+                  Download meeting record
                 </button>
               </div>
               {isAdmin && meeting.status === "SCHEDULED" && (

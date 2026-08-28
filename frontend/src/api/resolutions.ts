@@ -34,3 +34,15 @@ export async function castVote(id: string, choice: VoteChoice): Promise<Resoluti
 export async function deleteResolution(id: string): Promise<void> {
   await apiClient.delete(`/api/resolutions/${id}`);
 }
+
+export async function downloadResolutionsCsv(): Promise<void> {
+  const response = await apiClient.get("/api/resolutions/export", { responseType: "blob" });
+  const url = URL.createObjectURL(response.data as Blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `resolutions-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

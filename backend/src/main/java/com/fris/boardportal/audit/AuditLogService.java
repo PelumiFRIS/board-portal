@@ -1,6 +1,7 @@
 package com.fris.boardportal.audit;
 
 import com.fris.boardportal.audit.dto.AuditLogEntry;
+import com.fris.boardportal.common.CsvSupport;
 import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.user.UserRepository;
 import java.nio.charset.StandardCharsets;
@@ -41,22 +42,12 @@ public class AuditLogService {
         StringBuilder csv = new StringBuilder();
         csv.append("When,Who,Action,Entity Type,Summary\n");
         for (AuditLogEntry entry : listForOrganization(admin)) {
-            csv.append(csvField(entry.createdAt().toString())).append(',')
-                    .append(csvField(entry.actorName())).append(',')
-                    .append(csvField(entry.action().toString())).append(',')
-                    .append(csvField(entry.entityType().toString())).append(',')
-                    .append(csvField(entry.summary())).append('\n');
+            csv.append(CsvSupport.escapeField(entry.createdAt().toString())).append(',')
+                    .append(CsvSupport.escapeField(entry.actorName())).append(',')
+                    .append(CsvSupport.escapeField(entry.action().toString())).append(',')
+                    .append(CsvSupport.escapeField(entry.entityType().toString())).append(',')
+                    .append(CsvSupport.escapeField(entry.summary())).append('\n');
         }
         return csv.toString().getBytes(StandardCharsets.UTF_8);
-    }
-
-    private String csvField(String value) {
-        if (value == null) {
-            return "";
-        }
-        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
-            return "\"" + value.replace("\"", "\"\"") + "\"";
-        }
-        return value;
     }
 }

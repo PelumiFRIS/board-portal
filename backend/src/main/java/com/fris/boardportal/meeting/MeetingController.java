@@ -60,6 +60,16 @@ public class MeetingController {
                 .body(ics);
     }
 
+    @GetMapping("/{id}/export")
+    public ResponseEntity<byte[]> export(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
+        byte[] html = meetingService.exportRecordHtml(principal, id);
+        String encodedName = URLEncoder.encode(id + "-record.html", StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("text/html;charset=UTF-8"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodedName)
+                .body(html);
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<MeetingSummary> create(@AuthenticationPrincipal AppUserPrincipal principal,

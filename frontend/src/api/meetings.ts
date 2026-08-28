@@ -63,6 +63,13 @@ export async function downloadMeetingIcs(id: string, title: string): Promise<voi
   URL.revokeObjectURL(url);
 }
 
+export async function exportMeetingRecord(id: string): Promise<void> {
+  const response = await apiClient.get(`/api/meetings/${id}/export`, { responseType: "blob" });
+  const url = URL.createObjectURL(response.data as Blob);
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export interface CalendarTokenResponse {
   token: string;
 }

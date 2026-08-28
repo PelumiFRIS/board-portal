@@ -19,3 +19,15 @@ export async function updateActionItemStatus(id: string, status: ActionItemStatu
 export async function deleteActionItem(id: string): Promise<void> {
   await apiClient.delete(`/api/action-items/${id}`);
 }
+
+export async function downloadActionItemsCsv(): Promise<void> {
+  const response = await apiClient.get("/api/action-items/export", { responseType: "blob" });
+  const url = URL.createObjectURL(response.data as Blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `action-items-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

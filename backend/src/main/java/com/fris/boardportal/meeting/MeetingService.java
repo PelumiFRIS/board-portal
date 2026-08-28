@@ -23,10 +23,14 @@ import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.user.User;
 import com.fris.boardportal.user.UserRepository;
 import com.fris.boardportal.user.UserStatus;
+import com.fris.boardportal.actionitem.dto.ActionItemSummary;
+import com.fris.boardportal.meeting.dto.AgendaItemDto;
+import com.fris.boardportal.resolution.dto.ResolutionSummary;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -35,6 +39,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class MeetingService {
+
+    private static final DateTimeFormatter RECORD_WHEN_FORMAT = DateTimeFormatter
+            .ofLocalizedDateTime(FormatStyle.MEDIUM)
+            .withZone(ZoneOffset.UTC);
 
     private final MeetingRepository meetingRepository;
     private final AgendaItemRepository agendaItemRepository;
@@ -74,6 +82,96 @@ public class MeetingService {
     public MeetingDetail getDetail(AppUserPrincipal principal, UUID meetingId) {
         Meeting meeting = findMeetingInOrg(principal, meetingId);
         return toDetail(meeting, principal);
+    }
+
+    public byte[] exportRecordHtml(AppUserPrincipal principal, UUID meetingId) {
+        MeetingDetail detail = getDetail(principal, meetingId);
+
+        StringBuilder html = new StringBuilder();
+        html.append("<!doctype html><html><head><meta charset=\"utf-8\">");
+        html.append("<title>").append(htmlEscape(detail.title())).append("</title>");
+        html.append("<style>");
+        html.append("body{font-family:Georgia,'Times New Roman',serif;max-width:800px;margin:2rem auto;padding:0 1rem;color:#1a1a1a;}");
+        html.append("h1{font-size:1.5rem;margin-bottom:0.25rem;}");
+        html.append("h2{font-size:1.1rem;margin-top:2rem;border-bottom:1px solid #ccc;padding-bottom:0.25rem;}");
+        html.append(".meta{color:#555;margin-bottom:1.5rem;}");
+        html.append("table{width:100%;border-collapse:collapse;margin-top:0.5rem;}");
+        html.append("th,td{text-align:left;padding:0.4rem 0.6rem;border-bottom:1px solid #ddd;font-size:0.95rem;}");
+        html.append("th{color:#555;font-weight:600;}");
+        html.append(".minutes{white-space:pre-wrap;line-height:1.5;}");
+        html.append("@media print{body{margin:0;}}");
+        html.append("</style></head><body>");
+
+        html.append("<h1>").append(htmlEscape(detail.title())).append("</h1>");
+        html.append("<p class=\"meta\">");
+        html.append(RECORD_WHEN_FORMAT.format(detail.scheduledStart())).append(" UTC");
+        if (detail.location() != null) {
+            html.append(" &middot; ").append(htmlEscape(detail.location()));
+        }
+        html.append(" &middot; ").append(htmlEscape(detail.status().toString()));
+        html.append("</p>");
+
+        if (!detail.agendaItems().isEmpty()) {
+            html.append("<h2>Agenda</h2><ol>");
+            for (AgendaItemDto item : detail.agendaItems()) {
+                html.append("<li>").append(htmlEscape(item.title()));
+                if (item.description() != null) {
+                    html.append(" — ").append(htmlEscape(item.description()));
+                }
+                html.append("</li>");
+            }
+            html.append("</ol>");
+        }
+
+        html.append("<h2>Minutes</h2>");
+        html.append("<div class=\"minutes\">")
+                .append(detail.minutesContent() != null ? htmlEscape(detail.minutesContent()) : "No minutes recorded.")
+                .append("</div>");
+
+        if (!detail.resolutions().isEmpty()) {
+            html.append("<h2>Resolutions</h2><table><thead><tr>")
+                    .append("<th>Title</th><th>Status</th><th>Outcome</th><th>For</th><th>Against</th><th>Abstain</th>")
+                    .append("</tr></thead><tbody>");
+            for (ResolutionSummary r : detail.resolutions()) {
+                html.append("<tr>")
+                        .append("<td>").append(htmlEscape(r.title())).append("</td>")
+                        .append("<td>").append(htmlEscape(r.status().toString())).append("</td>")
+                        .append("<td>").append(r.outcome() != null ? htmlEscape(r.outcome().toString()) : "—").append("</td>")
+                        .append("<td>").append(r.forCount()).append("</td>")
+                        .append("<td>").append(r.againstCount()).append("</td>")
+                        .append("<td>").append(r.abstainCount()).append("</td>")
+                        .append("</tr>");
+            }
+            html.append("</tbody></table>");
+        }
+
+        if (!detail.actionItems().isEmpty()) {
+            html.append("<h2>Action items</h2><table><thead><tr>")
+                    .append("<th>Title</th><th>Assignee</th><th>Due date</th><th>Status</th>")
+                    .append("</tr></thead><tbody>");
+            for (ActionItemSummary item : detail.actionItems()) {
+                html.append("<tr>")
+                        .append("<td>").append(htmlEscape(item.title())).append("</td>")
+                        .append("<td>").append(htmlEscape(item.assigneeName())).append("</td>")
+                        .append("<td>").append(item.dueDate() != null ? item.dueDate().toString() : "—").append("</td>")
+                        .append("<td>").append(htmlEscape(item.status().toString())).append("</td>")
+                        .append("</tr>");
+            }
+            html.append("</tbody></table>");
+        }
+
+        html.append("</body></html>");
+        return html.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private String htmlEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
     }
 
     public byte[] generateIcs(AppUserPrincipal principal, UUID meetingId) {

@@ -6,9 +6,12 @@ import com.fris.boardportal.resolution.dto.ResolutionDetail;
 import com.fris.boardportal.resolution.dto.ResolutionSummary;
 import com.fris.boardportal.security.AppUserPrincipal;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -41,6 +44,17 @@ public class ResolutionController {
     @GetMapping("/{id}")
     public ResolutionDetail detail(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         return resolutionService.getDetail(principal, id);
+    }
+
+    @GetMapping("/export")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<byte[]> export(@AuthenticationPrincipal AppUserPrincipal principal) {
+        byte[] csv = resolutionService.exportCsv(principal);
+        String filename = "resolutions-" + LocalDate.now() + ".csv";
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .body(csv);
     }
 
     @PostMapping

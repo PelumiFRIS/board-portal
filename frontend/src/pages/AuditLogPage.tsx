@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { downloadAuditLogCsv, listAuditLogs } from "../api/auditLogs";
+import { downloadResolutionsCsv } from "../api/resolutions";
+import { downloadActionItemsCsv } from "../api/actionItems";
 import { extractErrorMessage } from "../api/client";
 import type { AuditLogEntry } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
@@ -26,6 +28,10 @@ export function AuditLogPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [resolutionsExportError, setResolutionsExportError] = useState<string | null>(null);
+  const [exportingResolutions, setExportingResolutions] = useState(false);
+  const [actionItemsExportError, setActionItemsExportError] = useState<string | null>(null);
+  const [exportingActionItems, setExportingActionItems] = useState(false);
 
   useEffect(() => {
     listAuditLogs()
@@ -46,6 +52,30 @@ export function AuditLogPage() {
     }
   }
 
+  async function handleExportResolutions() {
+    setResolutionsExportError(null);
+    setExportingResolutions(true);
+    try {
+      await downloadResolutionsCsv();
+    } catch (err) {
+      setResolutionsExportError(extractErrorMessage(err));
+    } finally {
+      setExportingResolutions(false);
+    }
+  }
+
+  async function handleExportActionItems() {
+    setActionItemsExportError(null);
+    setExportingActionItems(true);
+    try {
+      await downloadActionItemsCsv();
+    } catch (err) {
+      setActionItemsExportError(extractErrorMessage(err));
+    } finally {
+      setExportingActionItems(false);
+    }
+  }
+
   if (!user) return null;
 
   return (
@@ -57,11 +87,21 @@ export function AuditLogPage() {
             <h1>Audit trail</h1>
             <p>Recent activity across {user.organizationName}</p>
           </div>
-          <button className="secondary small" disabled={exporting} onClick={handleExport}>
-            {exporting ? "Exporting..." : "Export CSV"}
-          </button>
+          <div className="field-row">
+            <button className="secondary small" disabled={exporting} onClick={handleExport}>
+              {exporting ? "Exporting..." : "Export Audit Trail CSV"}
+            </button>
+            <button className="secondary small" disabled={exportingResolutions} onClick={handleExportResolutions}>
+              {exportingResolutions ? "Exporting..." : "Export Resolutions CSV"}
+            </button>
+            <button className="secondary small" disabled={exportingActionItems} onClick={handleExportActionItems}>
+              {exportingActionItems ? "Exporting..." : "Export Action Items CSV"}
+            </button>
+          </div>
         </div>
         {exportError && <p className="form-error">{exportError}</p>}
+        {resolutionsExportError && <p className="form-error">{resolutionsExportError}</p>}
+        {actionItemsExportError && <p className="form-error">{actionItemsExportError}</p>}
 
         <section className="dashboard-section">
           {loading && <p>Loading activity...</p>}

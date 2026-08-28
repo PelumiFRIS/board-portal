@@ -4,6 +4,7 @@ import com.fris.boardportal.audit.AuditAction;
 import com.fris.boardportal.audit.AuditEntityType;
 import com.fris.boardportal.audit.AuditLogService;
 import com.fris.boardportal.common.ApiException;
+import com.fris.boardportal.common.CsvSupport;
 import com.fris.boardportal.meeting.Meeting;
 import com.fris.boardportal.meeting.MeetingRepository;
 import com.fris.boardportal.notification.EmailNotificationService;
@@ -15,6 +16,7 @@ import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.user.User;
 import com.fris.boardportal.user.UserRepository;
 import com.fris.boardportal.user.UserStatus;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +65,27 @@ public class ResolutionService {
         Resolution resolution = findInOrg(principal, id);
         List<Vote> votes = voteRepository.findByResolutionId(resolution.getId());
         return toDetail(resolution, votes, principal);
+    }
+
+    public byte[] exportCsv(AppUserPrincipal admin) {
+        Map<UUID, String> meetingTitlesById = meetingRepository
+                .findByOrganizationIdOrderByScheduledStartDesc(admin.getOrganizationId()).stream()
+                .collect(Collectors.toMap(Meeting::getId, Meeting::getTitle));
+
+        StringBuilder csv = new StringBuilder();
+        csv.append("Meeting,Title,Status,Outcome,For,Against,Abstain,Opened At,Closed At\n");
+        for (ResolutionSummary r : listForOrganization(admin, null)) {
+            csv.append(CsvSupport.escapeField(meetingTitlesById.getOrDefault(r.meetingId(), "Unknown"))).append(',')
+                    .append(CsvSupport.escapeField(r.title())).append(',')
+                    .append(CsvSupport.escapeField(r.status().toString())).append(',')
+                    .append(CsvSupport.escapeField(r.outcome() != null ? r.outcome().toString() : "")).append(',')
+                    .append(r.forCount()).append(',')
+                    .append(r.againstCount()).append(',')
+                    .append(r.abstainCount()).append(',')
+                    .append(CsvSupport.escapeField(r.openedAt() != null ? r.openedAt().toString() : "")).append(',')
+                    .append(CsvSupport.escapeField(r.closedAt() != null ? r.closedAt().toString() : "")).append('\n');
+        }
+        return csv.toString().getBytes(StandardCharsets.UTF_8);
     }
 
     @Transactional
