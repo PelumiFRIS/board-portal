@@ -7,8 +7,9 @@ import {
   listMeetings,
   regenerateCalendarToken,
 } from "../api/meetings";
+import { listCommittees } from "../api/committees";
 import { extractErrorMessage } from "../api/client";
-import type { MeetingSummary } from "../api/types";
+import type { CommitteeSummary, MeetingSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
@@ -31,16 +32,21 @@ export function MeetingsListPage() {
   const isAdmin = user?.role === "ADMIN";
 
   const [meetings, setMeetings] = useState<MeetingSummary[]>([]);
+  const [committees, setCommittees] = useState<CommitteeSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [committeeFilter, setCommitteeFilter] = useState("");
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [scheduledStart, setScheduledStart] = useState("");
   const [scheduledEnd, setScheduledEnd] = useState("");
+  const [committeeId, setCommitteeId] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const flatCommittees = committees.flatMap((c) => [c, ...c.subCommittees]);
 
   const [feedUrl, setFeedUrl] = useState<string | null>(null);
   const [feedError, setFeedError] = useState<string | null>(null);
@@ -48,11 +54,18 @@ export function MeetingsListPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    listMeetings()
+    listCommittees()
+      .then(setCommittees)
+      .catch((err) => setLoadError(extractErrorMessage(err)));
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    listMeetings({ committeeId: committeeFilter || undefined })
       .then(setMeetings)
       .catch((err) => setLoadError(extractErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [committeeFilter]);
 
   async function handleShowFeedLink() {
     setFeedError(null);
@@ -99,13 +112,17 @@ export function MeetingsListPage() {
         location: location || undefined,
         scheduledStart: new Date(scheduledStart).toISOString(),
         scheduledEnd: scheduledEnd ? new Date(scheduledEnd).toISOString() : undefined,
+        committeeId: committeeId || undefined,
       });
-      setMeetings((prev) => [created, ...prev]);
+      if (!committeeFilter || committeeFilter === created.committeeId) {
+        setMeetings((prev) => [created, ...prev]);
+      }
       setTitle("");
       setDescription("");
       setLocation("");
       setScheduledStart("");
       setScheduledEnd("");
+      setCommitteeId("");
     } catch (err) {
       setFormError(extractErrorMessage(err));
     } finally {
@@ -125,6 +142,20 @@ export function MeetingsListPage() {
         </div>
 
         <section className="dashboard-section">
+          <div className="field-row">
+            <label>
+              Filter by committee
+              <select value={committeeFilter} onChange={(e) => setCommitteeFilter(e.target.value)}>
+                <option value="">All meetings</option>
+                {flatCommittees.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.parentCommitteeId ? `— ${c.name}` : c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           {loading && <p>Loading meetings...</p>}
           {loadError && <p className="form-error">{loadError}</p>}
           {!loading && !loadError && meetings.length === 0 && (
@@ -140,6 +171,7 @@ export function MeetingsListPage() {
                   <th>Title</th>
                   <th>Date</th>
                   <th>Location</th>
+                  <th>Committee</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -151,6 +183,7 @@ export function MeetingsListPage() {
                     </td>
                     <td>{new Date(m.scheduledStart).toLocaleString()}</td>
                     <td>{m.location ?? "—"}</td>
+                    <td>{flatCommittees.find((c) => c.id === m.committeeId)?.name ?? "—"}</td>
                     <td>
                       <StatusBadge status={m.status} />
                     </td>
@@ -219,6 +252,17 @@ export function MeetingsListPage() {
                     />
                   </label>
                 </div>
+                <label>
+                  Committee (optional)
+                  <select value={committeeId} onChange={(e) => setCommitteeId(e.target.value)}>
+                    <option value="">Full board</option>
+                    {flatCommittees.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.parentCommitteeId ? `— ${c.name}` : c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 {formError && <p className="form-error">{formError}</p>}
                 <button type="submit" disabled={submitting}>
                   {submitting ? "Scheduling..." : "Schedule meeting"}

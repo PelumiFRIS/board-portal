@@ -9,8 +9,12 @@ import type {
   UpdateMeetingPayload,
 } from "./types";
 
-export async function listMeetings(): Promise<MeetingSummary[]> {
-  const { data } = await apiClient.get<MeetingSummary[]>("/api/meetings");
+export interface ListMeetingsParams {
+  committeeId?: string;
+}
+
+export async function listMeetings(params: ListMeetingsParams = {}): Promise<MeetingSummary[]> {
+  const { data } = await apiClient.get<MeetingSummary[]>("/api/meetings", { params });
   return data;
 }
 

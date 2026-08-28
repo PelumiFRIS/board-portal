@@ -39,6 +39,7 @@ export function CommitteesPage() {
 
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [newParentId, setNewParentId] = useState("");
   const [creating, setCreating] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -63,15 +64,46 @@ export function CommitteesPage() {
       .finally(() => setLoading(false));
   }, [isAdmin]);
 
+  function replaceCommitteeInTree(list: CommitteeSummary[], updated: CommitteeSummary): CommitteeSummary[] {
+    if (updated.parentCommitteeId === null) {
+      return list.map((c) => (c.id === updated.id ? updated : c));
+    }
+    return list.map((c) =>
+      c.id === updated.parentCommitteeId
+        ? { ...c, subCommittees: c.subCommittees.map((sc) => (sc.id === updated.id ? updated : sc)) }
+        : c,
+    );
+  }
+
+  function removeCommitteeFromTree(list: CommitteeSummary[], id: string): CommitteeSummary[] {
+    return list
+      .filter((c) => c.id !== id)
+      .map((c) => ({ ...c, subCommittees: c.subCommittees.filter((sc) => sc.id !== id) }));
+  }
+
   async function handleCreate(event: FormEvent) {
     event.preventDefault();
     setActionError(null);
     setCreating(true);
     try {
-      const created = await createCommittee({ name: newName, description: newDescription || undefined });
-      setCommittees((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+      const created = await createCommittee({
+        name: newName,
+        description: newDescription || undefined,
+        parentCommitteeId: newParentId || undefined,
+      });
+      setCommittees((prev) => {
+        if (created.parentCommitteeId === null) {
+          return [...prev, created].sort((a, b) => a.name.localeCompare(b.name));
+        }
+        return prev.map((c) =>
+          c.id === created.parentCommitteeId
+            ? { ...c, subCommittees: [...c.subCommittees, created].sort((a, b) => a.name.localeCompare(b.name)) }
+            : c,
+        );
+      });
       setNewName("");
       setNewDescription("");
+      setNewParentId("");
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
@@ -92,7 +124,7 @@ export function CommitteesPage() {
     setSavingEdit(true);
     try {
       const updated = await updateCommittee(committeeId, { name: editName, description: editDescription });
-      setCommittees((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setCommittees((prev) => replaceCommitteeInTree(prev, updated));
       setEditingId(null);
     } catch (err) {
       setActionError(extractErrorMessage(err));
@@ -106,7 +138,7 @@ export function CommitteesPage() {
     setBusyCommitteeId(committeeId);
     try {
       await deleteCommittee(committeeId);
-      setCommittees((prev) => prev.filter((c) => c.id !== committeeId));
+      setCommittees((prev) => removeCommitteeFromTree(prev, committeeId));
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
@@ -121,7 +153,7 @@ export function CommitteesPage() {
     setBusyCommitteeId(committeeId);
     try {
       const updated = await addCommitteeMember(committeeId, userId);
-      setCommittees((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setCommittees((prev) => replaceCommitteeInTree(prev, updated));
       setAddSelections((prev) => ({ ...prev, [committeeId]: "" }));
     } catch (err) {
       setActionError(extractErrorMessage(err));
@@ -135,7 +167,7 @@ export function CommitteesPage() {
     setBusyCommitteeId(committeeId);
     try {
       const updated = await removeCommitteeMember(committeeId, userId);
-      setCommittees((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setCommittees((prev) => replaceCommitteeInTree(prev, updated));
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
@@ -148,12 +180,124 @@ export function CommitteesPage() {
     setBusyCommitteeId(committeeId);
     try {
       const updated = await setCommitteeChair(committeeId, userId);
-      setCommittees((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setCommittees((prev) => replaceCommitteeInTree(prev, updated));
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
       setBusyCommitteeId(null);
     }
+  }
+
+  function renderCommitteeCard(committee: CommitteeSummary, indent: boolean) {
+    const availableUsers = orgUsers.filter((u) => !committee.members.some((m) => m.userId === u.id));
+    const busy = busyCommitteeId === committee.id;
+    return (
+      <div
+        key={committee.id}
+        className="resolution-card"
+        style={indent ? { marginLeft: 32, borderLeft: "3px solid var(--border-color, #ddd)" } : undefined}
+      >
+        {editingId === committee.id ? (
+          <form className="add-user-form" onSubmit={(e) => handleSaveEdit(e, committee.id)}>
+            <label>
+              Name
+              <input value={editName} onChange={(e) => setEditName(e.target.value)} required />
+            </label>
+            <label>
+              Description
+              <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+            </label>
+            <div className="field-row">
+              <button type="submit" disabled={savingEdit}>
+                {savingEdit ? "Saving..." : "Save"}
+              </button>
+              <button type="button" className="secondary" onClick={() => setEditingId(null)}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <div className="resolution-card-header">
+              <div>
+                <strong>{committee.name}</strong>
+                {indent && <span className="badge badge-category"> Sub-committee</span>}
+                {committee.description && <p className="table-hint">{committee.description}</p>}
+              </div>
+              {isAdmin && (
+                <div className="field-row">
+                  <button className="secondary small" onClick={() => startEditing(committee)}>
+                    Edit
+                  </button>
+                  <button className="secondary small" disabled={busy} onClick={() => handleDelete(committee.id)}>
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {committee.members.length === 0 ? (
+              <p className="table-hint">No members yet.</p>
+            ) : (
+              <ul className="vote-record-list">
+                {committee.members.map((member) => (
+                  <li key={member.userId}>
+                    {member.firstName} {member.lastName}
+                    {member.isChair && <span className="badge badge-category"> Chair</span>}
+                    {isAdmin && (
+                      <span className="field-row" style={{ marginLeft: 12 }}>
+                        {!member.isChair && (
+                          <button
+                            type="button"
+                            className="secondary small"
+                            disabled={busy}
+                            onClick={() => handleSetChair(committee.id, member.userId)}
+                          >
+                            Make chair
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="secondary small"
+                          disabled={busy}
+                          onClick={() => handleRemoveMember(committee.id, member.userId)}
+                        >
+                          Remove
+                        </button>
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {isAdmin && availableUsers.length > 0 && (
+              <div className="field-row">
+                <select
+                  value={addSelections[committee.id] ?? ""}
+                  onChange={(e) => setAddSelections((prev) => ({ ...prev, [committee.id]: e.target.value }))}
+                >
+                  <option value="">Add a member...</option>
+                  {availableUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.firstName} {u.lastName}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="secondary small"
+                  disabled={busy || !addSelections[committee.id]}
+                  onClick={() => handleAddMember(committee.id)}
+                >
+                  Add
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
   }
 
   if (!user) return null;
@@ -181,120 +325,12 @@ export function CommitteesPage() {
 
           {!loading &&
             !loadError &&
-            committees.map((committee) => {
-              const availableUsers = orgUsers.filter(
-                (u) => !committee.members.some((m) => m.userId === u.id),
-              );
-              const busy = busyCommitteeId === committee.id;
-              return (
-                <div key={committee.id} className="resolution-card">
-                  {editingId === committee.id ? (
-                    <form className="add-user-form" onSubmit={(e) => handleSaveEdit(e, committee.id)}>
-                      <label>
-                        Name
-                        <input value={editName} onChange={(e) => setEditName(e.target.value)} required />
-                      </label>
-                      <label>
-                        Description
-                        <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
-                      </label>
-                      <div className="field-row">
-                        <button type="submit" disabled={savingEdit}>
-                          {savingEdit ? "Saving..." : "Save"}
-                        </button>
-                        <button type="button" className="secondary" onClick={() => setEditingId(null)}>
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <>
-                      <div className="resolution-card-header">
-                        <div>
-                          <strong>{committee.name}</strong>
-                          {committee.description && <p className="table-hint">{committee.description}</p>}
-                        </div>
-                        {isAdmin && (
-                          <div className="field-row">
-                            <button className="secondary small" onClick={() => startEditing(committee)}>
-                              Edit
-                            </button>
-                            <button
-                              className="secondary small"
-                              disabled={busy}
-                              onClick={() => handleDelete(committee.id)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {committee.members.length === 0 ? (
-                        <p className="table-hint">No members yet.</p>
-                      ) : (
-                        <ul className="vote-record-list">
-                          {committee.members.map((member) => (
-                            <li key={member.userId}>
-                              {member.firstName} {member.lastName}
-                              {member.isChair && <span className="badge badge-category"> Chair</span>}
-                              {isAdmin && (
-                                <span className="field-row" style={{ marginLeft: 12 }}>
-                                  {!member.isChair && (
-                                    <button
-                                      type="button"
-                                      className="secondary small"
-                                      disabled={busy}
-                                      onClick={() => handleSetChair(committee.id, member.userId)}
-                                    >
-                                      Make chair
-                                    </button>
-                                  )}
-                                  <button
-                                    type="button"
-                                    className="secondary small"
-                                    disabled={busy}
-                                    onClick={() => handleRemoveMember(committee.id, member.userId)}
-                                  >
-                                    Remove
-                                  </button>
-                                </span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-
-                      {isAdmin && availableUsers.length > 0 && (
-                        <div className="field-row">
-                          <select
-                            value={addSelections[committee.id] ?? ""}
-                            onChange={(e) =>
-                              setAddSelections((prev) => ({ ...prev, [committee.id]: e.target.value }))
-                            }
-                          >
-                            <option value="">Add a member...</option>
-                            {availableUsers.map((u) => (
-                              <option key={u.id} value={u.id}>
-                                {u.firstName} {u.lastName}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            className="secondary small"
-                            disabled={busy || !addSelections[committee.id]}
-                            onClick={() => handleAddMember(committee.id)}
-                          >
-                            Add
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            })}
+            committees.map((committee) => (
+              <div key={committee.id}>
+                {renderCommitteeCard(committee, false)}
+                {committee.subCommittees.map((sub) => renderCommitteeCard(sub, true))}
+              </div>
+            ))}
 
           {isAdmin && (
             <>
@@ -307,6 +343,17 @@ export function CommitteesPage() {
                 <label>
                   Description
                   <input value={newDescription} onChange={(e) => setNewDescription(e.target.value)} />
+                </label>
+                <label>
+                  Parent committee (optional)
+                  <select value={newParentId} onChange={(e) => setNewParentId(e.target.value)}>
+                    <option value="">None — top-level committee</option>
+                    {committees.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <button type="submit" disabled={creating}>
                   {creating ? "Creating..." : "Create committee"}

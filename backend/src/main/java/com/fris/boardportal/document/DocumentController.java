@@ -38,8 +38,9 @@ public class DocumentController {
     @GetMapping
     public List<DocumentSummary> list(@AuthenticationPrincipal AppUserPrincipal principal,
             @RequestParam(required = false) UUID meetingId,
-            @RequestParam(required = false) DocumentCategory category) {
-        return documentService.listForOrganization(principal, meetingId, category);
+            @RequestParam(required = false) DocumentCategory category,
+            @RequestParam(required = false) UUID committeeId) {
+        return documentService.listForOrganization(principal, meetingId, category, committeeId);
     }
 
     @GetMapping("/{id}")
@@ -65,8 +66,10 @@ public class DocumentController {
             @RequestParam String title,
             @RequestParam(required = false) String description,
             @RequestParam DocumentCategory category,
-            @RequestParam(required = false) UUID meetingId) {
-        DocumentSummary created = documentService.upload(principal, file, title, description, category, meetingId);
+            @RequestParam(required = false) UUID meetingId,
+            @RequestParam(required = false) UUID committeeId) {
+        DocumentSummary created = documentService.upload(principal, file, title, description, category, meetingId,
+                committeeId);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 

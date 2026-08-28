@@ -41,7 +41,8 @@ public class CommitteeController {
     public ResponseEntity<CommitteeSummary> create(@AuthenticationPrincipal AppUserPrincipal principal,
             @Valid @RequestBody CreateCommitteeRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(committeeService.create(principal, request.name(), request.description()));
+                .body(committeeService.create(principal, request.name(), request.description(),
+                        request.parentCommitteeId()));
     }
 
     @PatchMapping("/{id}")

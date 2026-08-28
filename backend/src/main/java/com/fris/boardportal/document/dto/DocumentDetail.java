@@ -15,6 +15,7 @@ public record DocumentDetail(
         String contentType,
         long fileSize,
         UUID meetingId,
+        UUID committeeId,
         Instant createdAt,
         LocalDate retentionUntil,
         long signatureCount,

@@ -10,4 +10,8 @@ public interface CommitteeRepository extends JpaRepository<Committee, UUID> {
     List<Committee> findByOrganizationIdOrderByNameAsc(UUID organizationId);
 
     Optional<Committee> findByIdAndOrganizationId(UUID id, UUID organizationId);
+
+    List<Committee> findByParentCommitteeId(UUID parentCommitteeId);
+
+    boolean existsByParentCommitteeId(UUID parentCommitteeId);
 }

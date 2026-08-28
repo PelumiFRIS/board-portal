@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fris.boardportal.auth.dto.AuthResponse;
 import com.fris.boardportal.auth.dto.LoginRequest;
+import com.fris.boardportal.committee.dto.CommitteeSummary;
+import com.fris.boardportal.committee.dto.CreateCommitteeRequest;
 import com.fris.boardportal.meeting.MeetingStatus;
 import com.fris.boardportal.meeting.dto.AgendaItemDto;
 import com.fris.boardportal.meeting.dto.CreateAgendaItemRequest;
@@ -77,7 +79,7 @@ class MeetingFlowTest extends IntegrationTestSupport {
         ResponseEntity<MeetingDetail> completed = restTemplate.exchange(
                 "/api/meetings/" + meeting.id(), HttpMethod.PATCH,
                 authedRequest(admin.accessToken(),
-                        new UpdateMeetingRequest(null, null, null, null, null, MeetingStatus.COMPLETED, "Budget approved unanimously.")),
+                        new UpdateMeetingRequest(null, null, null, null, null, MeetingStatus.COMPLETED, "Budget approved unanimously.", null)),
                 MeetingDetail.class);
         assertThat(completed.getBody().status()).isEqualTo(MeetingStatus.COMPLETED);
         assertThat(completed.getBody().minutesContent()).isEqualTo("Budget approved unanimously.");
@@ -127,17 +129,65 @@ class MeetingFlowTest extends IntegrationTestSupport {
         assertThat(blocked.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    @Test
+    void committeeIdFilterOnMeetingsList() {
+        AuthResponse admin = signup(uniqueEmail(), "Committee Meetings Org");
+        CommitteeSummary committeeA = createCommittee(admin.accessToken(), "Audit Committee");
+        CommitteeSummary committeeB = createCommittee(admin.accessToken(), "Risk Committee");
+
+        MeetingSummary meetingA = scheduleMeeting(admin.accessToken(), "Audit Meeting", committeeA.id());
+        scheduleMeeting(admin.accessToken(), "Risk Meeting", committeeB.id());
+        MeetingSummary orgWide = scheduleMeeting(admin.accessToken(), "Full Board Meeting", null);
+
+        ResponseEntity<MeetingSummary[]> filtered = restTemplate.exchange(
+                "/api/meetings?committeeId=" + committeeA.id(), HttpMethod.GET,
+                authedRequest(admin.accessToken()), MeetingSummary[].class);
+        assertThat(filtered.getBody()).extracting(MeetingSummary::id).containsExactly(meetingA.id());
+        assertThat(filtered.getBody()[0].committeeId()).isEqualTo(committeeA.id());
+
+        ResponseEntity<MeetingSummary[]> unfiltered = restTemplate.exchange(
+                "/api/meetings", HttpMethod.GET, authedRequest(admin.accessToken()), MeetingSummary[].class);
+        assertThat(unfiltered.getBody()).hasSize(3);
+        assertThat(unfiltered.getBody())
+                .filteredOn(m -> m.id().equals(orgWide.id()))
+                .allMatch(m -> m.committeeId() == null);
+    }
+
+    private CommitteeSummary createCommittee(String adminToken, String name) {
+        ResponseEntity<CommitteeSummary> response = restTemplate.exchange(
+                "/api/committees", HttpMethod.POST,
+                authedRequest(adminToken, new CreateCommitteeRequest(name, null, null)), CommitteeSummary.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        return response.getBody();
+    }
+
     private MeetingSummary scheduleMeeting(String adminToken) {
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
-                "/api/meetings", HttpMethod.POST, authedRequest(adminToken, newMeetingRequest()), MeetingSummary.class);
+                "/api/meetings", HttpMethod.POST, authedRequest(adminToken, newMeetingRequest(null)), MeetingSummary.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        return response.getBody();
+    }
+
+    private MeetingSummary scheduleMeeting(String adminToken, String title, java.util.UUID committeeId) {
+        ResponseEntity<MeetingSummary> response = restTemplate.exchange(
+                "/api/meetings", HttpMethod.POST,
+                authedRequest(adminToken, newMeetingRequest(committeeId, title)), MeetingSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();
     }
 
     private CreateMeetingRequest newMeetingRequest() {
+        return newMeetingRequest(null, "Q3 Board Meeting");
+    }
+
+    private CreateMeetingRequest newMeetingRequest(java.util.UUID committeeId) {
+        return newMeetingRequest(committeeId, "Q3 Board Meeting");
+    }
+
+    private CreateMeetingRequest newMeetingRequest(java.util.UUID committeeId, String title) {
         Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
-        return new CreateMeetingRequest("Q3 Board Meeting", "Quarterly review", "Virtual", start,
-                start.plus(1, ChronoUnit.HOURS));
+        return new CreateMeetingRequest(title, "Quarterly review", "Virtual", start,
+                start.plus(1, ChronoUnit.HOURS), committeeId);
     }
 
     private void createBoardMember(String adminToken, String email) {

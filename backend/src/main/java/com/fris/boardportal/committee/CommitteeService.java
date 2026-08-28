@@ -37,6 +37,7 @@ public class CommitteeService {
 
     public List<CommitteeSummary> listForOrganization(AppUserPrincipal principal) {
         return committeeRepository.findByOrganizationIdOrderByNameAsc(principal.getOrganizationId()).stream()
+                .filter(c -> c.getParentCommitteeId() == null)
                 .map(this::toSummary)
                 .toList();
     }
@@ -53,12 +54,23 @@ public class CommitteeService {
     }
 
     @Transactional
-    public CommitteeSummary create(AppUserPrincipal admin, String name, String description) {
-        Committee committee = Committee.create(admin.getOrganizationId(), name, description);
+    public CommitteeSummary create(AppUserPrincipal admin, String name, String description, UUID parentCommitteeId) {
+        Committee parent = null;
+        if (parentCommitteeId != null) {
+            parent = findInOrg(admin, parentCommitteeId);
+            if (parent.getParentCommitteeId() != null) {
+                throw ApiException.badRequest("A sub-committee cannot itself have sub-committees");
+            }
+        }
+
+        Committee committee = Committee.create(admin.getOrganizationId(), name, description, parentCommitteeId);
         committeeRepository.save(committee);
 
+        String summary = parent != null
+                ? "Created sub-committee \"" + committee.getName() + "\" under \"" + parent.getName() + "\""
+                : "Created committee \"" + committee.getName() + "\"";
         auditLogService.record(admin, AuditAction.COMMITTEE_CREATED, AuditEntityType.COMMITTEE, committee.getId(),
-                "Created committee \"" + committee.getName() + "\"");
+                summary);
 
         return toSummary(committee);
     }
@@ -84,6 +96,9 @@ public class CommitteeService {
     @Transactional
     public void delete(AppUserPrincipal admin, UUID committeeId) {
         Committee committee = findInOrg(admin, committeeId);
+        if (committeeRepository.existsByParentCommitteeId(committee.getId())) {
+            throw ApiException.badRequest("Delete or reassign this committee's sub-committees first");
+        }
         membershipRepository.deleteByCommitteeId(committee.getId());
         committeeRepository.delete(committee);
 
@@ -166,6 +181,18 @@ public class CommitteeService {
                 .filter(Objects::nonNull)
                 .toList();
 
-        return new CommitteeSummary(committee.getId(), committee.getName(), committee.getDescription(), members);
+        String parentCommitteeName = null;
+        if (committee.getParentCommitteeId() != null) {
+            parentCommitteeName = committeeRepository.findById(committee.getParentCommitteeId())
+                    .map(Committee::getName)
+                    .orElse(null);
+        }
+
+        List<CommitteeSummary> subCommittees = committee.getParentCommitteeId() == null
+                ? committeeRepository.findByParentCommitteeId(committee.getId()).stream().map(this::toSummary).toList()
+                : List.of();
+
+        return new CommitteeSummary(committee.getId(), committee.getName(), committee.getDescription(),
+                committee.getParentCommitteeId(), parentCommitteeName, members, subCommittees);
     }
 }

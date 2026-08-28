@@ -4,6 +4,7 @@ import type { DocumentCategory, DocumentDetail, DocumentSummary } from "./types"
 export interface ListDocumentsParams {
   meetingId?: string;
   category?: DocumentCategory;
+  committeeId?: string;
 }
 
 export async function listDocuments(params: ListDocumentsParams = {}): Promise<DocumentSummary[]> {
@@ -32,6 +33,7 @@ export interface UploadDocumentPayload {
   description?: string;
   category: DocumentCategory;
   meetingId?: string;
+  committeeId?: string;
 }
 
 export async function uploadDocument(payload: UploadDocumentPayload): Promise<DocumentSummary> {
@@ -41,6 +43,7 @@ export async function uploadDocument(payload: UploadDocumentPayload): Promise<Do
   form.append("category", payload.category);
   if (payload.description) form.append("description", payload.description);
   if (payload.meetingId) form.append("meetingId", payload.meetingId);
+  if (payload.committeeId) form.append("committeeId", payload.committeeId);
 
   const { data } = await apiClient.post<DocumentSummary>("/api/documents", form, {
     headers: { "Content-Type": "multipart/form-data" },

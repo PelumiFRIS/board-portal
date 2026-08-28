@@ -11,7 +11,8 @@ public record MeetingSummary(
         String location,
         Instant scheduledStart,
         Instant scheduledEnd,
-        MeetingStatus status) {
+        MeetingStatus status,
+        UUID committeeId) {
 
     public static MeetingSummary from(Meeting meeting) {
         return new MeetingSummary(
@@ -20,6 +21,7 @@ public record MeetingSummary(
                 meeting.getLocation(),
                 meeting.getScheduledStart(),
                 meeting.getScheduledEnd(),
-                meeting.getStatus());
+                meeting.getStatus(),
+                meeting.getCommitteeId());
     }
 }

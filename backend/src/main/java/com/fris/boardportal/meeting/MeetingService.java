@@ -4,6 +4,10 @@ import com.fris.boardportal.actionitem.ActionItemService;
 import com.fris.boardportal.audit.AuditAction;
 import com.fris.boardportal.audit.AuditEntityType;
 import com.fris.boardportal.audit.AuditLogService;
+import com.fris.boardportal.committee.Committee;
+import com.fris.boardportal.committee.CommitteeMembership;
+import com.fris.boardportal.committee.CommitteeMembershipRepository;
+import com.fris.boardportal.committee.CommitteeRepository;
 import com.fris.boardportal.common.ApiException;
 import com.fris.boardportal.document.DocumentRepository;
 import com.fris.boardportal.meeting.dto.AgendaItemDto;
@@ -40,11 +44,14 @@ public class MeetingService {
     private final AuditLogService auditLogService;
     private final UserRepository userRepository;
     private final EmailNotificationService emailNotificationService;
+    private final CommitteeRepository committeeRepository;
+    private final CommitteeMembershipRepository committeeMembershipRepository;
 
     public MeetingService(MeetingRepository meetingRepository, AgendaItemRepository agendaItemRepository,
             DocumentRepository documentRepository, ResolutionService resolutionService,
             ActionItemService actionItemService, AuditLogService auditLogService, UserRepository userRepository,
-            EmailNotificationService emailNotificationService) {
+            EmailNotificationService emailNotificationService, CommitteeRepository committeeRepository,
+            CommitteeMembershipRepository committeeMembershipRepository) {
         this.meetingRepository = meetingRepository;
         this.agendaItemRepository = agendaItemRepository;
         this.documentRepository = documentRepository;
@@ -53,10 +60,13 @@ public class MeetingService {
         this.auditLogService = auditLogService;
         this.userRepository = userRepository;
         this.emailNotificationService = emailNotificationService;
+        this.committeeRepository = committeeRepository;
+        this.committeeMembershipRepository = committeeMembershipRepository;
     }
 
-    public List<MeetingSummary> listForOrganization(AppUserPrincipal principal) {
+    public List<MeetingSummary> listForOrganization(AppUserPrincipal principal, UUID committeeId) {
         return meetingRepository.findByOrganizationIdOrderByScheduledStartDesc(principal.getOrganizationId()).stream()
+                .filter(m -> committeeId == null || committeeId.equals(m.getCommitteeId()))
                 .map(MeetingSummary::from)
                 .toList();
     }
@@ -129,6 +139,10 @@ public class MeetingService {
 
     @Transactional
     public MeetingSummary create(AppUserPrincipal admin, CreateMeetingRequest request) {
+        Committee committee = request.committeeId() != null
+                ? findCommitteeInOrg(admin, request.committeeId())
+                : null;
+
         Meeting meeting = Meeting.create(
                 admin.getOrganizationId(),
                 admin.getUserId(),
@@ -136,18 +150,37 @@ public class MeetingService {
                 request.description(),
                 request.location(),
                 request.scheduledStart(),
-                request.scheduledEnd());
+                request.scheduledEnd(),
+                request.committeeId());
         meetingRepository.save(meeting);
 
-        auditLogService.record(admin, AuditAction.MEETING_CREATED, AuditEntityType.MEETING, meeting.getId(),
-                "Scheduled meeting \"" + meeting.getTitle() + "\"");
+        String summary = committee != null
+                ? "Scheduled meeting \"" + meeting.getTitle() + "\" for committee \"" + committee.getName() + "\""
+                : "Scheduled meeting \"" + meeting.getTitle() + "\"";
+        auditLogService.record(admin, AuditAction.MEETING_CREATED, AuditEntityType.MEETING, meeting.getId(), summary);
 
-        List<User> activeMembers = userRepository.findByOrganizationId(admin.getOrganizationId()).stream()
-                .filter(u -> u.getStatus() == UserStatus.ACTIVE)
-                .toList();
-        emailNotificationService.notifyMeetingScheduled(meeting, activeMembers);
+        emailNotificationService.notifyMeetingScheduled(meeting, resolveRecipients(admin, meeting));
 
         return MeetingSummary.from(meeting);
+    }
+
+    private List<User> resolveRecipients(AppUserPrincipal admin, Meeting meeting) {
+        if (meeting.getCommitteeId() != null) {
+            List<UUID> memberIds = committeeMembershipRepository.findByCommitteeId(meeting.getCommitteeId()).stream()
+                    .map(CommitteeMembership::getUserId)
+                    .toList();
+            return userRepository.findAllById(memberIds).stream()
+                    .filter(u -> u.getStatus() == UserStatus.ACTIVE)
+                    .toList();
+        }
+        return userRepository.findByOrganizationId(admin.getOrganizationId()).stream()
+                .filter(u -> u.getStatus() == UserStatus.ACTIVE)
+                .toList();
+    }
+
+    private Committee findCommitteeInOrg(AppUserPrincipal principal, UUID committeeId) {
+        return committeeRepository.findByIdAndOrganizationId(committeeId, principal.getOrganizationId())
+                .orElseThrow(() -> ApiException.notFound("Committee not found"));
     }
 
     @Transactional
@@ -177,6 +210,10 @@ public class MeetingService {
         }
         if (request.minutesContent() != null) {
             meeting.setMinutesContent(request.minutesContent());
+        }
+        if (request.committeeId() != null) {
+            findCommitteeInOrg(admin, request.committeeId());
+            meeting.setCommitteeId(request.committeeId());
         }
         meeting.setUpdatedAt(Instant.now());
         meetingRepository.save(meeting);

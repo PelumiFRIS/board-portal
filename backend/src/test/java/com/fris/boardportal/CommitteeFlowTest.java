@@ -34,7 +34,7 @@ class CommitteeFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<String> create = restTemplate.exchange(
                 "/api/committees", HttpMethod.POST,
-                authedRequest(memberAuth.accessToken(), new CreateCommitteeRequest("Audit", null)), String.class);
+                authedRequest(memberAuth.accessToken(), new CreateCommitteeRequest("Audit", null, null)), String.class);
         assertThat(create.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
         CommitteeSummary committee = createCommittee(admin.accessToken(), "Risk", null);
@@ -144,10 +144,67 @@ class CommitteeFlowTest extends IntegrationTestSupport {
         assertThat(orgAList.getBody()).extracting(CommitteeSummary::name).containsExactly("Org A Committee");
     }
 
+    @Test
+    void subCommitteeCanBeCreatedUnderTopLevelCommittee() {
+        AuthResponse admin = signup(uniqueEmail(), "Sub Committee Org");
+        CommitteeSummary parent = createCommittee(admin.accessToken(), "Audit Committee", null);
+
+        CommitteeSummary child = createCommittee(admin.accessToken(), "Audit Sub-Committee", null, parent.id());
+        assertThat(child.parentCommitteeId()).isEqualTo(parent.id());
+        assertThat(child.parentCommitteeName()).isEqualTo("Audit Committee");
+
+        ResponseEntity<CommitteeSummary[]> list = restTemplate.exchange(
+                "/api/committees", HttpMethod.GET, authedRequest(admin.accessToken()), CommitteeSummary[].class);
+        assertThat(list.getBody()).hasSize(1);
+        assertThat(list.getBody()[0].name()).isEqualTo("Audit Committee");
+        assertThat(list.getBody()[0].subCommittees()).extracting(CommitteeSummary::name)
+                .containsExactly("Audit Sub-Committee");
+    }
+
+    @Test
+    void subCommitteeUnderSubCommitteeIsRejected() {
+        AuthResponse admin = signup(uniqueEmail(), "Nested Sub Committee Org");
+        CommitteeSummary parent = createCommittee(admin.accessToken(), "Audit Committee", null);
+        CommitteeSummary child = createCommittee(admin.accessToken(), "Audit Sub-Committee", null, parent.id());
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/committees", HttpMethod.POST,
+                authedRequest(admin.accessToken(), new CreateCommitteeRequest("Grandchild", null, child.id())),
+                String.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void deletingCommitteeWithSubCommitteesIsRejected() {
+        AuthResponse admin = signup(uniqueEmail(), "Delete Sub Committee Org");
+        CommitteeSummary parent = createCommittee(admin.accessToken(), "Audit Committee", null);
+        CommitteeSummary child = createCommittee(admin.accessToken(), "Audit Sub-Committee", null, parent.id());
+
+        ResponseEntity<String> blockedDelete = restTemplate.exchange(
+                "/api/committees/" + parent.id(), HttpMethod.DELETE,
+                authedRequest(admin.accessToken()), String.class);
+        assertThat(blockedDelete.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+        ResponseEntity<Void> deleteChild = restTemplate.exchange(
+                "/api/committees/" + child.id(), HttpMethod.DELETE,
+                authedRequest(admin.accessToken()), Void.class);
+        assertThat(deleteChild.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        ResponseEntity<Void> deleteParent = restTemplate.exchange(
+                "/api/committees/" + parent.id(), HttpMethod.DELETE,
+                authedRequest(admin.accessToken()), Void.class);
+        assertThat(deleteParent.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    }
+
     private CommitteeSummary createCommittee(String adminToken, String name, String description) {
+        return createCommittee(adminToken, name, description, null);
+    }
+
+    private CommitteeSummary createCommittee(String adminToken, String name, String description, UUID parentCommitteeId) {
         ResponseEntity<CommitteeSummary> response = restTemplate.exchange(
                 "/api/committees", HttpMethod.POST,
-                authedRequest(adminToken, new CreateCommitteeRequest(name, description)), CommitteeSummary.class);
+                authedRequest(adminToken, new CreateCommitteeRequest(name, description, parentCommitteeId)),
+                CommitteeSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();
     }

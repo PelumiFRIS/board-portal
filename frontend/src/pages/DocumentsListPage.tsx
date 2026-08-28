@@ -10,7 +10,8 @@ import {
 } from "../api/documents";
 import { extractErrorMessage } from "../api/client";
 import { listMeetings } from "../api/meetings";
-import type { DocumentCategory, DocumentDetail, DocumentSummary, MeetingSummary } from "../api/types";
+import { listCommittees } from "../api/committees";
+import type { CommitteeSummary, DocumentCategory, DocumentDetail, DocumentSummary, MeetingSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
 
@@ -50,16 +51,21 @@ export function DocumentsListPage() {
 
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [meetings, setMeetings] = useState<MeetingSummary[]>([]);
+  const [committees, setCommittees] = useState<CommitteeSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [committeeFilter, setCommitteeFilter] = useState("");
 
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<DocumentCategory>("BOARD_PACK");
   const [meetingId, setMeetingId] = useState("");
+  const [committeeId, setCommitteeId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const flatCommittees = committees.flatMap((c) => [c, ...c.subCommittees]);
 
   const [editingRetentionId, setEditingRetentionId] = useState<string | null>(null);
   const [retentionDraft, setRetentionDraft] = useState("");
@@ -71,14 +77,21 @@ export function DocumentsListPage() {
   const [loadingSignatures, setLoadingSignatures] = useState(false);
 
   useEffect(() => {
-    Promise.all([listDocuments(), listMeetings()])
-      .then(([docs, mtgs]) => {
-        setDocuments(docs);
+    Promise.all([listMeetings(), listCommittees()])
+      .then(([mtgs, cmts]) => {
         setMeetings(mtgs);
+        setCommittees(cmts);
       })
+      .catch((err) => setLoadError(extractErrorMessage(err)));
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    listDocuments({ committeeId: committeeFilter || undefined })
+      .then(setDocuments)
       .catch((err) => setLoadError(extractErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [committeeFilter]);
 
   async function handleUpload(event: FormEvent) {
     event.preventDefault();
@@ -95,13 +108,17 @@ export function DocumentsListPage() {
         description: description || undefined,
         category,
         meetingId: meetingId || undefined,
+        committeeId: committeeId || undefined,
       });
-      setDocuments((prev) => [created, ...prev]);
+      if (!committeeFilter || committeeFilter === created.committeeId) {
+        setDocuments((prev) => [created, ...prev]);
+      }
       setFile(null);
       setTitle("");
       setDescription("");
       setCategory("BOARD_PACK");
       setMeetingId("");
+      setCommitteeId("");
       (event.target as HTMLFormElement).reset();
     } catch (err) {
       setActionError(extractErrorMessage(err));
@@ -198,6 +215,20 @@ export function DocumentsListPage() {
         </div>
 
         <section className="dashboard-section">
+          <div className="field-row">
+            <label>
+              Filter by committee
+              <select value={committeeFilter} onChange={(e) => setCommitteeFilter(e.target.value)}>
+                <option value="">All documents</option>
+                {flatCommittees.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.parentCommitteeId ? `— ${c.name}` : c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           {loading && <p>Loading documents...</p>}
           {loadError && <p className="form-error">{loadError}</p>}
           {actionError && <p className="form-error">{actionError}</p>}
@@ -213,6 +244,7 @@ export function DocumentsListPage() {
                 <tr>
                   <th>Title</th>
                   <th>Category</th>
+                  <th>Committee</th>
                   <th>Size</th>
                   <th>Uploaded</th>
                   <th>Retention</th>
@@ -230,6 +262,7 @@ export function DocumentsListPage() {
                         <td>
                           <span className="badge badge-category">{doc.category.replace("_", " ")}</span>
                         </td>
+                        <td>{flatCommittees.find((c) => c.id === doc.committeeId)?.name ?? "—"}</td>
                         <td>{formatFileSize(doc.fileSize)}</td>
                         <td>{new Date(doc.createdAt).toLocaleDateString()}</td>
                         <td>
@@ -300,7 +333,7 @@ export function DocumentsListPage() {
                       </tr>
                       {expandedSignaturesId === doc.id && (
                         <tr>
-                          <td colSpan={7}>
+                          <td colSpan={8}>
                             {loadingSignatures && <p className="table-hint">Loading signers...</p>}
                             {!loadingSignatures && signatureDetail && signatureDetail.signatures.length === 0 && (
                               <p className="table-hint">No one has signed yet.</p>
@@ -358,6 +391,17 @@ export function DocumentsListPage() {
                       {meetings.map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Committee (optional)
+                    <select value={committeeId} onChange={(e) => setCommitteeId(e.target.value)}>
+                      <option value="">None</option>
+                      {flatCommittees.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.parentCommitteeId ? `— ${c.name}` : c.name}
                         </option>
                       ))}
                     </select>

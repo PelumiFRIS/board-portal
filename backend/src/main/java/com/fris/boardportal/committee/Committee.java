@@ -31,18 +31,22 @@ public class Committee {
     @Column
     private String description;
 
+    @Column(name = "parent_committee_id")
+    private UUID parentCommitteeId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    public static Committee create(UUID organizationId, String name, String description) {
+    public static Committee create(UUID organizationId, String name, String description, UUID parentCommitteeId) {
         Committee committee = new Committee();
         committee.setId(UUID.randomUUID());
         committee.setOrganizationId(organizationId);
         committee.setName(name);
         committee.setDescription(description);
+        committee.setParentCommitteeId(parentCommitteeId);
         Instant now = Instant.now();
         committee.setCreatedAt(now);
         committee.setUpdatedAt(now);

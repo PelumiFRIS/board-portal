@@ -90,7 +90,7 @@ class CommentFlowTest extends IntegrationTestSupport {
         Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
-                authedRequest(adminToken, new CreateMeetingRequest("Comment Test Meeting", null, null, start, null)),
+                authedRequest(adminToken, new CreateMeetingRequest("Comment Test Meeting", null, null, start, null, null)),
                 MeetingSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();

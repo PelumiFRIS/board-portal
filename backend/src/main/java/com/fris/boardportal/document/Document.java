@@ -62,8 +62,12 @@ public class Document {
     @Column(name = "retention_until")
     private LocalDate retentionUntil;
 
+    @Column(name = "committee_id")
+    private UUID committeeId;
+
     public static Document create(UUID organizationId, UUID meetingId, String title, String description,
-            DocumentCategory category, String fileName, String contentType, byte[] fileData, UUID uploadedBy) {
+            DocumentCategory category, String fileName, String contentType, byte[] fileData, UUID uploadedBy,
+            UUID committeeId) {
         Document document = new Document();
         document.setId(UUID.randomUUID());
         document.setOrganizationId(organizationId);
@@ -77,6 +81,7 @@ public class Document {
         document.setFileData(fileData);
         document.setUploadedBy(uploadedBy);
         document.setCreatedAt(Instant.now());
+        document.setCommitteeId(committeeId);
         return document;
     }
 }

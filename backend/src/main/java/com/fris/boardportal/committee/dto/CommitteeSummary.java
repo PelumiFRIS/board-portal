@@ -7,5 +7,8 @@ public record CommitteeSummary(
         UUID id,
         String name,
         String description,
-        List<CommitteeMemberDto> members) {
+        UUID parentCommitteeId,
+        String parentCommitteeName,
+        List<CommitteeMemberDto> members,
+        List<CommitteeSummary> subCommittees) {
 }

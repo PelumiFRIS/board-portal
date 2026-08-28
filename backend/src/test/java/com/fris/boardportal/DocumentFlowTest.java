@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fris.boardportal.auth.dto.AuthResponse;
 import com.fris.boardportal.auth.dto.LoginRequest;
+import com.fris.boardportal.committee.dto.CommitteeSummary;
+import com.fris.boardportal.committee.dto.CreateCommitteeRequest;
 import com.fris.boardportal.document.DocumentCategory;
 import com.fris.boardportal.document.dto.DocumentSummary;
 import com.fris.boardportal.meeting.dto.CreateMeetingRequest;
@@ -98,7 +100,7 @@ class DocumentFlowTest extends IntegrationTestSupport {
         Instant start = Instant.now().plus(3, ChronoUnit.DAYS);
         ResponseEntity<MeetingSummary> meeting = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
-                authedRequest(admin.accessToken(), new CreateMeetingRequest("Q1 Meeting", null, null, start, null)),
+                authedRequest(admin.accessToken(), new CreateMeetingRequest("Q1 Meeting", null, null, start, null, null)),
                 MeetingSummary.class);
 
         uploadDocument(admin.accessToken(), "Q1 Board Pack", DocumentCategory.BOARD_PACK, meeting.getBody().id());
@@ -111,14 +113,61 @@ class DocumentFlowTest extends IntegrationTestSupport {
         assertThat(detail.getBody().documents().get(0).title()).isEqualTo("Q1 Board Pack");
     }
 
+    @Test
+    void committeeIdFilterOnDocumentsList() {
+        AuthResponse admin = signup(uniqueEmail(), "Committee Docs Org");
+        CommitteeSummary committeeA = createCommittee(admin.accessToken(), "Audit Committee");
+        CommitteeSummary committeeB = createCommittee(admin.accessToken(), "Risk Committee");
+
+        uploadDocument(admin.accessToken(), "Audit Doc", DocumentCategory.REPORT, null, committeeA.id());
+        uploadDocument(admin.accessToken(), "Org Wide Doc", DocumentCategory.OTHER, null);
+
+        ResponseEntity<DocumentSummary[]> filteredA = restTemplate.exchange(
+                "/api/documents?committeeId=" + committeeA.id(), HttpMethod.GET,
+                authedRequest(admin.accessToken()), DocumentSummary[].class);
+        assertThat(filteredA.getBody()).extracting(DocumentSummary::title).containsExactly("Audit Doc");
+        assertThat(filteredA.getBody()[0].committeeId()).isEqualTo(committeeA.id());
+
+        ResponseEntity<DocumentSummary[]> filteredB = restTemplate.exchange(
+                "/api/documents?committeeId=" + committeeB.id(), HttpMethod.GET,
+                authedRequest(admin.accessToken()), DocumentSummary[].class);
+        assertThat(filteredB.getBody()).isEmpty();
+
+        ResponseEntity<DocumentSummary[]> unfiltered = restTemplate.exchange(
+                "/api/documents", HttpMethod.GET, authedRequest(admin.accessToken()), DocumentSummary[].class);
+        assertThat(unfiltered.getBody()).hasSize(2);
+        assertThat(unfiltered.getBody())
+                .filteredOn(d -> d.title().equals("Org Wide Doc"))
+                .allMatch(d -> d.committeeId() == null);
+    }
+
+    private CommitteeSummary createCommittee(String adminToken, String name) {
+        ResponseEntity<CommitteeSummary> response = restTemplate.exchange(
+                "/api/committees", HttpMethod.POST,
+                authedRequest(adminToken, new CreateCommitteeRequest(name, null, null)), CommitteeSummary.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        return response.getBody();
+    }
+
     private ResponseEntity<DocumentSummary> uploadDocument(String token, String title, DocumentCategory category,
             UUID meetingId) {
+        return uploadDocument(token, title, category, meetingId, null);
+    }
+
+    private ResponseEntity<DocumentSummary> uploadDocument(String token, String title, DocumentCategory category,
+            UUID meetingId, UUID committeeId) {
         return restTemplate.exchange(
-                "/api/documents", HttpMethod.POST, uploadRequest(token, title, category, meetingId), DocumentSummary.class);
+                "/api/documents", HttpMethod.POST, uploadRequest(token, title, category, meetingId, committeeId),
+                DocumentSummary.class);
     }
 
     private HttpEntity<MultiValueMap<String, Object>> uploadRequest(String token, String title,
             DocumentCategory category, UUID meetingId) {
+        return uploadRequest(token, title, category, meetingId, null);
+    }
+
+    private HttpEntity<MultiValueMap<String, Object>> uploadRequest(String token, String title,
+            DocumentCategory category, UUID meetingId, UUID committeeId) {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", new ByteArrayResource(FILE_BYTES) {
             @Override
@@ -130,6 +179,9 @@ class DocumentFlowTest extends IntegrationTestSupport {
         body.add("category", category.name());
         if (meetingId != null) {
             body.add("meetingId", meetingId.toString());
+        }
+        if (committeeId != null) {
+            body.add("committeeId", committeeId.toString());
         }
 
         HttpHeaders headers = new HttpHeaders();

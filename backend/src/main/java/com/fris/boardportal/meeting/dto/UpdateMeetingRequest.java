@@ -2,6 +2,7 @@ package com.fris.boardportal.meeting.dto;
 
 import com.fris.boardportal.meeting.MeetingStatus;
 import java.time.Instant;
+import java.util.UUID;
 
 public record UpdateMeetingRequest(
         String title,
@@ -10,5 +11,6 @@ public record UpdateMeetingRequest(
         Instant scheduledStart,
         Instant scheduledEnd,
         MeetingStatus status,
-        String minutesContent) {
+        String minutesContent,
+        UUID committeeId) {
 }

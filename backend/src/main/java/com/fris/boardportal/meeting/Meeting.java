@@ -49,6 +49,9 @@ public class Meeting {
     @Column(name = "minutes_content")
     private String minutesContent;
 
+    @Column(name = "committee_id")
+    private UUID committeeId;
+
     @Column(name = "created_by", nullable = false)
     private UUID createdBy;
 
@@ -59,7 +62,7 @@ public class Meeting {
     private Instant updatedAt;
 
     public static Meeting create(UUID organizationId, UUID createdBy, String title, String description,
-            String location, Instant scheduledStart, Instant scheduledEnd) {
+            String location, Instant scheduledStart, Instant scheduledEnd, UUID committeeId) {
         Meeting meeting = new Meeting();
         meeting.setId(UUID.randomUUID());
         meeting.setOrganizationId(organizationId);
@@ -70,6 +73,7 @@ public class Meeting {
         meeting.setScheduledStart(scheduledStart);
         meeting.setScheduledEnd(scheduledEnd);
         meeting.setStatus(MeetingStatus.SCHEDULED);
+        meeting.setCommitteeId(committeeId);
         Instant now = Instant.now();
         meeting.setCreatedAt(now);
         meeting.setUpdatedAt(now);

@@ -147,7 +147,7 @@ class ResolutionFlowTest extends IntegrationTestSupport {
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
                 authedRequest(adminToken, new CreateMeetingRequest("Q3 Board Meeting", "Quarterly review", "Virtual",
-                        start, start.plus(1, ChronoUnit.HOURS))),
+                        start, start.plus(1, ChronoUnit.HOURS), null)),
                 MeetingSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();

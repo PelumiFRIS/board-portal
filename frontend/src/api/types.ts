@@ -40,12 +40,16 @@ export interface CommitteeSummary {
   id: string;
   name: string;
   description: string | null;
+  parentCommitteeId: string | null;
+  parentCommitteeName: string | null;
   members: CommitteeMemberDto[];
+  subCommittees: CommitteeSummary[];
 }
 
 export interface CreateCommitteePayload {
   name: string;
   description?: string;
+  parentCommitteeId?: string;
 }
 
 export interface UpdateCommitteePayload {
@@ -93,6 +97,7 @@ export interface MeetingSummary {
   scheduledStart: string;
   scheduledEnd: string | null;
   status: MeetingStatus;
+  committeeId: string | null;
 }
 
 export interface AgendaItem {
@@ -111,6 +116,7 @@ export interface MeetingDetail {
   scheduledEnd: string | null;
   status: MeetingStatus;
   minutesContent: string | null;
+  committeeId: string | null;
   agendaItems: AgendaItem[];
   documents: DocumentSummary[];
   resolutions: ResolutionSummary[];
@@ -123,6 +129,7 @@ export interface CreateMeetingPayload {
   location?: string;
   scheduledStart: string;
   scheduledEnd?: string;
+  committeeId?: string;
 }
 
 export interface UpdateMeetingPayload {
@@ -133,6 +140,7 @@ export interface UpdateMeetingPayload {
   scheduledEnd?: string;
   status?: MeetingStatus;
   minutesContent?: string;
+  committeeId?: string;
 }
 
 export interface CreateAgendaItemPayload {
@@ -166,6 +174,7 @@ export interface DocumentSummary {
   contentType: string;
   fileSize: number;
   meetingId: string | null;
+  committeeId: string | null;
   createdAt: string;
   retentionUntil: string | null;
   signatureCount: number;

@@ -3,6 +3,8 @@ package com.fris.boardportal.document;
 import com.fris.boardportal.audit.AuditAction;
 import com.fris.boardportal.audit.AuditEntityType;
 import com.fris.boardportal.audit.AuditLogService;
+import com.fris.boardportal.committee.Committee;
+import com.fris.boardportal.committee.CommitteeRepository;
 import com.fris.boardportal.common.ApiException;
 import com.fris.boardportal.document.dto.DocumentDetail;
 import com.fris.boardportal.document.dto.DocumentSignatureDto;
@@ -28,21 +30,25 @@ public class DocumentService {
     private final MeetingRepository meetingRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final CommitteeRepository committeeRepository;
 
     public DocumentService(DocumentRepository documentRepository, DocumentSignatureRepository signatureRepository,
-            MeetingRepository meetingRepository, UserRepository userRepository, AuditLogService auditLogService) {
+            MeetingRepository meetingRepository, UserRepository userRepository, AuditLogService auditLogService,
+            CommitteeRepository committeeRepository) {
         this.documentRepository = documentRepository;
         this.signatureRepository = signatureRepository;
         this.meetingRepository = meetingRepository;
         this.userRepository = userRepository;
         this.auditLogService = auditLogService;
+        this.committeeRepository = committeeRepository;
     }
 
     public List<DocumentSummary> listForOrganization(AppUserPrincipal principal, UUID meetingId,
-            DocumentCategory category) {
+            DocumentCategory category, UUID committeeId) {
         return documentRepository.findSummariesByOrganizationId(principal.getOrganizationId()).stream()
                 .filter(d -> meetingId == null || meetingId.equals(d.meetingId()))
                 .filter(d -> category == null || category == d.category())
+                .filter(d -> committeeId == null || committeeId.equals(d.committeeId()))
                 .map(d -> withSignatureInfo(d, principal.getUserId()))
                 .toList();
     }
@@ -56,8 +62,8 @@ public class DocumentService {
         boolean signedByMe = signatures.stream().anyMatch(s -> s.userId().equals(principal.getUserId()));
         return new DocumentDetail(document.getId(), document.getTitle(), document.getDescription(),
                 document.getCategory(), document.getFileName(), document.getContentType(), document.getFileSize(),
-                document.getMeetingId(), document.getCreatedAt(), document.getRetentionUntil(), signatures.size(),
-                signedByMe, signatures);
+                document.getMeetingId(), document.getCommitteeId(), document.getCreatedAt(),
+                document.getRetentionUntil(), signatures.size(), signedByMe, signatures);
     }
 
     public Document getContent(AppUserPrincipal principal, UUID id) {
@@ -66,13 +72,18 @@ public class DocumentService {
 
     @Transactional
     public DocumentSummary upload(AppUserPrincipal admin, MultipartFile file, String title, String description,
-            DocumentCategory category, UUID meetingId) {
+            DocumentCategory category, UUID meetingId, UUID committeeId) {
         if (file == null || file.isEmpty()) {
             throw ApiException.badRequest("A file is required");
         }
         if (meetingId != null) {
             meetingRepository.findByIdAndOrganizationId(meetingId, admin.getOrganizationId())
                     .orElseThrow(() -> ApiException.notFound("Meeting not found"));
+        }
+        Committee committee = null;
+        if (committeeId != null) {
+            committee = committeeRepository.findByIdAndOrganizationId(committeeId, admin.getOrganizationId())
+                    .orElseThrow(() -> ApiException.notFound("Committee not found"));
         }
 
         byte[] fileData;
@@ -91,11 +102,16 @@ public class DocumentService {
                 file.getOriginalFilename() != null ? file.getOriginalFilename() : "document",
                 file.getContentType() != null ? file.getContentType() : "application/octet-stream",
                 fileData,
-                admin.getUserId());
+                admin.getUserId(),
+                committeeId);
         documentRepository.save(document);
 
+        String summary = committee != null
+                ? "Uploaded \"" + document.getTitle() + "\" (" + document.getCategory() + ") for committee \""
+                        + committee.getName() + "\""
+                : "Uploaded \"" + document.getTitle() + "\" (" + document.getCategory() + ")";
         auditLogService.record(admin, AuditAction.DOCUMENT_UPLOADED, AuditEntityType.DOCUMENT, document.getId(),
-                "Uploaded \"" + document.getTitle() + "\" (" + document.getCategory() + ")");
+                summary);
 
         return toSummary(document, 0, false);
     }
@@ -148,12 +164,12 @@ public class DocumentService {
         boolean signedByMe = signatureRepository.existsByDocumentIdAndUserId(summary.id(), userId);
         return new DocumentSummary(summary.id(), summary.title(), summary.description(), summary.category(),
                 summary.fileName(), summary.contentType(), summary.fileSize(), summary.meetingId(),
-                summary.createdAt(), summary.retentionUntil(), count, signedByMe);
+                summary.committeeId(), summary.createdAt(), summary.retentionUntil(), count, signedByMe);
     }
 
     private DocumentSummary toSummary(Document d, long signatureCount, boolean signedByMe) {
         return new DocumentSummary(d.getId(), d.getTitle(), d.getDescription(), d.getCategory(), d.getFileName(),
-                d.getContentType(), d.getFileSize(), d.getMeetingId(), d.getCreatedAt(), d.getRetentionUntil(),
-                signatureCount, signedByMe);
+                d.getContentType(), d.getFileSize(), d.getMeetingId(), d.getCommitteeId(), d.getCreatedAt(),
+                d.getRetentionUntil(), signatureCount, signedByMe);
     }
 }
