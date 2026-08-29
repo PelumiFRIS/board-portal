@@ -65,9 +65,15 @@ public class Document {
     @Column(name = "committee_id")
     private UUID committeeId;
 
+    @Column(name = "root_document_id", nullable = false)
+    private UUID rootDocumentId;
+
+    @Column(name = "version_number", nullable = false)
+    private int versionNumber;
+
     public static Document create(UUID organizationId, UUID meetingId, String title, String description,
             DocumentCategory category, String fileName, String contentType, byte[] fileData, UUID uploadedBy,
-            UUID committeeId) {
+            UUID committeeId, UUID rootDocumentId, int versionNumber) {
         Document document = new Document();
         document.setId(UUID.randomUUID());
         document.setOrganizationId(organizationId);
@@ -82,6 +88,8 @@ public class Document {
         document.setUploadedBy(uploadedBy);
         document.setCreatedAt(Instant.now());
         document.setCommitteeId(committeeId);
+        document.setRootDocumentId(rootDocumentId != null ? rootDocumentId : document.getId());
+        document.setVersionNumber(versionNumber);
         return document;
     }
 }

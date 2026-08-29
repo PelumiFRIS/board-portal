@@ -191,6 +191,8 @@ export interface DocumentSummary {
   fileSize: number;
   meetingId: string | null;
   committeeId: string | null;
+  rootDocumentId: string;
+  versionNumber: number;
   createdAt: string;
   retentionUntil: string | null;
   signatureCount: number;
@@ -274,7 +276,8 @@ export type AuditAction =
   | "CONFLICT_DECLARED"
   | "DOCUMENT_RETENTION_SET"
   | "DOCUMENT_SIGNED"
-  | "DOCUMENT_DOWNLOADED";
+  | "DOCUMENT_DOWNLOADED"
+  | "DOCUMENT_VERSION_UPLOADED";
 
 export type AuditEntityType =
   | "ORGANIZATION"

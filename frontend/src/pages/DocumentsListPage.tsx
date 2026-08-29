@@ -4,9 +4,11 @@ import {
   downloadDocument,
   getDocument,
   listDocuments,
+  listDocumentVersions,
   signDocument,
   updateDocumentRetention,
   uploadDocument,
+  uploadNewVersion,
 } from "../api/documents";
 import { extractErrorMessage } from "../api/client";
 import { listMeetings } from "../api/meetings";
@@ -75,6 +77,12 @@ export function DocumentsListPage() {
   const [expandedSignaturesId, setExpandedSignaturesId] = useState<string | null>(null);
   const [signatureDetail, setSignatureDetail] = useState<DocumentDetail | null>(null);
   const [loadingSignatures, setLoadingSignatures] = useState(false);
+
+  const [expandedVersionsId, setExpandedVersionsId] = useState<string | null>(null);
+  const [versionList, setVersionList] = useState<DocumentSummary[]>([]);
+  const [loadingVersions, setLoadingVersions] = useState(false);
+  const [newVersionFile, setNewVersionFile] = useState<File | null>(null);
+  const [uploadingVersionId, setUploadingVersionId] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([listMeetings(), listCommittees()])
@@ -201,6 +209,42 @@ export function DocumentsListPage() {
     }
   }
 
+  async function handleToggleVersions(doc: DocumentSummary) {
+    if (expandedVersionsId === doc.id) {
+      setExpandedVersionsId(null);
+      setVersionList([]);
+      setNewVersionFile(null);
+      return;
+    }
+    setActionError(null);
+    setExpandedVersionsId(doc.id);
+    setLoadingVersions(true);
+    try {
+      setVersionList(await listDocumentVersions(doc.id));
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setLoadingVersions(false);
+    }
+  }
+
+  async function handleUploadNewVersion(doc: DocumentSummary) {
+    if (!newVersionFile) return;
+    setActionError(null);
+    setUploadingVersionId(doc.id);
+    try {
+      const updated = await uploadNewVersion(doc.id, newVersionFile);
+      setDocuments((prev) => prev.map((d) => (d.id === doc.id ? updated : d)));
+      setExpandedVersionsId(updated.id);
+      setVersionList(await listDocumentVersions(updated.id));
+      setNewVersionFile(null);
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setUploadingVersionId(null);
+    }
+  }
+
   if (!user) return null;
 
   const today = new Date().toISOString().slice(0, 10);
@@ -259,7 +303,10 @@ export function DocumentsListPage() {
                   return (
                     <Fragment key={doc.id}>
                       <tr>
-                        <td>{doc.title}</td>
+                        <td>
+                          {doc.title}
+                          {doc.versionNumber > 1 && <span className="badge badge-category"> v{doc.versionNumber}</span>}
+                        </td>
                         <td>
                           <span className="badge badge-category">{doc.category.replace("_", " ")}</span>
                         </td>
@@ -324,6 +371,9 @@ export function DocumentsListPage() {
                             <button className="secondary small" onClick={() => handleDownload(doc)}>
                               Download
                             </button>
+                            <button className="secondary small" onClick={() => handleToggleVersions(doc)}>
+                              Version history
+                            </button>
                             {isAdmin && (
                               <button className="secondary small" onClick={() => handleDelete(doc)}>
                                 Delete
@@ -332,6 +382,41 @@ export function DocumentsListPage() {
                           </div>
                         </td>
                       </tr>
+                      {expandedVersionsId === doc.id && (
+                        <tr>
+                          <td colSpan={8}>
+                            {loadingVersions && <p className="table-hint">Loading versions...</p>}
+                            {!loadingVersions && (
+                              <ul className="vote-record-list">
+                                {versionList.map((v) => (
+                                  <li key={v.id}>
+                                    v{v.versionNumber} &middot; {formatFileSize(v.fileSize)} &middot;{" "}
+                                    {new Date(v.createdAt).toLocaleString()}{" "}
+                                    <button className="secondary small" onClick={() => handleDownload(v)}>
+                                      Download
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            {isAdmin && (
+                              <div className="field-row">
+                                <input
+                                  type="file"
+                                  onChange={(e) => setNewVersionFile(e.target.files?.[0] ?? null)}
+                                />
+                                <button
+                                  className="secondary small"
+                                  disabled={!newVersionFile || uploadingVersionId === doc.id}
+                                  onClick={() => handleUploadNewVersion(doc)}
+                                >
+                                  {uploadingVersionId === doc.id ? "Uploading..." : "Upload new version"}
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
                       {expandedSignaturesId === doc.id && (
                         <tr>
                           <td colSpan={8}>

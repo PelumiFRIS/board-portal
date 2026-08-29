@@ -16,8 +16,10 @@ import com.fris.boardportal.user.UserRepository;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,10 +48,21 @@ public class DocumentService {
     public List<DocumentSummary> listForOrganization(AppUserPrincipal principal, UUID meetingId,
             DocumentCategory category, UUID committeeId) {
         return documentRepository.findSummariesByOrganizationId(principal.getOrganizationId()).stream()
+                .collect(Collectors.toMap(DocumentSummary::rootDocumentId, d -> d,
+                        (a, b) -> a.versionNumber() > b.versionNumber() ? a : b))
+                .values().stream()
+                .sorted(Comparator.comparing(DocumentSummary::createdAt).reversed())
                 .filter(d -> meetingId == null || meetingId.equals(d.meetingId()))
                 .filter(d -> category == null || category == d.category())
                 .filter(d -> committeeId == null || committeeId.equals(d.committeeId()))
                 .map(d -> withSignatureInfo(d, principal.getUserId()))
+                .toList();
+    }
+
+    public List<DocumentSummary> listVersions(AppUserPrincipal principal, UUID id) {
+        Document document = findInOrg(principal, id);
+        return documentRepository.findByRootDocumentIdOrderByVersionNumberDesc(document.getRootDocumentId()).stream()
+                .map(d -> withSignatureInfo(toSummary(d, 0, false), principal.getUserId()))
                 .toList();
     }
 
@@ -62,8 +75,9 @@ public class DocumentService {
         boolean signedByMe = signatures.stream().anyMatch(s -> s.userId().equals(principal.getUserId()));
         return new DocumentDetail(document.getId(), document.getTitle(), document.getDescription(),
                 document.getCategory(), document.getFileName(), document.getContentType(), document.getFileSize(),
-                document.getMeetingId(), document.getCommitteeId(), document.getCreatedAt(),
-                document.getRetentionUntil(), signatures.size(), signedByMe, signatures);
+                document.getMeetingId(), document.getCommitteeId(), document.getRootDocumentId(),
+                document.getVersionNumber(), document.getCreatedAt(), document.getRetentionUntil(), signatures.size(),
+                signedByMe, signatures);
     }
 
     public Document getContent(AppUserPrincipal principal, UUID id) {
@@ -106,7 +120,9 @@ public class DocumentService {
                 file.getContentType() != null ? file.getContentType() : "application/octet-stream",
                 fileData,
                 admin.getUserId(),
-                committeeId);
+                committeeId,
+                null,
+                1);
         documentRepository.save(document);
 
         String summary = committee != null
@@ -115,6 +131,45 @@ public class DocumentService {
                 : "Uploaded \"" + document.getTitle() + "\" (" + document.getCategory() + ")";
         auditLogService.record(admin, AuditAction.DOCUMENT_UPLOADED, AuditEntityType.DOCUMENT, document.getId(),
                 summary);
+
+        return toSummary(document, 0, false);
+    }
+
+    @Transactional
+    public DocumentSummary uploadNewVersion(AppUserPrincipal admin, UUID id, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw ApiException.badRequest("A file is required");
+        }
+        Document target = findInOrg(admin, id);
+        Document latest = documentRepository.findByRootDocumentIdOrderByVersionNumberDesc(target.getRootDocumentId())
+                .get(0);
+
+        byte[] fileData;
+        try {
+            fileData = file.getBytes();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to read uploaded file", e);
+        }
+
+        Document document = Document.create(
+                latest.getOrganizationId(),
+                latest.getMeetingId(),
+                latest.getTitle(),
+                latest.getDescription(),
+                latest.getCategory(),
+                file.getOriginalFilename() != null ? file.getOriginalFilename() : "document",
+                file.getContentType() != null ? file.getContentType() : "application/octet-stream",
+                fileData,
+                admin.getUserId(),
+                latest.getCommitteeId(),
+                latest.getRootDocumentId(),
+                latest.getVersionNumber() + 1);
+        document.setRetentionUntil(latest.getRetentionUntil());
+        documentRepository.save(document);
+
+        auditLogService.record(admin, AuditAction.DOCUMENT_VERSION_UPLOADED, AuditEntityType.DOCUMENT,
+                document.getId(),
+                "Uploaded version " + document.getVersionNumber() + " of \"" + document.getTitle() + "\"");
 
         return toSummary(document, 0, false);
     }
@@ -167,12 +222,13 @@ public class DocumentService {
         boolean signedByMe = signatureRepository.existsByDocumentIdAndUserId(summary.id(), userId);
         return new DocumentSummary(summary.id(), summary.title(), summary.description(), summary.category(),
                 summary.fileName(), summary.contentType(), summary.fileSize(), summary.meetingId(),
-                summary.committeeId(), summary.createdAt(), summary.retentionUntil(), count, signedByMe);
+                summary.committeeId(), summary.rootDocumentId(), summary.versionNumber(), summary.createdAt(),
+                summary.retentionUntil(), count, signedByMe);
     }
 
     private DocumentSummary toSummary(Document d, long signatureCount, boolean signedByMe) {
         return new DocumentSummary(d.getId(), d.getTitle(), d.getDescription(), d.getCategory(), d.getFileName(),
-                d.getContentType(), d.getFileSize(), d.getMeetingId(), d.getCommitteeId(), d.getCreatedAt(),
-                d.getRetentionUntil(), signatureCount, signedByMe);
+                d.getContentType(), d.getFileSize(), d.getMeetingId(), d.getCommitteeId(), d.getRootDocumentId(),
+                d.getVersionNumber(), d.getCreatedAt(), d.getRetentionUntil(), signatureCount, signedByMe);
     }
 }

@@ -16,6 +16,8 @@ public record DocumentDetail(
         long fileSize,
         UUID meetingId,
         UUID committeeId,
+        UUID rootDocumentId,
+        int versionNumber,
         Instant createdAt,
         LocalDate retentionUntil,
         long signatureCount,

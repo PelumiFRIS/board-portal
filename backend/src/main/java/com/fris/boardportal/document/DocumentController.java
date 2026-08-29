@@ -48,6 +48,19 @@ public class DocumentController {
         return documentService.getDetail(principal, id);
     }
 
+    @GetMapping("/{id}/versions")
+    public List<DocumentSummary> versions(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
+        return documentService.listVersions(principal, id);
+    }
+
+    @PostMapping("/{id}/versions")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DocumentSummary> uploadVersion(@AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID id, @RequestParam("file") MultipartFile file) {
+        DocumentSummary created = documentService.uploadNewVersion(principal, id, file);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
     @GetMapping("/{id}/content")
     public ResponseEntity<byte[]> content(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         Document document = documentService.getContent(principal, id);

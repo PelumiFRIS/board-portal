@@ -167,6 +167,117 @@ class DocumentFlowTest extends IntegrationTestSupport {
                 .allMatch(d -> d.committeeId() == null);
     }
 
+    @Test
+    void uploadingNewVersionSupersedesInListButPreservesHistory() {
+        AuthResponse admin = signup(uniqueEmail(), "Version Org");
+        DocumentSummary v1 = uploadDocument(admin.accessToken(), "Q4 Board Pack", DocumentCategory.BOARD_PACK, null)
+                .getBody();
+        assertThat(v1.versionNumber()).isEqualTo(1);
+        assertThat(v1.rootDocumentId()).isEqualTo(v1.id());
+
+        byte[] v2Bytes = "Q4 board pack contents, revised".getBytes(StandardCharsets.UTF_8);
+        ResponseEntity<DocumentSummary> v2Response = uploadNewVersion(admin.accessToken(), v1.id(), v2Bytes);
+        assertThat(v2Response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        DocumentSummary v2 = v2Response.getBody();
+        assertThat(v2.versionNumber()).isEqualTo(2);
+        assertThat(v2.rootDocumentId()).isEqualTo(v1.id());
+        assertThat(v2.title()).isEqualTo("Q4 Board Pack");
+        assertThat(v2.category()).isEqualTo(DocumentCategory.BOARD_PACK);
+        assertThat(v2.fileSize()).isEqualTo(v2Bytes.length);
+
+        ResponseEntity<DocumentSummary[]> list = restTemplate.exchange(
+                "/api/documents", HttpMethod.GET, authedRequest(admin.accessToken()), DocumentSummary[].class);
+        assertThat(list.getBody()).hasSize(1);
+        assertThat(list.getBody()[0].id()).isEqualTo(v2.id());
+        assertThat(list.getBody()[0].versionNumber()).isEqualTo(2);
+
+        ResponseEntity<DocumentSummary[]> versions = restTemplate.exchange(
+                "/api/documents/" + v1.id() + "/versions", HttpMethod.GET,
+                authedRequest(admin.accessToken()), DocumentSummary[].class);
+        assertThat(versions.getBody()).extracting(DocumentSummary::versionNumber).containsExactly(2, 1);
+
+        ResponseEntity<byte[]> v1Content = restTemplate.exchange(
+                "/api/documents/" + v1.id() + "/content", HttpMethod.GET,
+                authedRequest(admin.accessToken()), byte[].class);
+        assertThat(v1Content.getBody()).isEqualTo(FILE_BYTES);
+
+        ResponseEntity<byte[]> v2Content = restTemplate.exchange(
+                "/api/documents/" + v2.id() + "/content", HttpMethod.GET,
+                authedRequest(admin.accessToken()), byte[].class);
+        assertThat(v2Content.getBody()).isEqualTo(v2Bytes);
+    }
+
+    @Test
+    void nonAdminCannotUploadNewVersion() {
+        AuthResponse admin = signup(uniqueEmail(), "Version Restricted Org");
+        DocumentSummary v1 = uploadDocument(admin.accessToken(), "Policy", DocumentCategory.POLICY, null).getBody();
+        String memberEmail = uniqueEmail();
+        restTemplate.exchange(
+                "/api/users", HttpMethod.POST,
+                authedRequest(admin.accessToken(),
+                        new CreateUserRequest("Board", "Member", memberEmail, "password123", Role.BOARD_MEMBER)),
+                Object.class);
+        AuthResponse member = login(memberEmail);
+
+        ResponseEntity<String> response = uploadNewVersion(member.accessToken(), v1.id(),
+                "attempted".getBytes(StandardCharsets.UTF_8), String.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void signaturesDoNotCarryForwardToNewVersion() {
+        AuthResponse admin = signup(uniqueEmail(), "Version Signature Org");
+        DocumentSummary v1 = uploadDocument(admin.accessToken(), "Charter", DocumentCategory.CHARTER, null).getBody();
+
+        ResponseEntity<DocumentSummary> signed = restTemplate.exchange(
+                "/api/documents/" + v1.id() + "/sign", HttpMethod.POST,
+                authedRequest(admin.accessToken()), DocumentSummary.class);
+        assertThat(signed.getBody().signatureCount()).isEqualTo(1);
+
+        DocumentSummary v2 = uploadNewVersion(admin.accessToken(), v1.id(),
+                "revised charter".getBytes(StandardCharsets.UTF_8)).getBody();
+        assertThat(v2.signatureCount()).isZero();
+        assertThat(v2.signedByMe()).isFalse();
+    }
+
+    @Test
+    void deletingLatestVersionRevealsThePreviousOneAsCurrent() {
+        AuthResponse admin = signup(uniqueEmail(), "Version Delete Org");
+        DocumentSummary v1 = uploadDocument(admin.accessToken(), "Bylaw", DocumentCategory.BYLAW, null).getBody();
+        DocumentSummary v2 = uploadNewVersion(admin.accessToken(), v1.id(),
+                "revised bylaw".getBytes(StandardCharsets.UTF_8)).getBody();
+
+        ResponseEntity<Void> deleted = restTemplate.exchange(
+                "/api/documents/" + v2.id(), HttpMethod.DELETE, authedRequest(admin.accessToken()), Void.class);
+        assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        ResponseEntity<DocumentSummary[]> list = restTemplate.exchange(
+                "/api/documents", HttpMethod.GET, authedRequest(admin.accessToken()), DocumentSummary[].class);
+        assertThat(list.getBody()).hasSize(1);
+        assertThat(list.getBody()[0].id()).isEqualTo(v1.id());
+        assertThat(list.getBody()[0].versionNumber()).isEqualTo(1);
+    }
+
+    private ResponseEntity<DocumentSummary> uploadNewVersion(String token, UUID documentId, byte[] content) {
+        return uploadNewVersion(token, documentId, content, DocumentSummary.class);
+    }
+
+    private <T> ResponseEntity<T> uploadNewVersion(String token, UUID documentId, byte[] content,
+            Class<T> responseType) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", new ByteArrayResource(content) {
+            @Override
+            public String getFilename() {
+                return "revised.txt";
+            }
+        });
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.setBearerAuth(token);
+        return restTemplate.exchange("/api/documents/" + documentId + "/versions", HttpMethod.POST,
+                new HttpEntity<>(body, headers), responseType);
+    }
+
     private CommitteeSummary createCommittee(String adminToken, String name) {
         ResponseEntity<CommitteeSummary> response = restTemplate.exchange(
                 "/api/committees", HttpMethod.POST,

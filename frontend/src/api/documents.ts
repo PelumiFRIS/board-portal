@@ -55,6 +55,20 @@ export async function deleteDocument(id: string): Promise<void> {
   await apiClient.delete(`/api/documents/${id}`);
 }
 
+export async function listDocumentVersions(id: string): Promise<DocumentSummary[]> {
+  const { data } = await apiClient.get<DocumentSummary[]>(`/api/documents/${id}/versions`);
+  return data;
+}
+
+export async function uploadNewVersion(id: string, file: File): Promise<DocumentSummary> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await apiClient.post<DocumentSummary>(`/api/documents/${id}/versions`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
 export async function downloadDocument(id: string, fileName: string): Promise<void> {
   const response = await apiClient.get(`/api/documents/${id}/content`, { responseType: "blob" });
   const url = URL.createObjectURL(response.data as Blob);
