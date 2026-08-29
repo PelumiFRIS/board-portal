@@ -382,3 +382,47 @@ export interface CreateConflictDeclarationPayload {
   hasConflict: boolean;
   details?: string;
 }
+
+export interface MonthlyCount {
+  month: string;
+  count: number;
+}
+
+export interface MeetingStats {
+  total: number;
+  scheduled: number;
+  completed: number;
+  cancelled: number;
+  cadence: MonthlyCount[];
+}
+
+export interface ResolutionStats {
+  total: number;
+  open: number;
+  closed: number;
+  passed: number;
+  failed: number;
+  passRate: number;
+}
+
+export interface ActionItemStats {
+  total: number;
+  open: number;
+  done: number;
+  overdue: number;
+}
+
+export interface ComplianceStats {
+  total: number;
+  submitted: number;
+  pending: number;
+  overdue: number;
+  complianceRate: number;
+}
+
+export interface DashboardStats {
+  meetings: MeetingStats;
+  resolutions: ResolutionStats;
+  actionItems: ActionItemStats;
+  compliance: ComplianceStats;
+}

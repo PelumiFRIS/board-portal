@@ -15,6 +15,7 @@ import com.fris.boardportal.user.Role;
 import com.fris.boardportal.user.dto.CreateUserRequest;
 import com.fris.boardportal.user.dto.UserSummary;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,7 @@ class ComplianceReminderSchedulerTest extends IntegrationTestSupport {
     void sendsReminderForFilingDueInSevenDays() {
         AuthResponse admin = signup(uniqueEmail(), "Filing Reminder 7d Org");
         String title = uniqueTitle("Annual Return");
-        createFiling(admin.accessToken(), title, LocalDate.now().plusDays(7));
+        createFiling(admin.accessToken(), title, LocalDate.now(ZoneOffset.UTC).plusDays(7));
 
         scheduler.sendDueSoonReminders();
 
@@ -61,7 +62,7 @@ class ComplianceReminderSchedulerTest extends IntegrationTestSupport {
     void sendsUrgentReminderForFilingDueTomorrow() {
         AuthResponse admin = signup(uniqueEmail(), "Filing Reminder 1d Org");
         String title = uniqueTitle("Tax Filing");
-        createFiling(admin.accessToken(), title, LocalDate.now().plusDays(1));
+        createFiling(admin.accessToken(), title, LocalDate.now(ZoneOffset.UTC).plusDays(1));
 
         scheduler.sendDueSoonReminders();
 
@@ -75,8 +76,8 @@ class ComplianceReminderSchedulerTest extends IntegrationTestSupport {
         AuthResponse admin = signup(uniqueEmail(), "Filing Reminder Multi Org");
         String sevenDayTitle = uniqueTitle("Seven Day Filing");
         String oneDayTitle = uniqueTitle("One Day Filing");
-        createFiling(admin.accessToken(), sevenDayTitle, LocalDate.now().plusDays(7));
-        createFiling(admin.accessToken(), oneDayTitle, LocalDate.now().plusDays(1));
+        createFiling(admin.accessToken(), sevenDayTitle, LocalDate.now(ZoneOffset.UTC).plusDays(7));
+        createFiling(admin.accessToken(), oneDayTitle, LocalDate.now(ZoneOffset.UTC).plusDays(1));
 
         scheduler.sendDueSoonReminders();
 
@@ -90,7 +91,7 @@ class ComplianceReminderSchedulerTest extends IntegrationTestSupport {
     void skipsSubmittedFilingsEvenAtThresholdDueDate() {
         AuthResponse admin = signup(uniqueEmail(), "Filing Reminder Submitted Org");
         String title = uniqueTitle("Already Done");
-        ComplianceFilingSummary filing = createFiling(admin.accessToken(), title, LocalDate.now().plusDays(7));
+        ComplianceFilingSummary filing = createFiling(admin.accessToken(), title, LocalDate.now(ZoneOffset.UTC).plusDays(7));
         ResponseEntity<ComplianceFilingSummary> submitted = restTemplate.exchange(
                 "/api/compliance-filings/" + filing.id() + "/submit", HttpMethod.PATCH,
                 authedRequest(admin.accessToken()), ComplianceFilingSummary.class);
@@ -106,8 +107,8 @@ class ComplianceReminderSchedulerTest extends IntegrationTestSupport {
         AuthResponse admin = signup(uniqueEmail(), "Filing Reminder Off Threshold Org");
         String threeDayTitle = uniqueTitle("Due In Three Days");
         String tenDayTitle = uniqueTitle("Due In Ten Days");
-        createFiling(admin.accessToken(), threeDayTitle, LocalDate.now().plusDays(3));
-        createFiling(admin.accessToken(), tenDayTitle, LocalDate.now().plusDays(10));
+        createFiling(admin.accessToken(), threeDayTitle, LocalDate.now(ZoneOffset.UTC).plusDays(3));
+        createFiling(admin.accessToken(), tenDayTitle, LocalDate.now(ZoneOffset.UTC).plusDays(10));
 
         scheduler.sendDueSoonReminders();
 
@@ -121,7 +122,7 @@ class ComplianceReminderSchedulerTest extends IntegrationTestSupport {
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
         String title = uniqueTitle("Org Wide Filing");
-        createFiling(admin.accessToken(), title, LocalDate.now().plusDays(7));
+        createFiling(admin.accessToken(), title, LocalDate.now(ZoneOffset.UTC).plusDays(7));
 
         scheduler.sendDueSoonReminders();
 
@@ -133,7 +134,7 @@ class ComplianceReminderSchedulerTest extends IntegrationTestSupport {
     @Test
     void reminderSurvivesMailSenderFailure() {
         AuthResponse admin = signup(uniqueEmail(), "Filing Reminder Failure Org");
-        createFiling(admin.accessToken(), uniqueTitle("Failure Filing"), LocalDate.now().plusDays(7));
+        createFiling(admin.accessToken(), uniqueTitle("Failure Filing"), LocalDate.now(ZoneOffset.UTC).plusDays(7));
         doThrow(new MailSendException("smtp down")).when(mailSender).send(any(SimpleMailMessage.class));
 
         assertThatCode(() -> scheduler.sendDueSoonReminders()).doesNotThrowAnyException();

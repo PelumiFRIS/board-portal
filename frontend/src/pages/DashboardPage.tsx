@@ -3,11 +3,13 @@ import { Link } from "react-router-dom";
 import { createUser, listOrganizationUsers, updateUserStatus } from "../api/auth";
 import { listActionItems, updateActionItemStatus } from "../api/actionItems";
 import { extractErrorMessage } from "../api/client";
+import { getDashboardStats } from "../api/dashboard";
 import { listDocuments } from "../api/documents";
 import { listMeetings } from "../api/meetings";
 import { castVote, listResolutions } from "../api/resolutions";
 import type {
   ActionItemSummary,
+  DashboardStats as DashboardStatsType,
   DocumentSummary,
   MeetingSummary,
   ResolutionSummary,
@@ -16,6 +18,7 @@ import type {
   VoteChoice,
 } from "../api/types";
 import { Avatar } from "../components/Avatar";
+import { DashboardStats } from "../components/DashboardStats";
 import { Sidebar } from "../components/Sidebar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
@@ -258,6 +261,9 @@ export function DashboardPage() {
   const [usersError, setUsersError] = useState<string | null>(null);
   const [loadingUsers, setLoadingUsers] = useState(isAdmin);
 
+  const [stats, setStats] = useState<DashboardStatsType | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -275,6 +281,12 @@ export function DashboardPage() {
       .catch((err) => setUsersError(extractErrorMessage(err)))
       .finally(() => setLoadingUsers(false));
   }, [isAdmin]);
+
+  useEffect(() => {
+    getDashboardStats()
+      .then(setStats)
+      .catch((err) => setStatsError(extractErrorMessage(err)));
+  }, []);
 
   async function handleAddUser(event: FormEvent) {
     event.preventDefault();
@@ -319,6 +331,9 @@ export function DashboardPage() {
           <h1>Welcome, {user.firstName}</h1>
           <p>{user.organizationName} &middot; {user.role}</p>
         </div>
+
+        {statsError && <p className="form-error">{statsError}</p>}
+        {stats && <DashboardStats stats={stats} />}
 
         {!isAdmin && <MemberDashboard />}
 

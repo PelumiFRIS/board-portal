@@ -439,6 +439,118 @@ button.small {
     0 1px 3px rgba(16, 24, 40, 0.04);
 }
 
+/* Governance dashboard stats */
+
+.stat-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.stat-card-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+  font-weight: 600;
+}
+
+.stat-card-value {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: var(--font-heading);
+  color: var(--text-h);
+}
+
+.stat-card-breakdown {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.stat-card-overdue {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.stats-detail-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 24px;
+}
+
+.cadence-chart h3,
+.rate-bar-group h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.cadence-chart-svg {
+  width: 100%;
+  height: auto;
+}
+
+.cadence-chart-count {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--text);
+}
+
+.cadence-chart-label {
+  font-size: 11px;
+  fill: var(--text-muted);
+}
+
+.rate-bar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rate-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rate-bar-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.rate-bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.rate-bar-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .stats-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .agenda-item-row {
   display: flex;
   align-items: center;
