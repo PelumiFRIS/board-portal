@@ -329,6 +329,7 @@ export function DashboardPage() {
             {usersError && <p className="form-error">{usersError}</p>}
             {statusError && <p className="form-error">{statusError}</p>}
             {!loadingUsers && !usersError && (
+              <div className="table-scroll">
               <table className="user-table">
                 <thead>
                   <tr>
@@ -374,6 +375,7 @@ export function DashboardPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
 
             <h3>Add a member</h3>

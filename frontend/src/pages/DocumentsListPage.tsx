@@ -239,6 +239,7 @@ export function DocumentsListPage() {
             </div>
           )}
           {!loading && !loadError && documents.length > 0 && (
+            <div className="table-scroll">
             <table className="user-table">
               <thead>
                 <tr>
@@ -355,6 +356,7 @@ export function DocumentsListPage() {
                 })}
               </tbody>
             </table>
+            </div>
           )}
 
           {isAdmin && (

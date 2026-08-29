@@ -273,7 +273,8 @@ export type AuditAction =
   | "FILING_DELETED"
   | "CONFLICT_DECLARED"
   | "DOCUMENT_RETENTION_SET"
-  | "DOCUMENT_SIGNED";
+  | "DOCUMENT_SIGNED"
+  | "DOCUMENT_DOWNLOADED";
 
 export type AuditEntityType =
   | "ORGANIZATION"

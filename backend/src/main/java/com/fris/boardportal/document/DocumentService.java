@@ -67,7 +67,10 @@ public class DocumentService {
     }
 
     public Document getContent(AppUserPrincipal principal, UUID id) {
-        return findInOrg(principal, id);
+        Document document = findInOrg(principal, id);
+        auditLogService.record(principal, AuditAction.DOCUMENT_DOWNLOADED, AuditEntityType.DOCUMENT, document.getId(),
+                "Downloaded \"" + document.getTitle() + "\"");
+        return document;
     }
 
     @Transactional

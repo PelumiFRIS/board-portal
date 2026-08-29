@@ -113,6 +113,7 @@ export function AuditLogPage() {
             </div>
           )}
           {!loading && !loadError && entries.length > 0 && (
+            <div className="table-scroll">
             <table className="user-table">
               <thead>
                 <tr>
@@ -131,6 +132,7 @@ export function AuditLogPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </section>
       </main>

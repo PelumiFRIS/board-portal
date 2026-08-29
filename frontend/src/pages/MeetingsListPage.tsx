@@ -174,6 +174,7 @@ export function MeetingsListPage() {
             </div>
           )}
           {!loading && !loadError && meetings.length > 0 && (
+            <div className="table-scroll">
             <table className="user-table">
               <thead>
                 <tr>
@@ -204,6 +205,7 @@ export function MeetingsListPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
 
           <h3>Subscribe to calendar</h3>

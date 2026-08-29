@@ -2,6 +2,8 @@ package com.fris.boardportal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fris.boardportal.audit.AuditAction;
+import com.fris.boardportal.audit.dto.AuditLogEntry;
 import com.fris.boardportal.auth.dto.AuthResponse;
 import com.fris.boardportal.auth.dto.LoginRequest;
 import com.fris.boardportal.committee.dto.CommitteeSummary;
@@ -60,6 +62,30 @@ class DocumentFlowTest extends IntegrationTestSupport {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isEqualTo(FILE_BYTES);
+    }
+
+    @Test
+    void downloadingContentRecordsAnAuditEntryButViewingDetailDoesNot() {
+        AuthResponse admin = signup(uniqueEmail(), "Download Audit Org");
+        DocumentSummary uploaded = uploadDocument(admin.accessToken(), "Board Pack", DocumentCategory.BOARD_PACK, null)
+                .getBody();
+
+        restTemplate.exchange(
+                "/api/documents/" + uploaded.id(), HttpMethod.GET,
+                authedRequest(admin.accessToken()), String.class);
+
+        ResponseEntity<byte[]> download = restTemplate.exchange(
+                "/api/documents/" + uploaded.id() + "/content", HttpMethod.GET,
+                authedRequest(admin.accessToken()), byte[].class);
+        assertThat(download.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<AuditLogEntry[]> auditLog = restTemplate.exchange(
+                "/api/audit-logs", HttpMethod.GET, authedRequest(admin.accessToken()), AuditLogEntry[].class);
+        // exactly one DOCUMENT_DOWNLOADED entry — proves the earlier detail-view GET didn't also log one
+        assertThat(auditLog.getBody())
+                .filteredOn(e -> e.action() == AuditAction.DOCUMENT_DOWNLOADED)
+                .hasSize(1)
+                .allSatisfy(e -> assertThat(e.summary()).contains("Board Pack"));
     }
 
     @Test

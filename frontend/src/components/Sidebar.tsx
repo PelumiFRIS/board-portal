@@ -1,6 +1,20 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "./Avatar";
+
+function MenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 function DashboardIcon() {
   return (
@@ -120,41 +134,64 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
 
   if (!user) return null;
 
   const visibleNavItems = NAV_ITEMS.filter((item) => !item.adminOnly || user.role === "ADMIN");
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-logo">
-        <img src="/logo.png" alt="FirstRegistrars" />
+    <>
+      <div className="mobile-topbar">
+        <button
+          type="button"
+          className="mobile-menu-button"
+          aria-label={isOpen ? "Close navigation" : "Open navigation"}
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen((prev) => !prev)}
+        >
+          <MenuIcon />
+        </button>
+        <span className="mobile-topbar-org">{user.organizationName}</span>
       </div>
-      <div className="sidebar-org">{user.organizationName}</div>
-      <nav className="sidebar-nav">
-        {visibleNavItems.map(({ to, label, icon: Icon }) => (
-          <Link
-            key={to}
-            to={to}
-            className={location.pathname === to || location.pathname.startsWith(`${to}/`) ? "active" : ""}
-          >
-            <Icon />
-            {label}
-          </Link>
-        ))}
-      </nav>
-      <div className="sidebar-footer">
-        <div className="sidebar-user">
-          <Avatar userId={user.id} photoUpdatedAt={user.photoUpdatedAt} firstName={user.firstName} lastName={user.lastName} />
-          <div>
-            <div className="sidebar-user-name">
-              {user.firstName} {user.lastName}
-            </div>
-            <div className="sidebar-user-role">{user.role}</div>
-          </div>
+
+      {isOpen && <div className="sidebar-backdrop" onClick={() => setIsOpen(false)} />}
+
+      <aside className={`sidebar${isOpen ? " sidebar-open" : ""}`}>
+        <div className="sidebar-logo">
+          <img src="/logo.png" alt="FirstRegistrars" />
         </div>
-        <button onClick={logout}>Sign out</button>
-      </div>
-    </aside>
+        <div className="sidebar-org">{user.organizationName}</div>
+        <nav className="sidebar-nav">
+          {visibleNavItems.map(({ to, label, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              className={location.pathname === to || location.pathname.startsWith(`${to}/`) ? "active" : ""}
+              onClick={() => setIsOpen(false)}
+            >
+              <Icon />
+              {label}
+            </Link>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <Avatar userId={user.id} photoUpdatedAt={user.photoUpdatedAt} firstName={user.firstName} lastName={user.lastName} />
+            <div>
+              <div className="sidebar-user-name">
+                {user.firstName} {user.lastName}
+              </div>
+              <div className="sidebar-user-role">{user.role}</div>
+            </div>
+          </div>
+          <button onClick={logout}>Sign out</button>
+        </div>
+      </aside>
+    </>
   );
 }
