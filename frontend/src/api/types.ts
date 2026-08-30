@@ -278,7 +278,10 @@ export type AuditAction =
   | "DOCUMENT_SIGNED"
   | "DOCUMENT_DOWNLOADED"
   | "DOCUMENT_VERSION_UPLOADED"
-  | "MESSAGE_SENT";
+  | "MESSAGE_SENT"
+  | "RESOURCE_CREATED"
+  | "RESOURCE_UPDATED"
+  | "RESOURCE_DELETED";
 
 export type AuditEntityType =
   | "ORGANIZATION"
@@ -292,7 +295,8 @@ export type AuditEntityType =
   | "COMMITTEE"
   | "COMPLIANCE_FILING"
   | "CONFLICT_DECLARATION"
-  | "CONVERSATION";
+  | "CONVERSATION"
+  | "RESOURCE";
 
 export interface AuditLogEntry {
   id: string;
@@ -466,4 +470,27 @@ export interface SendMessagePayload {
 
 export interface UnreadCountResponse {
   count: number;
+}
+
+export type ResourceCategory = "ONBOARDING" | "GOVERNANCE_BEST_PRACTICES" | "POLICIES_AND_PROCEDURES" | "FAQ" | "OTHER";
+
+export interface ResourceSummary {
+  id: string;
+  category: ResourceCategory;
+  title: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateResourcePayload {
+  category: ResourceCategory;
+  title: string;
+  body: string;
+}
+
+export interface UpdateResourcePayload {
+  category?: ResourceCategory;
+  title?: string;
+  body?: string;
 }

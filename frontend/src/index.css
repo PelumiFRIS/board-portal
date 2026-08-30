@@ -727,6 +727,10 @@ button.small {
   gap: 12px;
 }
 
+.resource-body {
+  white-space: pre-wrap;
+}
+
 .vote-tally {
   display: flex;
   gap: 16px;
