@@ -13,5 +13,6 @@ public enum AuditEntityType {
     COMPLIANCE_FILING,
     CONFLICT_DECLARATION,
     CONVERSATION,
-    RESOURCE
+    RESOURCE,
+    API_KEY
 }

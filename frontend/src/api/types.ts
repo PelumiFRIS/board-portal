@@ -281,7 +281,9 @@ export type AuditAction =
   | "MESSAGE_SENT"
   | "RESOURCE_CREATED"
   | "RESOURCE_UPDATED"
-  | "RESOURCE_DELETED";
+  | "RESOURCE_DELETED"
+  | "API_KEY_CREATED"
+  | "API_KEY_REVOKED";
 
 export type AuditEntityType =
   | "ORGANIZATION"
@@ -296,7 +298,8 @@ export type AuditEntityType =
   | "COMPLIANCE_FILING"
   | "CONFLICT_DECLARATION"
   | "CONVERSATION"
-  | "RESOURCE";
+  | "RESOURCE"
+  | "API_KEY";
 
 export interface AuditLogEntry {
   id: string;
@@ -493,4 +496,21 @@ export interface UpdateResourcePayload {
   category?: ResourceCategory;
   title?: string;
   body?: string;
+}
+
+export interface ApiKeySummary {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+export interface CreateApiKeyPayload {
+  name: string;
+}
+
+export interface CreateApiKeyResponse {
+  key: ApiKeySummary;
+  rawKey: string;
 }

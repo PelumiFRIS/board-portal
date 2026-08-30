@@ -1,5 +1,7 @@
 package com.fris.boardportal.config;
 
+import com.fris.boardportal.apikey.ApiKeyRepository;
+import com.fris.boardportal.security.ApiKeyAuthenticationFilter;
 import com.fris.boardportal.security.JwtAuthenticationFilter;
 import com.fris.boardportal.security.JwtService;
 import com.fris.boardportal.security.RestAuthenticationEntryPoint;
@@ -45,7 +47,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtService jwtService,
-            UserRepository userRepository, CorsConfigurationSource corsConfigurationSource,
+            UserRepository userRepository, ApiKeyRepository apiKeyRepository,
+            CorsConfigurationSource corsConfigurationSource,
             RestAuthenticationEntryPoint restAuthenticationEntryPoint) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
@@ -57,7 +60,9 @@ public class SecurityConfig {
                         .permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthenticationFilter(jwtService, userRepository),
-                        UsernamePasswordAuthenticationFilter.class);
+                        UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new ApiKeyAuthenticationFilter(apiKeyRepository, userRepository),
+                        JwtAuthenticationFilter.class);
         return http.build();
     }
 }

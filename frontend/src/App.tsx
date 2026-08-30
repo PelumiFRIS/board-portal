@@ -11,6 +11,7 @@ import { AuditLogPage } from "./pages/AuditLogPage";
 import { DirectoryPage } from "./pages/DirectoryPage";
 import { MessagesPage } from "./pages/MessagesPage";
 import { ResourcesPage } from "./pages/ResourcesPage";
+import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { CommitteesPage } from "./pages/CommitteesPage";
 import { CompliancePage } from "./pages/CompliancePage";
 import { ConflictOfInterestPage } from "./pages/ConflictOfInterestPage";
@@ -106,6 +107,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ResourcesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/integrations"
+          element={
+            <ProtectedRoute>
+              <IntegrationsPage />
             </ProtectedRoute>
           }
         />
