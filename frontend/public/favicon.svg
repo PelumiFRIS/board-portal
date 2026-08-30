@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="32" fill="#12406e" />
+  <circle cx="32" cy="32" r="32" fill="url(#g)" />
+  <defs>
+    <radialGradient id="g" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#1a5490" />
+      <stop offset="100%" stop-color="#0d3057" />
+    </radialGradient>
+  </defs>
+  <text
+    x="32"
+    y="43"
+    text-anchor="middle"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="28"
+    font-weight="700"
+    fill="#ffb116"
+  >FR</text>
+</svg>

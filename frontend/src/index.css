@@ -3,11 +3,12 @@
   --primary-dark: #0d3057;
   --primary-tint: #e8eef5;
   --accent: #ffb116;
+  --accent-brass: #b9852b;
   --link: #3a75ff;
   --text: #1f2530;
   --text-muted: #5b6472;
   --text-h: #0d1420;
-  --bg: #f4f6f9;
+  --bg: #f2f4f8;
   --surface: #ffffff;
   --border: #e2e6ed;
   --danger: #b91c1c;
@@ -20,6 +21,13 @@
   --danger-bg: #fbeaea;
   --font-heading: "Poppins", system-ui, "Segoe UI", sans-serif;
   --font-body: "Ubuntu", system-ui, "Segoe UI", sans-serif;
+  --font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --shadow-card:
+    0 1px 2px rgba(16, 24, 40, 0.05),
+    0 8px 20px -8px rgba(13, 32, 55, 0.16);
+  --shadow-lg:
+    0 4px 8px rgba(13, 32, 55, 0.08),
+    0 24px 48px -16px rgba(13, 32, 55, 0.28);
   color-scheme: light;
   color: var(--text);
   background: var(--bg);
@@ -44,7 +52,7 @@ h1,
 h2,
 h3 {
   color: var(--text-h);
-  font-family: var(--font-heading);
+  font-family: var(--font-display);
   font-weight: 700;
   margin: 0 0 8px;
 }
@@ -68,13 +76,116 @@ a:focus-visible {
 
 /* Auth pages */
 
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+}
+
+.auth-hero {
+  flex: 1 1 55%;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(155deg, #1a5490 0%, var(--primary) 45%, var(--primary-dark) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px;
+}
+
+.auth-hero-pattern {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.auth-hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.auth-hero-eyebrow {
+  color: var(--accent);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 18px 0 0;
+}
+
+.auth-hero-headline {
+  color: #fff;
+  font-size: 34px;
+  line-height: 1.15;
+  margin: 6px 0 12px;
+  text-wrap: balance;
+}
+
+.auth-hero-copy {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 8px;
+  max-width: 42ch;
+}
+
+.auth-hero-illustration {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  margin: 16px 0 20px;
+}
+
+.auth-hero-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.auth-hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.auth-hero-pill svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
 .auth-page {
+  flex: 1 1 45%;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
   background: var(--bg);
+}
+
+@media (max-width: 900px) {
+  .auth-hero {
+    display: none;
+  }
+
+  .auth-page {
+    flex: 1 1 100%;
+  }
 }
 
 .auth-card {
@@ -87,9 +198,7 @@ a:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  box-shadow:
-    0 1px 2px rgba(16, 24, 40, 0.04),
-    0 8px 20px -4px rgba(16, 24, 40, 0.1);
+  box-shadow: var(--shadow-lg);
 }
 
 .auth-logo {
@@ -148,11 +257,14 @@ button {
   font-weight: 600;
   font-family: var(--font-heading);
   font-size: 14px;
-  transition: background 0.15s ease;
+  box-shadow: 0 1px 2px rgba(13, 32, 55, 0.12), 0 2px 6px -2px rgba(13, 32, 55, 0.18);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 button:hover {
   background: var(--primary-dark);
+  box-shadow: 0 2px 4px rgba(13, 32, 55, 0.14), 0 6px 14px -4px rgba(13, 32, 55, 0.26);
+  transform: translateY(-1px);
 }
 
 button:disabled {
@@ -164,12 +276,15 @@ button.secondary {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text);
+  box-shadow: none;
 }
 
 button.secondary:hover {
   background: var(--primary-tint);
   border-color: var(--primary);
   color: var(--primary);
+  box-shadow: none;
+  transform: none;
 }
 
 button.small {
@@ -238,7 +353,7 @@ code {
 .sidebar {
   width: 260px;
   flex-shrink: 0;
-  background: var(--primary);
+  background: linear-gradient(180deg, #163f68 0%, var(--primary-dark) 100%);
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -449,6 +564,22 @@ code {
   margin-bottom: 24px;
 }
 
+.page-header h1 {
+  position: relative;
+  padding-bottom: 14px;
+}
+
+.page-header h1::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 46px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent-brass);
+}
+
 .page-header-with-actions {
   display: flex;
   align-items: flex-start;
@@ -467,15 +598,13 @@ code {
 .dashboard-section {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   margin-bottom: 20px;
-  box-shadow:
-    0 1px 2px rgba(16, 24, 40, 0.03),
-    0 1px 3px rgba(16, 24, 40, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 /* Governance dashboard stats */
@@ -493,7 +622,8 @@ code {
   padding: 16px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
 
 .stat-card-label {
@@ -623,11 +753,11 @@ code {
   padding: 10px 12px;
   font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  border-bottom: 2px solid var(--border);
+  letter-spacing: 0.06em;
+  color: var(--primary);
+  border-bottom: 2px solid var(--accent-brass);
   font-family: var(--font-heading);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .user-table td {
@@ -803,12 +933,10 @@ code {
   gap: 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
   min-height: 480px;
-  box-shadow:
-    0 1px 2px rgba(16, 24, 40, 0.03),
-    0 1px 3px rgba(16, 24, 40, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .messages-list-pane {
@@ -984,14 +1112,12 @@ code {
 .member-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  box-shadow:
-    0 1px 2px rgba(16, 24, 40, 0.03),
-    0 1px 3px rgba(16, 24, 40, 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .comment-item {
