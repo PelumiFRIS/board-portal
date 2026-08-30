@@ -277,7 +277,8 @@ export type AuditAction =
   | "DOCUMENT_RETENTION_SET"
   | "DOCUMENT_SIGNED"
   | "DOCUMENT_DOWNLOADED"
-  | "DOCUMENT_VERSION_UPLOADED";
+  | "DOCUMENT_VERSION_UPLOADED"
+  | "MESSAGE_SENT";
 
 export type AuditEntityType =
   | "ORGANIZATION"
@@ -290,7 +291,8 @@ export type AuditEntityType =
   | "COMMENT"
   | "COMMITTEE"
   | "COMPLIANCE_FILING"
-  | "CONFLICT_DECLARATION";
+  | "CONFLICT_DECLARATION"
+  | "CONVERSATION";
 
 export interface AuditLogEntry {
   id: string;
@@ -425,4 +427,43 @@ export interface DashboardStats {
   resolutions: ResolutionStats;
   actionItems: ActionItemStats;
   compliance: ComplianceStats;
+}
+
+export interface ParticipantSummary {
+  userId: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface ConversationSummary {
+  id: string;
+  isGroup: boolean;
+  title: string | null;
+  participants: ParticipantSummary[];
+  lastMessagePreview: string | null;
+  lastMessageAt: string | null;
+  unreadCount: number;
+}
+
+export interface MessageDto {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface CreateConversationPayload {
+  participantIds: string[];
+  initialMessage: string;
+  title?: string;
+}
+
+export interface SendMessagePayload {
+  body: string;
+}
+
+export interface UnreadCountResponse {
+  count: number;
 }

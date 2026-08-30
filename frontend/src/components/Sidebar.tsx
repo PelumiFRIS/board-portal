@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { getUnreadCount } from "../api/messaging";
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "./Avatar";
+
+const UNREAD_POLL_MS = 25000;
 
 function MenuIcon() {
   return (
@@ -68,6 +71,19 @@ function AuditIcon() {
   );
 }
 
+function MessagesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm3.75 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm3.75 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.4-.1-.807-.444-1.032a9.075 9.075 0 01-3.398-7.11c0-4.55 4.03-8.25 9-8.25s9 3.7 9 8.25z"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function DirectoryIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -125,6 +141,7 @@ const NAV_ITEMS = [
   { to: "/meetings", label: "Meetings", icon: MeetingsIcon, adminOnly: false },
   { to: "/documents", label: "Documents", icon: DocumentsIcon, adminOnly: false },
   { to: "/directory", label: "Directory", icon: DirectoryIcon, adminOnly: false },
+  { to: "/messages", label: "Messages", icon: MessagesIcon, adminOnly: false },
   { to: "/committees", label: "Committees", icon: CommitteesIcon, adminOnly: false },
   { to: "/compliance", label: "Compliance", icon: ComplianceIcon, adminOnly: false },
   { to: "/conflicts", label: "Conflicts of Interest", icon: ConflictIcon, adminOnly: false },
@@ -135,10 +152,23 @@ export function Sidebar() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     setIsOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!user) return;
+    function refresh() {
+      getUnreadCount()
+        .then((res) => setUnreadCount(res.count))
+        .catch(() => {});
+    }
+    refresh();
+    const interval = setInterval(refresh, UNREAD_POLL_MS);
+    return () => clearInterval(interval);
+  }, [user]);
 
   if (!user) return null;
 
@@ -176,6 +206,7 @@ export function Sidebar() {
             >
               <Icon />
               {label}
+              {to === "/messages" && unreadCount > 0 && <span className="nav-unread-badge">{unreadCount}</span>}
             </Link>
           ))}
         </nav>
