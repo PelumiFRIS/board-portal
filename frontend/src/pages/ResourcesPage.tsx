@@ -36,7 +36,7 @@ function EmptyResourcesIcon() {
 
 export function ResourcesPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
 
   const [resources, setResources] = useState<ResourceSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -201,7 +201,7 @@ export function ResourcesPage() {
                   <div key={resource.id} className="resolution-card">
                     <strong>{resource.title}</strong>
                     <p className="resource-body">{resource.body}</p>
-                    {isAdmin && (
+                    {canManage && (
                       <div className="field-row">
                         <button className="secondary small" onClick={() => startEditing(resource)}>
                           Edit
@@ -221,7 +221,7 @@ export function ResourcesPage() {
             </section>
           ))}
 
-        {isAdmin && (
+        {canManage && (
           <section className="dashboard-section">
             <h2>Add a resource</h2>
             <form className="add-user-form" onSubmit={handleCreate}>

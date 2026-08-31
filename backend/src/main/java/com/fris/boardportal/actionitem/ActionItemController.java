@@ -41,7 +41,7 @@ public class ActionItemController {
     }
 
     @GetMapping("/export")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResponseEntity<byte[]> export(@AuthenticationPrincipal AppUserPrincipal principal) {
         byte[] csv = actionItemService.exportCsv(principal);
         String filename = "action-items-" + LocalDate.now() + ".csv";
@@ -52,7 +52,7 @@ public class ActionItemController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResponseEntity<ActionItemSummary> create(@AuthenticationPrincipal AppUserPrincipal principal,
             @Valid @RequestBody CreateActionItemRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(actionItemService.create(principal, request));
@@ -65,7 +65,7 @@ public class ActionItemController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResponseEntity<Void> delete(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         actionItemService.delete(principal, id);
         return ResponseEntity.noContent().build();

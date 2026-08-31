@@ -24,13 +24,13 @@ public class AuditLogController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public List<AuditLogEntry> list(@AuthenticationPrincipal AppUserPrincipal principal) {
         return auditLogService.listForOrganization(principal);
     }
 
     @GetMapping("/export")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResponseEntity<byte[]> export(@AuthenticationPrincipal AppUserPrincipal principal) {
         byte[] csv = auditLogService.exportCsv(principal);
         String filename = "audit-trail-" + LocalDate.now() + ".csv";

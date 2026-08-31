@@ -54,7 +54,7 @@ public class DocumentController {
     }
 
     @PostMapping("/{id}/versions")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResponseEntity<DocumentSummary> uploadVersion(@AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID id, @RequestParam("file") MultipartFile file) {
         DocumentSummary created = documentService.uploadNewVersion(principal, id, file);
@@ -72,7 +72,7 @@ public class DocumentController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResponseEntity<DocumentSummary> upload(
             @AuthenticationPrincipal AppUserPrincipal principal,
             @RequestParam("file") MultipartFile file,
@@ -87,14 +87,14 @@ public class DocumentController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResponseEntity<Void> delete(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         documentService.delete(principal, id);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/retention")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public DocumentSummary updateRetention(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id,
             @RequestBody UpdateDocumentRetentionRequest request) {
         return documentService.updateRetention(principal, id, request.retentionUntil());

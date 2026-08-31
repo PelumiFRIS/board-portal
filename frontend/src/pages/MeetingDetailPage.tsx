@@ -19,7 +19,7 @@ import {
   openResolution,
 } from "../api/resolutions";
 import { createActionItem, deleteActionItem, updateActionItemStatus } from "../api/actionItems";
-import { listOrganizationUsers } from "../api/auth";
+import { listDirectory } from "../api/auth";
 import { extractErrorMessage } from "../api/client";
 import { STANDARD_AGENDA_ITEMS } from "../constants/agendaTemplates";
 import type {
@@ -40,7 +40,7 @@ import { useAuth } from "../context/AuthContext";
 export function MeetingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
 
   const [meeting, setMeeting] = useState<MeetingDetailType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,11 +92,11 @@ export function MeetingDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (!isAdmin) return;
-    listOrganizationUsers()
+    if (!canManage) return;
+    listDirectory()
       .then(setOrgMembers)
       .catch(() => undefined);
-  }, [isAdmin]);
+  }, [canManage]);
 
   useEffect(() => {
     if (!id) return;
@@ -410,7 +410,7 @@ export function MeetingDetailPage() {
                   Download meeting record
                 </button>
               </div>
-              {isAdmin && meeting.status === "SCHEDULED" && (
+              {canManage && meeting.status === "SCHEDULED" && (
                 <div className="field-row">
                   <button onClick={() => handleStatusChange("COMPLETED")}>Mark completed</button>
                   <button className="secondary" onClick={() => handleStatusChange("CANCELLED")}>
@@ -451,7 +451,7 @@ export function MeetingDetailPage() {
                       <strong>{item.title}</strong>
                       {item.description && <p>{item.description}</p>}
                     </div>
-                    {isAdmin && (
+                    {canManage && (
                       <>
                         <button className="secondary small" onClick={() => startEditing(item)}>
                           Edit
@@ -465,7 +465,7 @@ export function MeetingDetailPage() {
                 ),
               )}
 
-              {isAdmin && (
+              {canManage && (
                 <form className="add-user-form" onSubmit={handleAddAgendaItem}>
                   <label>
                     Quick add from template
@@ -523,7 +523,7 @@ export function MeetingDetailPage() {
                       {" · "}Assigned to {matter.assigneeName}
                       {matter.dueDate ? ` · Due ${new Date(matter.dueDate).toLocaleDateString()}` : ""}
                     </p>
-                    {isAdmin && (
+                    {canManage && (
                       <button
                         className="secondary small"
                         disabled={addingToAgendaId === matter.id}
@@ -557,7 +557,7 @@ export function MeetingDetailPage() {
                     </div>
                     {resolution.description && <p>{resolution.description}</p>}
 
-                    {resolution.status === "DRAFT" && isAdmin && (
+                    {resolution.status === "DRAFT" && canManage && (
                       <button className="small" disabled={isBusy} onClick={() => handleOpenResolution(resolution.id)}>
                         {isBusy ? "Opening..." : "Open for voting"}
                       </button>
@@ -592,7 +592,7 @@ export function MeetingDetailPage() {
                           >
                             Abstain
                           </button>
-                          {isAdmin && (
+                          {canManage && (
                             <button className="secondary small" disabled={isBusy} onClick={() => handleCloseResolution(resolution.id)}>
                               {isBusy ? "Closing..." : "Close voting"}
                             </button>
@@ -626,7 +626,7 @@ export function MeetingDetailPage() {
                 );
               })}
 
-              {isAdmin && (
+              {canManage && (
                 <form className="add-user-form" onSubmit={handleCreateResolution}>
                   <label>
                     New resolution
@@ -652,7 +652,7 @@ export function MeetingDetailPage() {
               )}
               {meeting.actionItems.map((item) => {
                 const isBusy = busyActionItemId === item.id;
-                const canToggle = isAdmin || item.assigneeId === user.id;
+                const canToggle = canManage || item.assigneeId === user.id;
                 return (
                   <div key={item.id} className="resolution-card">
                     <div className="resolution-card-header">
@@ -674,7 +674,7 @@ export function MeetingDetailPage() {
                           {isBusy ? "Saving..." : item.status === "OPEN" ? "Mark done" : "Reopen"}
                         </button>
                       )}
-                      {isAdmin && (
+                      {canManage && (
                         <button className="secondary small" onClick={() => handleDeleteActionItem(item.id)}>
                           Delete
                         </button>
@@ -684,7 +684,7 @@ export function MeetingDetailPage() {
                 );
               })}
 
-              {isAdmin && (
+              {canManage && (
                 <form className="add-user-form" onSubmit={handleCreateActionItem}>
                   <label>
                     New action item
@@ -756,7 +756,7 @@ export function MeetingDetailPage() {
 
             <section className="dashboard-section">
               <h2>Minutes</h2>
-              {isAdmin ? (
+              {canManage ? (
                 <>
                   <textarea
                     className="minutes-textarea"

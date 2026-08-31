@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { listOrganizationUsers } from "../api/auth";
+import { listDirectory } from "../api/auth";
 import {
   addCommitteeMember,
   createCommittee,
@@ -29,7 +29,7 @@ function EmptyCommitteesIcon() {
 
 export function CommitteesPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
 
   const [committees, setCommittees] = useState<CommitteeSummary[]>([]);
   const [orgUsers, setOrgUsers] = useState<UserSummary[]>([]);
@@ -53,7 +53,7 @@ export function CommitteesPage() {
   useEffect(() => {
     const requests: [Promise<CommitteeSummary[]>, Promise<UserSummary[]>] = [
       listCommittees(),
-      isAdmin ? listOrganizationUsers() : Promise.resolve([]),
+      canManage ? listDirectory() : Promise.resolve([]),
     ];
     Promise.all(requests)
       .then(([committeeList, users]) => {
@@ -62,7 +62,7 @@ export function CommitteesPage() {
       })
       .catch((err) => setLoadError(extractErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, [isAdmin]);
+  }, [canManage]);
 
   function replaceCommitteeInTree(list: CommitteeSummary[], updated: CommitteeSummary): CommitteeSummary[] {
     if (updated.parentCommitteeId === null) {
@@ -224,7 +224,7 @@ export function CommitteesPage() {
                 {indent && <span className="badge badge-category"> Sub-committee</span>}
                 {committee.description && <p className="table-hint">{committee.description}</p>}
               </div>
-              {isAdmin && (
+              {canManage && (
                 <div className="field-row">
                   <button className="secondary small" onClick={() => startEditing(committee)}>
                     Edit
@@ -244,7 +244,7 @@ export function CommitteesPage() {
                   <li key={member.userId}>
                     {member.firstName} {member.lastName}
                     {member.isChair && <span className="badge badge-category"> Chair</span>}
-                    {isAdmin && (
+                    {canManage && (
                       <span className="field-row" style={{ marginLeft: 12 }}>
                         {!member.isChair && (
                           <button
@@ -271,7 +271,7 @@ export function CommitteesPage() {
               </ul>
             )}
 
-            {isAdmin && availableUsers.length > 0 && (
+            {canManage && availableUsers.length > 0 && (
               <div className="field-row">
                 <select
                   value={addSelections[committee.id] ?? ""}
@@ -332,7 +332,7 @@ export function CommitteesPage() {
               </div>
             ))}
 
-          {isAdmin && (
+          {canManage && (
             <>
               <h3>Create a committee</h3>
               <form className="add-user-form" onSubmit={handleCreate}>

@@ -33,7 +33,7 @@ function filingStatusLabel(filing: ComplianceFilingSummary): "PENDING" | "SUBMIT
 
 export function CompliancePage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
 
   const [filings, setFilings] = useState<ComplianceFilingSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -210,7 +210,7 @@ export function CompliancePage() {
                             filing.submittedByName ? ` by ${filing.submittedByName}` : ""
                           }`}
                       </p>
-                      {isAdmin && (
+                      {canManage && (
                         <div className="field-row">
                           {filing.status !== "SUBMITTED" && (
                             <button
@@ -240,7 +240,7 @@ export function CompliancePage() {
               );
             })}
 
-          {isAdmin && (
+          {canManage && (
             <>
               <h3>Add a filing</h3>
               <form className="add-user-form" onSubmit={handleCreate}>

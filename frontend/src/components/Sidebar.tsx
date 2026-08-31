@@ -163,17 +163,17 @@ function ConflictIcon() {
 }
 
 const NAV_ITEMS = [
-  { to: "/dashboard", label: "Dashboard", icon: DashboardIcon, adminOnly: false },
-  { to: "/meetings", label: "Meetings", icon: MeetingsIcon, adminOnly: false },
-  { to: "/documents", label: "Documents", icon: DocumentsIcon, adminOnly: false },
-  { to: "/directory", label: "Directory", icon: DirectoryIcon, adminOnly: false },
-  { to: "/messages", label: "Messages", icon: MessagesIcon, adminOnly: false },
-  { to: "/committees", label: "Committees", icon: CommitteesIcon, adminOnly: false },
-  { to: "/compliance", label: "Compliance", icon: ComplianceIcon, adminOnly: false },
-  { to: "/conflicts", label: "Conflicts of Interest", icon: ConflictIcon, adminOnly: false },
-  { to: "/resources", label: "Resources", icon: ResourcesIcon, adminOnly: false },
-  { to: "/audit", label: "Audit Trail", icon: AuditIcon, adminOnly: true },
-  { to: "/integrations", label: "Integrations", icon: IntegrationsIcon, adminOnly: true },
+  { to: "/dashboard", label: "Dashboard", icon: DashboardIcon, adminOnly: false, managementOnly: false },
+  { to: "/meetings", label: "Meetings", icon: MeetingsIcon, adminOnly: false, managementOnly: false },
+  { to: "/documents", label: "Documents", icon: DocumentsIcon, adminOnly: false, managementOnly: false },
+  { to: "/directory", label: "Directory", icon: DirectoryIcon, adminOnly: false, managementOnly: false },
+  { to: "/messages", label: "Messages", icon: MessagesIcon, adminOnly: false, managementOnly: false },
+  { to: "/committees", label: "Committees", icon: CommitteesIcon, adminOnly: false, managementOnly: false },
+  { to: "/compliance", label: "Compliance", icon: ComplianceIcon, adminOnly: false, managementOnly: false },
+  { to: "/conflicts", label: "Conflicts of Interest", icon: ConflictIcon, adminOnly: false, managementOnly: false },
+  { to: "/resources", label: "Resources", icon: ResourcesIcon, adminOnly: false, managementOnly: false },
+  { to: "/audit", label: "Audit Trail", icon: AuditIcon, adminOnly: false, managementOnly: true },
+  { to: "/integrations", label: "Integrations", icon: IntegrationsIcon, adminOnly: true, managementOnly: false },
 ];
 
 export function Sidebar() {
@@ -200,7 +200,13 @@ export function Sidebar() {
 
   if (!user) return null;
 
-  const visibleNavItems = NAV_ITEMS.filter((item) => !item.adminOnly || user.role === "ADMIN");
+  const isAdmin = user.role === "ADMIN";
+  const canManage = isAdmin || user.role === "EXECUTIVE";
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (item.adminOnly) return isAdmin;
+    if (item.managementOnly) return canManage;
+    return true;
+  });
 
   return (
     <>

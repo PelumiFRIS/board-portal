@@ -44,9 +44,9 @@ public class ConflictDeclarationService {
     public ConflictDeclarationSummary declare(AppUserPrincipal principal, UUID targetUserId, boolean hasConflict,
             String details) {
         UUID resolvedUserId = targetUserId != null ? targetUserId : principal.getUserId();
-        boolean isAdmin = principal.getRole() == Role.ADMIN;
+        boolean canActOnBehalfOfOthers = principal.getRole() == Role.ADMIN || principal.getRole() == Role.EXECUTIVE;
         boolean isSelf = resolvedUserId.equals(principal.getUserId());
-        if (!isAdmin && !isSelf) {
+        if (!canActOnBehalfOfOthers && !isSelf) {
             throw ApiException.forbidden("You can only declare on your own behalf");
         }
 

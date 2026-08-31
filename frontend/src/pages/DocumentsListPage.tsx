@@ -49,7 +49,7 @@ function EmptyDocumentsIcon() {
 
 export function DocumentsListPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
 
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [meetings, setMeetings] = useState<MeetingSummary[]>([]);
@@ -340,7 +340,7 @@ export function DocumentsListPage() {
                                 <span className="table-hint">&mdash;</span>
                               )}
                               {isPastRetention && <span className="badge badge-cancelled">Review overdue</span>}
-                              {isAdmin && (
+                              {canManage && (
                                 <button className="secondary small" onClick={() => startEditingRetention(doc)}>
                                   Edit
                                 </button>
@@ -374,7 +374,7 @@ export function DocumentsListPage() {
                             <button className="secondary small" onClick={() => handleToggleVersions(doc)}>
                               Version history
                             </button>
-                            {isAdmin && (
+                            {canManage && (
                               <button className="secondary small" onClick={() => handleDelete(doc)}>
                                 Delete
                               </button>
@@ -399,7 +399,7 @@ export function DocumentsListPage() {
                                 ))}
                               </ul>
                             )}
-                            {isAdmin && (
+                            {canManage && (
                               <div className="field-row">
                                 <input
                                   type="file"
@@ -444,7 +444,7 @@ export function DocumentsListPage() {
             </div>
           )}
 
-          {isAdmin && (
+          {canManage && (
             <>
               <h3>Upload a document</h3>
               <form className="add-user-form" onSubmit={handleUpload}>

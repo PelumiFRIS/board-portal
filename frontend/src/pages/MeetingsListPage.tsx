@@ -35,7 +35,7 @@ function EmptyMeetingsIcon() {
 
 export function MeetingsListPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
 
   const [meetings, setMeetings] = useState<MeetingSummary[]>([]);
   const [committees, setCommittees] = useState<CommitteeSummary[]>([]);
@@ -232,7 +232,7 @@ export function MeetingsListPage() {
             </div>
           )}
 
-          {isAdmin && (
+          {canManage && (
             <>
               <h3>Schedule a meeting</h3>
               <form className="add-user-form" onSubmit={handleSchedule}>

@@ -38,7 +38,7 @@ function DeclarationRow({ declaration, showName }: { declaration: ConflictDeclar
 
 export function ConflictOfInterestPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
 
   const [myDeclarations, setMyDeclarations] = useState<ConflictDeclarationSummary[]>([]);
   const [allDeclarations, setAllDeclarations] = useState<ConflictDeclarationSummary[]>([]);
@@ -53,7 +53,7 @@ export function ConflictOfInterestPage() {
   useEffect(() => {
     const requests: [Promise<ConflictDeclarationSummary[]>, Promise<ConflictDeclarationSummary[]>] = [
       listMyDeclarations(),
-      isAdmin ? listAllDeclarations() : Promise.resolve([]),
+      canManage ? listAllDeclarations() : Promise.resolve([]),
     ];
     Promise.all(requests)
       .then(([mine, all]) => {
@@ -62,7 +62,7 @@ export function ConflictOfInterestPage() {
       })
       .catch((err) => setLoadError(extractErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, [isAdmin]);
+  }, [canManage]);
 
   async function handleDeclare(event: FormEvent) {
     event.preventDefault();
@@ -71,7 +71,7 @@ export function ConflictOfInterestPage() {
     try {
       const created = await createDeclaration({ hasConflict, details: details || undefined });
       setMyDeclarations((prev) => [created, ...prev]);
-      if (isAdmin) {
+      if (canManage) {
         setAllDeclarations((prev) => [created, ...prev]);
       }
       setHasConflict(false);
@@ -132,7 +132,7 @@ export function ConflictOfInterestPage() {
             myDeclarations.map((d) => <DeclarationRow key={d.id} declaration={d} showName={false} />)}
         </section>
 
-        {isAdmin && (
+        {canManage && (
           <section className="dashboard-section">
             <h2>Board-wide declarations</h2>
             {!loading && !loadError && allDeclarations.length === 0 && (

@@ -36,7 +36,7 @@ public class ResourceController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResponseEntity<ResourceSummary> create(@AuthenticationPrincipal AppUserPrincipal principal,
             @Valid @RequestBody CreateResourceRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -44,14 +44,14 @@ public class ResourceController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResourceSummary update(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id,
             @RequestBody UpdateResourceRequest request) {
         return resourceService.update(principal, id, request.category(), request.title(), request.body());
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResponseEntity<Void> delete(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         resourceService.delete(principal, id);
         return ResponseEntity.noContent().build();

@@ -36,7 +36,7 @@ public class ComplianceFilingController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResponseEntity<ComplianceFilingSummary> create(@AuthenticationPrincipal AppUserPrincipal principal,
             @Valid @RequestBody CreateComplianceFilingRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -44,21 +44,21 @@ public class ComplianceFilingController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ComplianceFilingSummary update(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id,
             @RequestBody UpdateComplianceFilingRequest request) {
         return filingService.update(principal, id, request.title(), request.description(), request.dueDate());
     }
 
     @PatchMapping("/{id}/submit")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ComplianceFilingSummary markSubmitted(@AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID id) {
         return filingService.markSubmitted(principal, id);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResponseEntity<Void> delete(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         filingService.delete(principal, id);
         return ResponseEntity.noContent().build();

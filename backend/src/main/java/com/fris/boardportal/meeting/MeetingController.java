@@ -78,35 +78,35 @@ public class MeetingController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResponseEntity<MeetingSummary> create(@AuthenticationPrincipal AppUserPrincipal principal,
             @Valid @RequestBody CreateMeetingRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(meetingService.create(principal, request));
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public MeetingDetail update(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id,
             @RequestBody UpdateMeetingRequest request) {
         return meetingService.update(principal, id, request);
     }
 
     @PostMapping("/{id}/agenda-items")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResponseEntity<AgendaItemDto> addAgendaItem(@AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID id, @Valid @RequestBody CreateAgendaItemRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(meetingService.addAgendaItem(principal, id, request));
     }
 
     @PatchMapping("/{id}/agenda-items/{itemId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public AgendaItemDto updateAgendaItem(@AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID id, @PathVariable UUID itemId, @RequestBody UpdateAgendaItemRequest request) {
         return meetingService.updateAgendaItem(principal, id, itemId, request);
     }
 
     @DeleteMapping("/{id}/agenda-items/{itemId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
     public ResponseEntity<Void> deleteAgendaItem(@AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID id, @PathVariable UUID itemId) {
         meetingService.deleteAgendaItem(principal, id, itemId);
