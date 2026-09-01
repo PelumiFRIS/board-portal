@@ -36,6 +36,7 @@ import { CommentThread } from "../components/CommentThread";
 import { Sidebar } from "../components/Sidebar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
+import { MEETING_TYPE_LABELS } from "./MeetingsListPage";
 
 export function MeetingDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -393,13 +394,8 @@ export function MeetingDetailPage() {
                 <strong>Location:</strong> {meeting.location ?? "—"}
               </p>
               <p>
-                <strong>Status:</strong> <StatusBadge status={meeting.status} />
-                {meeting.meetingType && (
-                  <>
-                    {" "}
-                    <span className="badge badge-category">{meeting.meetingType}</span>
-                  </>
-                )}
+                <strong>Status:</strong> <StatusBadge status={meeting.status} />{" "}
+                <span className="badge badge-category">{MEETING_TYPE_LABELS[meeting.meetingType]}</span>
               </p>
               {actionError && <p className="form-error">{actionError}</p>}
               <div className="field-row">

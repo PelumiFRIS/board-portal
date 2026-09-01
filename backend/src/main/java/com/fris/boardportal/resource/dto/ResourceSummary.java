@@ -9,6 +9,9 @@ public record ResourceSummary(
         ResourceCategory category,
         String title,
         String body,
+        String fileName,
+        String contentType,
+        Long fileSize,
         Instant createdAt,
         Instant updatedAt) {
 }

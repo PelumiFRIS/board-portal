@@ -13,5 +13,5 @@ public record CreateMeetingRequest(
         @NotNull Instant scheduledStart,
         Instant scheduledEnd,
         UUID committeeId,
-        MeetingType meetingType) {
+        @NotNull MeetingType meetingType) {
 }

@@ -1,4 +1,5 @@
 package com.fris.boardportal;
+import com.fris.boardportal.meeting.MeetingType;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,7 +27,6 @@ import com.fris.boardportal.meeting.dto.MeetingSummary;
 import com.fris.boardportal.resolution.dto.CreateResolutionRequest;
 import com.fris.boardportal.resolution.dto.ResolutionSummary;
 import com.fris.boardportal.resource.ResourceCategory;
-import com.fris.boardportal.resource.dto.CreateResourceRequest;
 import com.fris.boardportal.resource.dto.ResourceSummary;
 import com.fris.boardportal.resource.dto.UpdateResourceRequest;
 import com.fris.boardportal.support.IntegrationTestSupport;
@@ -57,7 +57,7 @@ class ExecutiveRoleFlowTest extends IntegrationTestSupport {
         ResponseEntity<MeetingSummary> created = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
                 authedRequest(executive.accessToken(),
-                        new CreateMeetingRequest("Exec Scheduled Meeting", null, null, Instant.now(), null, null, null)),
+                        new CreateMeetingRequest("Exec Scheduled Meeting", null, null, Instant.now(), null, null, MeetingType.BOARD)),
                 MeetingSummary.class);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
@@ -178,8 +178,7 @@ class ExecutiveRoleFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<ResourceSummary> resource = restTemplate.exchange(
                 "/api/resources", HttpMethod.POST,
-                authedRequest(executive.accessToken(),
-                        new CreateResourceRequest(ResourceCategory.FAQ, "Exec FAQ", "Body")),
+                resourceForm(executive.accessToken(), ResourceCategory.FAQ, "Exec FAQ", "Body"),
                 ResourceSummary.class);
         assertThat(resource.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
@@ -245,16 +244,27 @@ class ExecutiveRoleFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<String> boardMemberCreatesResource = restTemplate.exchange(
                 "/api/resources", HttpMethod.POST,
-                authedRequest(boardMember.accessToken(),
-                        new CreateResourceRequest(ResourceCategory.OTHER, "Should fail", "Body")),
+                resourceForm(boardMember.accessToken(), ResourceCategory.OTHER, "Should fail", "Body"),
                 String.class);
         assertThat(boardMemberCreatesResource.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    private HttpEntity<MultiValueMap<String, Object>> resourceForm(String token, ResourceCategory category,
+            String title, String body) {
+        MultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
+        form.add("category", category.name());
+        form.add("title", title);
+        form.add("body", body);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.setBearerAuth(token);
+        return new HttpEntity<>(form, headers);
     }
 
     private MeetingSummary scheduleMeeting(String adminToken, String title) {
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
-                authedRequest(adminToken, new CreateMeetingRequest(title, null, null, Instant.now(), null, null, null)),
+                authedRequest(adminToken, new CreateMeetingRequest(title, null, null, Instant.now(), null, null, MeetingType.BOARD)),
                 MeetingSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();

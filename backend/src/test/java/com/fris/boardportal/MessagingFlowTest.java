@@ -74,6 +74,7 @@ class MessagingFlowTest extends IntegrationTestSupport {
         assertThat(group.isGroup()).isTrue();
         assertThat(group.title()).isEqualTo("Governance Committee");
         assertThat(group.participants()).hasSize(3);
+        assertThat(group.participants()).extracting(p -> p.email()).contains(memberOne.email(), memberTwo.email());
 
         assertThat(listConversations(memberOneAuth.accessToken())).hasSize(1);
         assertThat(listConversations(memberTwoAuth.accessToken())).hasSize(1);

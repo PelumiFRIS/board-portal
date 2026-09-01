@@ -89,7 +89,14 @@ export interface ApiErrorBody {
 }
 
 export type MeetingStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED";
-export type MeetingType = "AGM" | "EGM" | "COM";
+export type MeetingType =
+  | "AGM"
+  | "EGM"
+  | "COM"
+  | "BOARD"
+  | "COMMITTEE"
+  | "EXECUTIVE_MANAGEMENT"
+  | "GENERAL_STAFF";
 
 export interface MeetingSummary {
   id: string;
@@ -99,7 +106,7 @@ export interface MeetingSummary {
   scheduledEnd: string | null;
   status: MeetingStatus;
   committeeId: string | null;
-  meetingType: MeetingType | null;
+  meetingType: MeetingType;
 }
 
 export interface AgendaItem {
@@ -119,7 +126,7 @@ export interface MeetingDetail {
   status: MeetingStatus;
   minutesContent: string | null;
   committeeId: string | null;
-  meetingType: MeetingType | null;
+  meetingType: MeetingType;
   agendaItems: AgendaItem[];
   documents: DocumentSummary[];
   resolutions: ResolutionSummary[];
@@ -144,7 +151,7 @@ export interface CreateMeetingPayload {
   scheduledStart: string;
   scheduledEnd?: string;
   committeeId?: string;
-  meetingType?: MeetingType;
+  meetingType: MeetingType;
 }
 
 export interface UpdateMeetingPayload {
@@ -440,6 +447,7 @@ export interface ParticipantSummary {
   userId: string;
   firstName: string;
   lastName: string;
+  email: string;
 }
 
 export interface ConversationSummary {
@@ -475,13 +483,16 @@ export interface UnreadCountResponse {
   count: number;
 }
 
-export type ResourceCategory = "ONBOARDING" | "GOVERNANCE_BEST_PRACTICES" | "POLICIES_AND_PROCEDURES" | "FAQ" | "OTHER";
+export type ResourceCategory = "GOVERNANCE_BEST_PRACTICES" | "POLICIES_AND_PROCEDURES" | "FAQ" | "OTHER";
 
 export interface ResourceSummary {
   id: string;
   category: ResourceCategory;
   title: string;
   body: string;
+  fileName: string | null;
+  contentType: string | null;
+  fileSize: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -490,6 +501,7 @@ export interface CreateResourcePayload {
   category: ResourceCategory;
   title: string;
   body: string;
+  file?: File;
 }
 
 export interface UpdateResourcePayload {

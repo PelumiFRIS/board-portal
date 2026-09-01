@@ -3,5 +3,9 @@ package com.fris.boardportal.meeting;
 public enum MeetingType {
     AGM,
     EGM,
-    COM
+    COM,
+    BOARD,
+    COMMITTEE,
+    EXECUTIVE_MANAGEMENT,
+    GENERAL_STAFF
 }

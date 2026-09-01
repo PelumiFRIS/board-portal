@@ -37,6 +37,18 @@ public class Resource {
     @Column(nullable = false)
     private String body;
 
+    @Column(name = "file_name")
+    private String fileName;
+
+    @Column(name = "content_type")
+    private String contentType;
+
+    @Column(name = "file_size")
+    private Long fileSize;
+
+    @Column(name = "file_data")
+    private byte[] fileData;
+
     @Column(name = "created_by", nullable = false)
     private UUID createdBy;
 

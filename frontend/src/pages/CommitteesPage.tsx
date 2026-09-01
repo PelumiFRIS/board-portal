@@ -13,6 +13,7 @@ import { extractErrorMessage } from "../api/client";
 import type { CommitteeSummary, UserSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
+import { STANDARD_COMMITTEES } from "../constants/committeeTemplates";
 
 function EmptyCommitteesIcon() {
   return (
@@ -41,6 +42,7 @@ export function CommitteesPage() {
   const [newDescription, setNewDescription] = useState("");
   const [newParentId, setNewParentId] = useState("");
   const [creating, setCreating] = useState(false);
+  const [templatePick, setTemplatePick] = useState("");
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -104,6 +106,7 @@ export function CommitteesPage() {
       setNewName("");
       setNewDescription("");
       setNewParentId("");
+      setTemplatePick("");
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
@@ -336,6 +339,23 @@ export function CommitteesPage() {
             <>
               <h3>Create a committee</h3>
               <form className="add-user-form" onSubmit={handleCreate}>
+                <label>
+                  Quick add from template
+                  <select
+                    value={templatePick}
+                    onChange={(e) => {
+                      setTemplatePick(e.target.value);
+                      if (e.target.value) setNewName(e.target.value);
+                    }}
+                  >
+                    <option value="">— choose a standard committee —</option>
+                    {STANDARD_COMMITTEES.map((label) => (
+                      <option key={label} value={label}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label>
                   Name
                   <input value={newName} onChange={(e) => setNewName(e.target.value)} required />

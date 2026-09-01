@@ -53,7 +53,7 @@ public class Meeting {
     private UUID committeeId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "meeting_type")
+    @Column(name = "meeting_type", nullable = false)
     private MeetingType meetingType;
 
     @Column(name = "created_by", nullable = false)

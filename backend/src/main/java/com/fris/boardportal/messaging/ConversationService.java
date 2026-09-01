@@ -198,7 +198,7 @@ public class ConversationService {
             Message lastMessage) {
         List<ParticipantSummary> participants = participantRepository.findByConversationId(conversation.getId()).stream()
                 .map(p -> userRepository.findById(p.getUserId())
-                        .map(u -> new ParticipantSummary(u.getId(), u.getFirstName(), u.getLastName()))
+                        .map(u -> new ParticipantSummary(u.getId(), u.getFirstName(), u.getLastName(), u.getEmail()))
                         .orElse(null))
                 .filter(p -> p != null)
                 .toList();

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { createUser, listOrganizationUsers, updateUserStatus } from "../api/auth";
 import { listActionItems, updateActionItemStatus } from "../api/actionItems";
 import { extractErrorMessage } from "../api/client";
+import { addCommitteeMember, createCommittee, listCommittees } from "../api/committees";
 import { getDashboardStats } from "../api/dashboard";
 import { listDocuments } from "../api/documents";
 import { listMeetings } from "../api/meetings";
@@ -22,8 +23,14 @@ import { DashboardStats } from "../components/DashboardStats";
 import { Sidebar } from "../components/Sidebar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
+import { STANDARD_COMMITTEES } from "../constants/committeeTemplates";
 
 const ROLE_OPTIONS: Role[] = ["BOARD_MEMBER", "EXECUTIVE", "ADMIN"];
+const ROLE_LABELS: Record<Role, string> = {
+  BOARD_MEMBER: "Board Members",
+  EXECUTIVE: "Executive Management",
+  ADMIN: "Admin",
+};
 
 function AllCaughtUpIllustration() {
   return (
@@ -269,6 +276,7 @@ export function DashboardPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("BOARD_MEMBER");
+  const [committeeName, setCommitteeName] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
@@ -295,11 +303,18 @@ export function DashboardPage() {
     try {
       const created = await createUser({ firstName, lastName, email, password, role });
       setUsers((prev) => [...prev, created]);
+      if (committeeName) {
+        const existing = await listCommittees();
+        const match = existing.find((c) => c.name === committeeName);
+        const committee = match ?? (await createCommittee({ name: committeeName }));
+        await addCommitteeMember(committee.id, created.id);
+      }
       setFirstName("");
       setLastName("");
       setEmail("");
       setPassword("");
       setRole("BOARD_MEMBER");
+      setCommitteeName("");
     } catch (err) {
       setFormError(extractErrorMessage(err));
     } finally {
@@ -339,7 +354,7 @@ export function DashboardPage() {
 
         {isAdmin && (
           <section className="dashboard-section">
-            <h2>Board & team members</h2>
+            <h2>Onboarding</h2>
             {loadingUsers && <p>Loading users...</p>}
             {usersError && <p className="form-error">{usersError}</p>}
             {statusError && <p className="form-error">{statusError}</p>}
@@ -421,16 +436,29 @@ export function DashboardPage() {
                   />
                 </label>
               </div>
-              <label>
-                Role
-                <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
-                  {ROLE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="field-row">
+                <label>
+                  Role
+                  <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
+                    {ROLE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {ROLE_LABELS[option]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Committee (optional)
+                  <select value={committeeName} onChange={(e) => setCommitteeName(e.target.value)}>
+                    <option value="">None</option>
+                    {STANDARD_COMMITTEES.map((label) => (
+                      <option key={label} value={label}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
               {formError && <p className="form-error">{formError}</p>}
               <button type="submit" disabled={submitting}>
                 {submitting ? "Adding..." : "Add member"}

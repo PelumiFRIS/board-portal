@@ -1,12 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { createResource, deleteResource, listResources, updateResource } from "../api/resources";
+import { createResource, deleteResource, downloadResource, listResources, updateResource } from "../api/resources";
 import { extractErrorMessage } from "../api/client";
 import type { ResourceCategory, ResourceSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
 
 const CATEGORY_ORDER: ResourceCategory[] = [
-  "ONBOARDING",
   "GOVERNANCE_BEST_PRACTICES",
   "POLICIES_AND_PROCEDURES",
   "FAQ",
@@ -14,12 +13,17 @@ const CATEGORY_ORDER: ResourceCategory[] = [
 ];
 
 const CATEGORY_LABELS: Record<ResourceCategory, string> = {
-  ONBOARDING: "Onboarding",
   GOVERNANCE_BEST_PRACTICES: "Governance Best Practices",
   POLICIES_AND_PROCEDURES: "Policies & Procedures",
   FAQ: "FAQ",
   OTHER: "Other",
 };
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function EmptyResourcesIcon() {
   return (
@@ -43,18 +47,20 @@ export function ResourcesPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const [newCategory, setNewCategory] = useState<ResourceCategory>("ONBOARDING");
+  const [newCategory, setNewCategory] = useState<ResourceCategory>("GOVERNANCE_BEST_PRACTICES");
   const [newTitle, setNewTitle] = useState("");
   const [newBody, setNewBody] = useState("");
+  const [newFile, setNewFile] = useState<File | null>(null);
   const [creating, setCreating] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editCategory, setEditCategory] = useState<ResourceCategory>("ONBOARDING");
+  const [editCategory, setEditCategory] = useState<ResourceCategory>("GOVERNANCE_BEST_PRACTICES");
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     listResources()
@@ -68,15 +74,34 @@ export function ResourcesPage() {
     setActionError(null);
     setCreating(true);
     try {
-      const created = await createResource({ category: newCategory, title: newTitle, body: newBody });
+      const created = await createResource({
+        category: newCategory,
+        title: newTitle,
+        body: newBody,
+        file: newFile ?? undefined,
+      });
       setResources((prev) => [...prev, created]);
-      setNewCategory("ONBOARDING");
+      setNewCategory("GOVERNANCE_BEST_PRACTICES");
       setNewTitle("");
       setNewBody("");
+      setNewFile(null);
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleDownload(resource: ResourceSummary) {
+    if (!resource.fileName) return;
+    setActionError(null);
+    setDownloadingId(resource.id);
+    try {
+      await downloadResource(resource.id, resource.fileName);
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setDownloadingId(null);
     }
   }
 
@@ -201,20 +226,37 @@ export function ResourcesPage() {
                   <div key={resource.id} className="resolution-card">
                     <strong>{resource.title}</strong>
                     <p className="resource-body">{resource.body}</p>
-                    {canManage && (
-                      <div className="field-row">
-                        <button className="secondary small" onClick={() => startEditing(resource)}>
-                          Edit
-                        </button>
+                    {resource.fileName && (
+                      <p className="table-hint">
+                        {resource.fileName}
+                        {resource.fileSize != null ? ` · ${formatFileSize(resource.fileSize)}` : ""}
+                      </p>
+                    )}
+                    <div className="field-row">
+                      {resource.fileName && (
                         <button
                           className="secondary small"
-                          disabled={busyId === resource.id}
-                          onClick={() => handleDelete(resource.id)}
+                          disabled={downloadingId === resource.id}
+                          onClick={() => handleDownload(resource)}
                         >
-                          {busyId === resource.id ? "Deleting..." : "Delete"}
+                          {downloadingId === resource.id ? "Downloading..." : "Download"}
                         </button>
-                      </div>
-                    )}
+                      )}
+                      {canManage && (
+                        <>
+                          <button className="secondary small" onClick={() => startEditing(resource)}>
+                            Edit
+                          </button>
+                          <button
+                            className="secondary small"
+                            disabled={busyId === resource.id}
+                            onClick={() => handleDelete(resource.id)}
+                          >
+                            {busyId === resource.id ? "Deleting..." : "Delete"}
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 ),
               )}
@@ -247,6 +289,13 @@ export function ResourcesPage() {
                   value={newBody}
                   onChange={(e) => setNewBody(e.target.value)}
                   required
+                />
+              </label>
+              <label>
+                Attach a file (optional)
+                <input
+                  type="file"
+                  onChange={(e) => setNewFile(e.target.files?.[0] ?? null)}
                 />
               </label>
               <button type="submit" disabled={creating}>

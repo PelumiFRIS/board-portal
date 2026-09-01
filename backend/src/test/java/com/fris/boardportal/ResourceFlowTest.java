@@ -7,18 +7,24 @@ import com.fris.boardportal.audit.dto.AuditLogEntry;
 import com.fris.boardportal.auth.dto.AuthResponse;
 import com.fris.boardportal.auth.dto.LoginRequest;
 import com.fris.boardportal.resource.ResourceCategory;
-import com.fris.boardportal.resource.dto.CreateResourceRequest;
 import com.fris.boardportal.resource.dto.ResourceSummary;
 import com.fris.boardportal.resource.dto.UpdateResourceRequest;
 import com.fris.boardportal.support.IntegrationTestSupport;
 import com.fris.boardportal.user.Role;
 import com.fris.boardportal.user.dto.CreateUserRequest;
 import com.fris.boardportal.user.dto.UserSummary;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 class ResourceFlowTest extends IntegrationTestSupport {
 
@@ -29,7 +35,7 @@ class ResourceFlowTest extends IntegrationTestSupport {
         createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse memberAuth = login(memberEmail);
 
-        ResourceSummary resource = createResource(admin.accessToken(), ResourceCategory.ONBOARDING,
+        ResourceSummary resource = createResource(admin.accessToken(), ResourceCategory.OTHER,
                 "Welcome Guide", "Welcome to the board.");
 
         ResponseEntity<ResourceSummary[]> list = restTemplate.exchange(
@@ -39,8 +45,7 @@ class ResourceFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<String> create = restTemplate.exchange(
                 "/api/resources", HttpMethod.POST,
-                authedRequest(memberAuth.accessToken(),
-                        new CreateResourceRequest(ResourceCategory.FAQ, "Sneaky FAQ", "Body")),
+                createResourceRequest(memberAuth.accessToken(), ResourceCategory.FAQ, "Sneaky FAQ", "Body", null),
                 String.class);
         assertThat(create.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
@@ -135,13 +140,65 @@ class ResourceFlowTest extends IntegrationTestSupport {
         });
     }
 
+    @Test
+    void resourceCanBeCreatedWithAnAttachedFileAndDownloaded() {
+        AuthResponse admin = signup(uniqueEmail(), "Resource File Org");
+        byte[] fileBytes = "Governance handbook contents".getBytes(StandardCharsets.UTF_8);
+
+        ResponseEntity<ResourceSummary> created = restTemplate.exchange(
+                "/api/resources", HttpMethod.POST,
+                createResourceRequest(admin.accessToken(), ResourceCategory.FAQ, "Handbook With File", "Body",
+                        fileBytes),
+                ResourceSummary.class);
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(created.getBody().fileName()).isEqualTo("handbook.txt");
+        assertThat(created.getBody().fileSize()).isEqualTo(fileBytes.length);
+
+        ResponseEntity<byte[]> content = restTemplate.exchange(
+                "/api/resources/" + created.getBody().id() + "/content", HttpMethod.GET,
+                authedRequest(admin.accessToken()), byte[].class);
+        assertThat(content.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(content.getBody()).isEqualTo(fileBytes);
+    }
+
+    @Test
+    void resourceWithNoAttachedFileReturnsNotFoundForContent() {
+        AuthResponse admin = signup(uniqueEmail(), "Resource No File Org");
+        ResourceSummary resource = createResource(admin.accessToken(), ResourceCategory.OTHER, "Text Only", "Body");
+
+        ResponseEntity<String> content = restTemplate.exchange(
+                "/api/resources/" + resource.id() + "/content", HttpMethod.GET,
+                authedRequest(admin.accessToken()), String.class);
+        assertThat(content.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
     private ResourceSummary createResource(String adminToken, ResourceCategory category, String title, String body) {
         ResponseEntity<ResourceSummary> response = restTemplate.exchange(
                 "/api/resources", HttpMethod.POST,
-                authedRequest(adminToken, new CreateResourceRequest(category, title, body)),
+                createResourceRequest(adminToken, category, title, body, null),
                 ResourceSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();
+    }
+
+    private HttpEntity<MultiValueMap<String, Object>> createResourceRequest(String token, ResourceCategory category,
+            String title, String body, byte[] file) {
+        MultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
+        form.add("category", category.name());
+        form.add("title", title);
+        form.add("body", body);
+        if (file != null) {
+            form.add("file", new ByteArrayResource(file) {
+                @Override
+                public String getFilename() {
+                    return "handbook.txt";
+                }
+            });
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.setBearerAuth(token);
+        return new HttpEntity<>(form, headers);
     }
 
     private UserSummary createBoardMember(String adminToken, String email) {

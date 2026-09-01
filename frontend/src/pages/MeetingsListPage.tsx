@@ -14,10 +14,14 @@ import { Sidebar } from "../components/Sidebar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 
-const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
+export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
   AGM: "Annual General Meeting (AGM)",
   EGM: "Extra-Ordinary General Meeting (EGM)",
   COM: "Court-Ordered Meeting (COM)",
+  BOARD: "Board Meeting",
+  COMMITTEE: "Committee Meeting",
+  EXECUTIVE_MANAGEMENT: "Executive/Management Meeting",
+  GENERAL_STAFF: "General Staff Meeting",
 };
 
 function EmptyMeetingsIcon() {
@@ -111,6 +115,10 @@ export function MeetingsListPage() {
   async function handleSchedule(event: FormEvent) {
     event.preventDefault();
     setFormError(null);
+    if (!meetingType) {
+      setFormError("Meeting type is required.");
+      return;
+    }
     setSubmitting(true);
     try {
       const created = await createMeeting({
@@ -120,7 +128,7 @@ export function MeetingsListPage() {
         scheduledStart: new Date(scheduledStart).toISOString(),
         scheduledEnd: scheduledEnd ? new Date(scheduledEnd).toISOString() : undefined,
         committeeId: committeeId || undefined,
-        meetingType: meetingType || undefined,
+        meetingType,
       });
       if (!committeeFilter || committeeFilter === created.committeeId) {
         setMeetings((prev) => [created, ...prev]);
@@ -196,7 +204,7 @@ export function MeetingsListPage() {
                     <td>{m.location ?? "—"}</td>
                     <td>{flatCommittees.find((c) => c.id === m.committeeId)?.name ?? "—"}</td>
                     <td>
-                      {m.meetingType ? <span className="badge badge-category">{m.meetingType}</span> : "—"}
+                      <span className="badge badge-category">{MEETING_TYPE_LABELS[m.meetingType]}</span>
                     </td>
                     <td>
                       <StatusBadge status={m.status} />
@@ -279,12 +287,15 @@ export function MeetingsListPage() {
                   </select>
                 </label>
                 <label>
-                  Meeting type (optional)
+                  Meeting type
                   <select
                     value={meetingType}
                     onChange={(e) => setMeetingType(e.target.value as MeetingType | "")}
+                    required
                   >
-                    <option value="">Ordinary meeting</option>
+                    <option value="" disabled>
+                      — choose a meeting type —
+                    </option>
                     {(Object.keys(MEETING_TYPE_LABELS) as MeetingType[]).map((type) => (
                       <option key={type} value={type}>
                         {MEETING_TYPE_LABELS[type]}

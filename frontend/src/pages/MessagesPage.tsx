@@ -184,6 +184,7 @@ export function MessagesPage() {
                       />
                       <span>
                         {member.firstName} {member.lastName}
+                        <span className="table-hint"> {member.email}</span>
                       </span>
                     </label>
                   ))}
@@ -250,6 +251,12 @@ export function MessagesPage() {
               <>
                 <div className="messages-thread-header">
                   <strong>{conversationName(selectedConversation, user.id)}</strong>
+                  <p className="table-hint">
+                    {selectedConversation.participants
+                      .filter((p) => p.userId !== user.id)
+                      .map((p) => p.email)
+                      .join(", ")}
+                  </p>
                 </div>
 
                 {threadLoading && <p>Loading messages...</p>}

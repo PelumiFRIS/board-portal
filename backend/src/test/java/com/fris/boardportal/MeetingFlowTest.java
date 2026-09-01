@@ -200,9 +200,35 @@ class MeetingFlowTest extends IntegrationTestSupport {
                         new UpdateMeetingRequest(null, null, null, null, null, null, null, null, MeetingType.EGM)),
                 MeetingDetail.class);
         assertThat(updated.getBody().meetingType()).isEqualTo(MeetingType.EGM);
+    }
 
-        MeetingSummary untyped = scheduleMeeting(admin.accessToken());
-        assertThat(untyped.meetingType()).isNull();
+    @Test
+    void meetingTypeIsRequiredOnCreate() {
+        AuthResponse admin = signup(uniqueEmail(), "Meeting Type Required Org");
+        Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/meetings", HttpMethod.POST,
+                authedRequest(admin.accessToken(),
+                        new CreateMeetingRequest("No Type Meeting", null, null, start, null, null, null)),
+                String.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void allSevenMeetingTypesAreAccepted() {
+        AuthResponse admin = signup(uniqueEmail(), "All Meeting Types Org");
+        Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
+
+        for (MeetingType type : MeetingType.values()) {
+            ResponseEntity<MeetingSummary> response = restTemplate.exchange(
+                    "/api/meetings", HttpMethod.POST,
+                    authedRequest(admin.accessToken(),
+                            new CreateMeetingRequest(type + " Meeting", null, null, start, null, null, type)),
+                    MeetingSummary.class);
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+            assertThat(response.getBody().meetingType()).isEqualTo(type);
+        }
     }
 
     @Test
@@ -321,7 +347,7 @@ class MeetingFlowTest extends IntegrationTestSupport {
     private CreateMeetingRequest newMeetingRequest(java.util.UUID committeeId, String title) {
         Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
         return new CreateMeetingRequest(title, "Quarterly review", "Virtual", start,
-                start.plus(1, ChronoUnit.HOURS), committeeId, null);
+                start.plus(1, ChronoUnit.HOURS), committeeId, MeetingType.BOARD);
     }
 
     private void createBoardMember(String adminToken, String email) {
