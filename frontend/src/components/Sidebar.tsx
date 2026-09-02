@@ -45,6 +45,32 @@ function MeetingsIcon() {
   );
 }
 
+function ResolutionsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M10.5 6h9.75M10.5 12h9.75M10.5 18h9.75M3.75 6.75l1.5 1.5 2.25-2.5M3.75 12.75l1.5 1.5 2.25-2.5M3.75 18.75l1.5 1.5 2.25-2.5"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function MattersArisingIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M12 6v6l4 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function DocumentsIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -165,6 +191,14 @@ function ConflictIcon() {
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: DashboardIcon, adminOnly: false, managementOnly: false },
   { to: "/meetings", label: "Meetings", icon: MeetingsIcon, adminOnly: false, managementOnly: false },
+  { to: "/resolutions", label: "Resolutions", icon: ResolutionsIcon, adminOnly: false, managementOnly: false },
+  {
+    to: "/matters-arising",
+    label: "Agenda & Matters Arising",
+    icon: MattersArisingIcon,
+    adminOnly: false,
+    managementOnly: false,
+  },
   { to: "/documents", label: "Documents", icon: DocumentsIcon, adminOnly: false, managementOnly: false },
   { to: "/directory", label: "Directory", icon: DirectoryIcon, adminOnly: false, managementOnly: false },
   { to: "/messages", label: "Messages", icon: MessagesIcon, adminOnly: false, managementOnly: false },

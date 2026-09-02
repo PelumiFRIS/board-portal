@@ -6,6 +6,8 @@ import { SignupPage } from "./pages/SignupPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { MeetingsListPage } from "./pages/MeetingsListPage";
 import { MeetingDetailPage } from "./pages/MeetingDetailPage";
+import { ResolutionsPage } from "./pages/ResolutionsPage";
+import { MattersArisingPage } from "./pages/MattersArisingPage";
 import { DocumentsListPage } from "./pages/DocumentsListPage";
 import { AuditLogPage } from "./pages/AuditLogPage";
 import { DirectoryPage } from "./pages/DirectoryPage";
@@ -43,6 +45,22 @@ function App() {
           element={
             <ProtectedRoute>
               <MeetingDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/resolutions"
+          element={
+            <ProtectedRoute>
+              <ResolutionsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/matters-arising"
+          element={
+            <ProtectedRoute>
+              <MattersArisingPage />
             </ProtectedRoute>
           }
         />
