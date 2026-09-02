@@ -1,5 +1,4 @@
 package com.fris.boardportal;
-import com.fris.boardportal.meeting.MeetingType;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -57,7 +56,8 @@ class ExecutiveRoleFlowTest extends IntegrationTestSupport {
         ResponseEntity<MeetingSummary> created = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
                 authedRequest(executive.accessToken(),
-                        new CreateMeetingRequest("Exec Scheduled Meeting", null, null, Instant.now(), null, null, MeetingType.BOARD)),
+                        new CreateMeetingRequest("Exec Scheduled Meeting", null, null, Instant.now(), null, null,
+                                defaultMeetingTypeId(executive.accessToken()))),
                 MeetingSummary.class);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
@@ -264,7 +264,7 @@ class ExecutiveRoleFlowTest extends IntegrationTestSupport {
     private MeetingSummary scheduleMeeting(String adminToken, String title) {
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
-                authedRequest(adminToken, new CreateMeetingRequest(title, null, null, Instant.now(), null, null, MeetingType.BOARD)),
+                authedRequest(adminToken, new CreateMeetingRequest(title, null, null, Instant.now(), null, null, defaultMeetingTypeId(adminToken))),
                 MeetingSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();

@@ -3,6 +3,7 @@ package com.fris.boardportal.support;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fris.boardportal.auth.dto.AuthResponse;
+import com.fris.boardportal.meeting.dto.MeetingTypeSummary;
 import com.fris.boardportal.organization.dto.OrganizationSignupRequest;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRe
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -36,6 +38,15 @@ public abstract class IntegrationTestSupport {
                 AuthResponse.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();
+    }
+
+    protected UUID defaultMeetingTypeId(String token) {
+        ResponseEntity<MeetingTypeSummary[]> response = restTemplate.exchange(
+                "/api/meeting-types", HttpMethod.GET, authedRequest(token), MeetingTypeSummary[].class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        MeetingTypeSummary[] types = response.getBody();
+        assertThat(types).isNotEmpty();
+        return types[0].id();
     }
 
     protected String uniqueEmail() {

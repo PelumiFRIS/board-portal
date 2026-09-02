@@ -89,14 +89,15 @@ export interface ApiErrorBody {
 }
 
 export type MeetingStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED";
-export type MeetingType =
-  | "AGM"
-  | "EGM"
-  | "COM"
-  | "BOARD"
-  | "COMMITTEE"
-  | "EXECUTIVE_MANAGEMENT"
-  | "GENERAL_STAFF";
+
+export interface MeetingTypeSummary {
+  id: string;
+  name: string;
+}
+
+export interface CreateMeetingTypePayload {
+  name: string;
+}
 
 export interface MeetingSummary {
   id: string;
@@ -106,7 +107,8 @@ export interface MeetingSummary {
   scheduledEnd: string | null;
   status: MeetingStatus;
   committeeId: string | null;
-  meetingType: MeetingType;
+  meetingTypeId: string;
+  meetingTypeName: string;
 }
 
 export interface AgendaItem {
@@ -126,7 +128,8 @@ export interface MeetingDetail {
   status: MeetingStatus;
   minutesContent: string | null;
   committeeId: string | null;
-  meetingType: MeetingType;
+  meetingTypeId: string;
+  meetingTypeName: string;
   agendaItems: AgendaItem[];
   documents: DocumentSummary[];
   resolutions: ResolutionSummary[];
@@ -151,7 +154,7 @@ export interface CreateMeetingPayload {
   scheduledStart: string;
   scheduledEnd?: string;
   committeeId?: string;
-  meetingType: MeetingType;
+  meetingTypeId: string;
 }
 
 export interface UpdateMeetingPayload {
@@ -163,7 +166,7 @@ export interface UpdateMeetingPayload {
   status?: MeetingStatus;
   minutesContent?: string;
   committeeId?: string;
-  meetingType?: MeetingType;
+  meetingTypeId?: string;
 }
 
 export interface CreateAgendaItemPayload {

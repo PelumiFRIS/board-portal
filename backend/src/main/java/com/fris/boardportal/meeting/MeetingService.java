@@ -59,12 +59,14 @@ public class MeetingService {
     private final EmailNotificationService emailNotificationService;
     private final CommitteeRepository committeeRepository;
     private final CommitteeMembershipRepository committeeMembershipRepository;
+    private final MeetingTypeOptionRepository meetingTypeOptionRepository;
 
     public MeetingService(MeetingRepository meetingRepository, AgendaItemRepository agendaItemRepository,
             DocumentRepository documentRepository, ResolutionService resolutionService,
             ActionItemService actionItemService, AuditLogService auditLogService, UserRepository userRepository,
             EmailNotificationService emailNotificationService, CommitteeRepository committeeRepository,
-            CommitteeMembershipRepository committeeMembershipRepository) {
+            CommitteeMembershipRepository committeeMembershipRepository,
+            MeetingTypeOptionRepository meetingTypeOptionRepository) {
         this.meetingRepository = meetingRepository;
         this.agendaItemRepository = agendaItemRepository;
         this.documentRepository = documentRepository;
@@ -75,13 +77,26 @@ public class MeetingService {
         this.emailNotificationService = emailNotificationService;
         this.committeeRepository = committeeRepository;
         this.committeeMembershipRepository = committeeMembershipRepository;
+        this.meetingTypeOptionRepository = meetingTypeOptionRepository;
     }
 
     public List<MeetingSummary> listForOrganization(AppUserPrincipal principal, UUID committeeId) {
+        Map<UUID, String> typeNamesById = meetingTypeNamesById(principal.getOrganizationId());
         return meetingRepository.findByOrganizationIdOrderByScheduledStartDesc(principal.getOrganizationId()).stream()
                 .filter(m -> committeeId == null || committeeId.equals(m.getCommitteeId()))
-                .map(MeetingSummary::from)
+                .map(m -> MeetingSummary.from(m, typeNamesById.get(m.getMeetingTypeId())))
                 .toList();
+    }
+
+    private Map<UUID, String> meetingTypeNamesById(UUID organizationId) {
+        return meetingTypeOptionRepository.findByOrganizationIdOrderByNameAsc(organizationId).stream()
+                .collect(Collectors.toMap(MeetingTypeOption::getId, MeetingTypeOption::getName));
+    }
+
+    private String findMeetingTypeName(AppUserPrincipal principal, UUID meetingTypeId) {
+        return meetingTypeOptionRepository.findByIdAndOrganizationId(meetingTypeId, principal.getOrganizationId())
+                .orElseThrow(() -> ApiException.notFound("Meeting type not found"))
+                .getName();
     }
 
     public MeetingDetail getDetail(AppUserPrincipal principal, UUID meetingId) {
@@ -265,6 +280,7 @@ public class MeetingService {
         Committee committee = request.committeeId() != null
                 ? findCommitteeInOrg(admin, request.committeeId())
                 : null;
+        String meetingTypeName = findMeetingTypeName(admin, request.meetingTypeId());
 
         Meeting meeting = Meeting.create(
                 admin.getOrganizationId(),
@@ -275,20 +291,18 @@ public class MeetingService {
                 request.scheduledStart(),
                 request.scheduledEnd(),
                 request.committeeId(),
-                request.meetingType());
+                request.meetingTypeId());
         meetingRepository.save(meeting);
 
         String summary = committee != null
                 ? "Scheduled meeting \"" + meeting.getTitle() + "\" for committee \"" + committee.getName() + "\""
                 : "Scheduled meeting \"" + meeting.getTitle() + "\"";
-        if (meeting.getMeetingType() != null) {
-            summary = summary + " (" + meeting.getMeetingType() + ")";
-        }
+        summary = summary + " (" + meetingTypeName + ")";
         auditLogService.record(admin, AuditAction.MEETING_CREATED, AuditEntityType.MEETING, meeting.getId(), summary);
 
         emailNotificationService.notifyMeetingScheduled(meeting, resolveRecipients(admin, meeting));
 
-        return MeetingSummary.from(meeting);
+        return MeetingSummary.from(meeting, meetingTypeName);
     }
 
     private List<User> resolveRecipients(AppUserPrincipal admin, Meeting meeting) {
@@ -342,8 +356,9 @@ public class MeetingService {
             findCommitteeInOrg(admin, request.committeeId());
             meeting.setCommitteeId(request.committeeId());
         }
-        if (request.meetingType() != null) {
-            meeting.setMeetingType(request.meetingType());
+        if (request.meetingTypeId() != null) {
+            findMeetingTypeName(admin, request.meetingTypeId());
+            meeting.setMeetingTypeId(request.meetingTypeId());
         }
         meeting.setUpdatedAt(Instant.now());
         meetingRepository.save(meeting);
@@ -406,6 +421,7 @@ public class MeetingService {
         var documents = documentRepository.findSummariesByMeetingId(meeting.getId());
         var resolutions = resolutionService.listForMeeting(principal, meeting.getId());
         var actionItems = actionItemService.listForMeeting(principal, meeting.getId());
-        return MeetingDetail.from(meeting, agendaItems, documents, resolutions, actionItems);
+        String meetingTypeName = findMeetingTypeName(principal, meeting.getMeetingTypeId());
+        return MeetingDetail.from(meeting, meetingTypeName, agendaItems, documents, resolutions, actionItems);
     }
 }

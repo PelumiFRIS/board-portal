@@ -8,21 +8,12 @@ import {
   regenerateCalendarToken,
 } from "../api/meetings";
 import { listCommittees } from "../api/committees";
+import { createMeetingType, deleteMeetingType, listMeetingTypes } from "../api/meetingTypes";
 import { extractErrorMessage } from "../api/client";
-import type { CommitteeSummary, MeetingSummary, MeetingType } from "../api/types";
+import type { CommitteeSummary, MeetingSummary, MeetingTypeSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
-
-export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
-  AGM: "Annual General Meeting (AGM)",
-  EGM: "Extra-Ordinary General Meeting (EGM)",
-  COM: "Court-Ordered Meeting (COM)",
-  BOARD: "Board Meeting",
-  COMMITTEE: "Committee Meeting",
-  EXECUTIVE_MANAGEMENT: "Executive/Management Meeting",
-  GENERAL_STAFF: "General Staff Meeting",
-};
 
 function EmptyMeetingsIcon() {
   return (
@@ -43,6 +34,7 @@ export function MeetingsListPage() {
 
   const [meetings, setMeetings] = useState<MeetingSummary[]>([]);
   const [committees, setCommittees] = useState<CommitteeSummary[]>([]);
+  const [meetingTypes, setMeetingTypes] = useState<MeetingTypeSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [committeeFilter, setCommitteeFilter] = useState("");
@@ -53,9 +45,14 @@ export function MeetingsListPage() {
   const [scheduledStart, setScheduledStart] = useState("");
   const [scheduledEnd, setScheduledEnd] = useState("");
   const [committeeId, setCommitteeId] = useState("");
-  const [meetingType, setMeetingType] = useState<MeetingType | "">("");
+  const [meetingTypeId, setMeetingTypeId] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [newTypeName, setNewTypeName] = useState("");
+  const [typeError, setTypeError] = useState<string | null>(null);
+  const [typeBusy, setTypeBusy] = useState(false);
+  const [deletingTypeId, setDeletingTypeId] = useState<string | null>(null);
 
   const flatCommittees = committees.flatMap((c) => [c, ...c.subCommittees]);
 
@@ -67,6 +64,9 @@ export function MeetingsListPage() {
   useEffect(() => {
     listCommittees()
       .then(setCommittees)
+      .catch((err) => setLoadError(extractErrorMessage(err)));
+    listMeetingTypes()
+      .then(setMeetingTypes)
       .catch((err) => setLoadError(extractErrorMessage(err)));
   }, []);
 
@@ -115,7 +115,7 @@ export function MeetingsListPage() {
   async function handleSchedule(event: FormEvent) {
     event.preventDefault();
     setFormError(null);
-    if (!meetingType) {
+    if (!meetingTypeId) {
       setFormError("Meeting type is required.");
       return;
     }
@@ -128,7 +128,7 @@ export function MeetingsListPage() {
         scheduledStart: new Date(scheduledStart).toISOString(),
         scheduledEnd: scheduledEnd ? new Date(scheduledEnd).toISOString() : undefined,
         committeeId: committeeId || undefined,
-        meetingType,
+        meetingTypeId,
       });
       if (!committeeFilter || committeeFilter === created.committeeId) {
         setMeetings((prev) => [created, ...prev]);
@@ -139,11 +139,39 @@ export function MeetingsListPage() {
       setScheduledStart("");
       setScheduledEnd("");
       setCommitteeId("");
-      setMeetingType("");
+      setMeetingTypeId("");
     } catch (err) {
       setFormError(extractErrorMessage(err));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleAddMeetingType(event: FormEvent) {
+    event.preventDefault();
+    setTypeError(null);
+    setTypeBusy(true);
+    try {
+      const created = await createMeetingType({ name: newTypeName });
+      setMeetingTypes((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewTypeName("");
+    } catch (err) {
+      setTypeError(extractErrorMessage(err));
+    } finally {
+      setTypeBusy(false);
+    }
+  }
+
+  async function handleDeleteMeetingType(id: string) {
+    setTypeError(null);
+    setDeletingTypeId(id);
+    try {
+      await deleteMeetingType(id);
+      setMeetingTypes((prev) => prev.filter((t) => t.id !== id));
+    } catch (err) {
+      setTypeError(extractErrorMessage(err));
+    } finally {
+      setDeletingTypeId(null);
     }
   }
 
@@ -204,7 +232,7 @@ export function MeetingsListPage() {
                     <td>{m.location ?? "—"}</td>
                     <td>{flatCommittees.find((c) => c.id === m.committeeId)?.name ?? "—"}</td>
                     <td>
-                      <span className="badge badge-category">{MEETING_TYPE_LABELS[m.meetingType]}</span>
+                      <span className="badge badge-category">{m.meetingTypeName}</span>
                     </td>
                     <td>
                       <StatusBadge status={m.status} />
@@ -289,16 +317,16 @@ export function MeetingsListPage() {
                 <label>
                   Meeting type
                   <select
-                    value={meetingType}
-                    onChange={(e) => setMeetingType(e.target.value as MeetingType | "")}
+                    value={meetingTypeId}
+                    onChange={(e) => setMeetingTypeId(e.target.value)}
                     required
                   >
                     <option value="" disabled>
                       — choose a meeting type —
                     </option>
-                    {(Object.keys(MEETING_TYPE_LABELS) as MeetingType[]).map((type) => (
-                      <option key={type} value={type}>
-                        {MEETING_TYPE_LABELS[type]}
+                    {meetingTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.name}
                       </option>
                     ))}
                   </select>
@@ -306,6 +334,32 @@ export function MeetingsListPage() {
                 {formError && <p className="form-error">{formError}</p>}
                 <button type="submit" disabled={submitting}>
                   {submitting ? "Scheduling..." : "Schedule meeting"}
+                </button>
+              </form>
+
+              <h3>Manage meeting types</h3>
+              {typeError && <p className="form-error">{typeError}</p>}
+              {meetingTypes.map((type) => (
+                <div key={type.id} className="agenda-item-row">
+                  <div className="agenda-item-body">
+                    <strong>{type.name}</strong>
+                  </div>
+                  <button
+                    className="secondary small"
+                    disabled={deletingTypeId === type.id}
+                    onClick={() => handleDeleteMeetingType(type.id)}
+                  >
+                    {deletingTypeId === type.id ? "Removing..." : "Delete"}
+                  </button>
+                </div>
+              ))}
+              <form className="add-user-form" onSubmit={handleAddMeetingType}>
+                <label>
+                  New meeting type
+                  <input value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} required />
+                </label>
+                <button type="submit" disabled={typeBusy}>
+                  {typeBusy ? "Adding..." : "Add meeting type"}
                 </button>
               </form>
             </>

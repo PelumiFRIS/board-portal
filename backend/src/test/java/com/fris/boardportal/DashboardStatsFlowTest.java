@@ -1,5 +1,4 @@
 package com.fris.boardportal;
-import com.fris.boardportal.meeting.MeetingType;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.offset;
@@ -128,7 +127,7 @@ class DashboardStatsFlowTest extends IntegrationTestSupport {
         Instant start = Instant.now();
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
-                authedRequest(adminToken, new CreateMeetingRequest(title, null, null, start, null, null, MeetingType.BOARD)),
+                authedRequest(adminToken, new CreateMeetingRequest(title, null, null, start, null, null, defaultMeetingTypeId(adminToken))),
                 MeetingSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();

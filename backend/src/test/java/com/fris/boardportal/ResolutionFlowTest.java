@@ -1,5 +1,4 @@
 package com.fris.boardportal;
-import com.fris.boardportal.meeting.MeetingType;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -183,7 +182,7 @@ class ResolutionFlowTest extends IntegrationTestSupport {
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
                 authedRequest(adminToken, new CreateMeetingRequest("Q3 Board Meeting", "Quarterly review", "Virtual",
-                        start, start.plus(1, ChronoUnit.HOURS), null, MeetingType.BOARD)),
+                        start, start.plus(1, ChronoUnit.HOURS), null, defaultMeetingTypeId(adminToken))),
                 MeetingSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();

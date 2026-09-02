@@ -1,5 +1,4 @@
 package com.fris.boardportal;
-import com.fris.boardportal.meeting.MeetingType;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -64,7 +63,7 @@ class MeetingNotificationFlowTest extends IntegrationTestSupport {
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
                 authedRequest(admin.accessToken(), new CreateMeetingRequest("Audit Committee Meeting", null, null,
-                        start, start.plus(1, ChronoUnit.HOURS), committee.id(), MeetingType.BOARD)),
+                        start, start.plus(1, ChronoUnit.HOURS), committee.id(), defaultMeetingTypeId(admin.accessToken()))),
                 MeetingSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
@@ -82,7 +81,7 @@ class MeetingNotificationFlowTest extends IntegrationTestSupport {
 
         AuthResponse admin = signup(uniqueEmail(), "Notify Failure Org");
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
-                "/api/meetings", HttpMethod.POST, authedRequest(admin.accessToken(), newMeetingRequest()),
+                "/api/meetings", HttpMethod.POST, authedRequest(admin.accessToken(), newMeetingRequest(admin.accessToken())),
                 MeetingSummary.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -90,15 +89,15 @@ class MeetingNotificationFlowTest extends IntegrationTestSupport {
 
     private MeetingSummary scheduleMeeting(String adminToken) {
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
-                "/api/meetings", HttpMethod.POST, authedRequest(adminToken, newMeetingRequest()), MeetingSummary.class);
+                "/api/meetings", HttpMethod.POST, authedRequest(adminToken, newMeetingRequest(adminToken)), MeetingSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();
     }
 
-    private CreateMeetingRequest newMeetingRequest() {
+    private CreateMeetingRequest newMeetingRequest(String adminToken) {
         Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
         return new CreateMeetingRequest("Notify Test Meeting", "Quarterly review", "Virtual", start,
-                start.plus(1, ChronoUnit.HOURS), null, MeetingType.BOARD);
+                start.plus(1, ChronoUnit.HOURS), null, defaultMeetingTypeId(adminToken));
     }
 
     private void createBoardMember(String adminToken, String email) {

@@ -5,6 +5,8 @@ import com.fris.boardportal.audit.AuditEntityType;
 import com.fris.boardportal.audit.AuditLogService;
 import com.fris.boardportal.auth.dto.AuthResponse;
 import com.fris.boardportal.common.ApiException;
+import com.fris.boardportal.meeting.MeetingTypeOption;
+import com.fris.boardportal.meeting.MeetingTypeOptionRepository;
 import com.fris.boardportal.organization.dto.OrganizationSignupRequest;
 import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.security.JwtService;
@@ -20,19 +22,25 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class OrganizationService {
 
+    private static final List<String> DEFAULT_MEETING_TYPES = List.of(
+            "Board Meeting", "Committee Meeting", "Executive/Management Meeting", "General Staff Meeting");
+
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuditLogService auditLogService;
+    private final MeetingTypeOptionRepository meetingTypeOptionRepository;
 
     public OrganizationService(OrganizationRepository organizationRepository, UserRepository userRepository,
-            PasswordEncoder passwordEncoder, JwtService jwtService, AuditLogService auditLogService) {
+            PasswordEncoder passwordEncoder, JwtService jwtService, AuditLogService auditLogService,
+            MeetingTypeOptionRepository meetingTypeOptionRepository) {
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.auditLogService = auditLogService;
+        this.meetingTypeOptionRepository = meetingTypeOptionRepository;
     }
 
     @Transactional
@@ -43,6 +51,10 @@ public class OrganizationService {
 
         Organization organization = Organization.create(request.organizationName());
         organizationRepository.save(organization);
+
+        for (String typeName : DEFAULT_MEETING_TYPES) {
+            meetingTypeOptionRepository.save(MeetingTypeOption.create(organization.getId(), typeName));
+        }
 
         User admin = User.create(
                 organization.getId(),

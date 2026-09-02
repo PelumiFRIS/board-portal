@@ -1,6 +1,5 @@
 package com.fris.boardportal.meeting.dto;
 
-import com.fris.boardportal.meeting.MeetingType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -13,5 +12,5 @@ public record CreateMeetingRequest(
         @NotNull Instant scheduledStart,
         Instant scheduledEnd,
         UUID committeeId,
-        @NotNull MeetingType meetingType) {
+        @NotNull UUID meetingTypeId) {
 }

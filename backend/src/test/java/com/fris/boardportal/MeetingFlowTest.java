@@ -11,13 +11,14 @@ import com.fris.boardportal.auth.dto.LoginRequest;
 import com.fris.boardportal.committee.dto.CommitteeSummary;
 import com.fris.boardportal.committee.dto.CreateCommitteeRequest;
 import com.fris.boardportal.meeting.MeetingStatus;
-import com.fris.boardportal.meeting.MeetingType;
 import com.fris.boardportal.meeting.dto.AgendaItemDto;
 import com.fris.boardportal.meeting.dto.CreateAgendaItemRequest;
 import com.fris.boardportal.meeting.dto.CreateMeetingRequest;
+import com.fris.boardportal.meeting.dto.CreateMeetingTypeRequest;
 import com.fris.boardportal.meeting.dto.MatterArisingItem;
 import com.fris.boardportal.meeting.dto.MeetingDetail;
 import com.fris.boardportal.meeting.dto.MeetingSummary;
+import com.fris.boardportal.meeting.dto.MeetingTypeSummary;
 import com.fris.boardportal.meeting.dto.UpdateAgendaItemRequest;
 import com.fris.boardportal.meeting.dto.UpdateMeetingRequest;
 import com.fris.boardportal.support.IntegrationTestSupport;
@@ -62,7 +63,7 @@ class MeetingFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
-                authedRequest(member.accessToken(), newMeetingRequest()), String.class);
+                authedRequest(member.accessToken(), newMeetingRequest(member.accessToken(), null)), String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
@@ -180,26 +181,29 @@ class MeetingFlowTest extends IntegrationTestSupport {
     void meetingTypeRoundTripsThroughCreateAndUpdate() {
         AuthResponse admin = signup(uniqueEmail(), "Meeting Type Org");
         Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
+        UUID agmTypeId = defaultMeetingTypeId(admin.accessToken());
+        UUID egmTypeId = createMeetingType(admin.accessToken(), "EGM Type");
 
         ResponseEntity<MeetingSummary> created = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
                 authedRequest(admin.accessToken(),
-                        new CreateMeetingRequest("AGM 2026", null, null, start, null, null, MeetingType.AGM)),
+                        new CreateMeetingRequest("AGM 2026", null, null, start, null, null, agmTypeId)),
                 MeetingSummary.class);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(created.getBody().meetingType()).isEqualTo(MeetingType.AGM);
+        assertThat(created.getBody().meetingTypeId()).isEqualTo(agmTypeId);
 
         ResponseEntity<MeetingDetail> detail = restTemplate.exchange(
                 "/api/meetings/" + created.getBody().id(), HttpMethod.GET,
                 authedRequest(admin.accessToken()), MeetingDetail.class);
-        assertThat(detail.getBody().meetingType()).isEqualTo(MeetingType.AGM);
+        assertThat(detail.getBody().meetingTypeId()).isEqualTo(agmTypeId);
 
         ResponseEntity<MeetingDetail> updated = restTemplate.exchange(
                 "/api/meetings/" + created.getBody().id(), HttpMethod.PATCH,
                 authedRequest(admin.accessToken(),
-                        new UpdateMeetingRequest(null, null, null, null, null, null, null, null, MeetingType.EGM)),
+                        new UpdateMeetingRequest(null, null, null, null, null, null, null, null, egmTypeId)),
                 MeetingDetail.class);
-        assertThat(updated.getBody().meetingType()).isEqualTo(MeetingType.EGM);
+        assertThat(updated.getBody().meetingTypeId()).isEqualTo(egmTypeId);
+        assertThat(updated.getBody().meetingTypeName()).isEqualTo("EGM Type");
     }
 
     @Test
@@ -216,19 +220,34 @@ class MeetingFlowTest extends IntegrationTestSupport {
     }
 
     @Test
-    void allSevenMeetingTypesAreAccepted() {
+    void allOrgMeetingTypesAreAccepted() {
         AuthResponse admin = signup(uniqueEmail(), "All Meeting Types Org");
         Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
 
-        for (MeetingType type : MeetingType.values()) {
+        ResponseEntity<MeetingTypeSummary[]> types = restTemplate.exchange(
+                "/api/meeting-types", HttpMethod.GET, authedRequest(admin.accessToken()), MeetingTypeSummary[].class);
+        assertThat(types.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(types.getBody()).hasSize(4);
+
+        for (MeetingTypeSummary type : types.getBody()) {
             ResponseEntity<MeetingSummary> response = restTemplate.exchange(
                     "/api/meetings", HttpMethod.POST,
                     authedRequest(admin.accessToken(),
-                            new CreateMeetingRequest(type + " Meeting", null, null, start, null, null, type)),
+                            new CreateMeetingRequest(type.name() + " Meeting", null, null, start, null, null, type.id())),
                     MeetingSummary.class);
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-            assertThat(response.getBody().meetingType()).isEqualTo(type);
+            assertThat(response.getBody().meetingTypeId()).isEqualTo(type.id());
+            assertThat(response.getBody().meetingTypeName()).isEqualTo(type.name());
         }
+    }
+
+    private UUID createMeetingType(String adminToken, String name) {
+        ResponseEntity<MeetingTypeSummary> response = restTemplate.exchange(
+                "/api/meeting-types", HttpMethod.POST,
+                authedRequest(adminToken, new CreateMeetingTypeRequest(name)),
+                MeetingTypeSummary.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        return response.getBody().id();
     }
 
     @Test
@@ -323,7 +342,8 @@ class MeetingFlowTest extends IntegrationTestSupport {
 
     private MeetingSummary scheduleMeeting(String adminToken) {
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
-                "/api/meetings", HttpMethod.POST, authedRequest(adminToken, newMeetingRequest(null)), MeetingSummary.class);
+                "/api/meetings", HttpMethod.POST, authedRequest(adminToken, newMeetingRequest(adminToken, null)),
+                MeetingSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();
     }
@@ -331,23 +351,19 @@ class MeetingFlowTest extends IntegrationTestSupport {
     private MeetingSummary scheduleMeeting(String adminToken, String title, java.util.UUID committeeId) {
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
-                authedRequest(adminToken, newMeetingRequest(committeeId, title)), MeetingSummary.class);
+                authedRequest(adminToken, newMeetingRequest(adminToken, committeeId, title)), MeetingSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();
     }
 
-    private CreateMeetingRequest newMeetingRequest() {
-        return newMeetingRequest(null, "Q3 Board Meeting");
+    private CreateMeetingRequest newMeetingRequest(String adminToken, java.util.UUID committeeId) {
+        return newMeetingRequest(adminToken, committeeId, "Q3 Board Meeting");
     }
 
-    private CreateMeetingRequest newMeetingRequest(java.util.UUID committeeId) {
-        return newMeetingRequest(committeeId, "Q3 Board Meeting");
-    }
-
-    private CreateMeetingRequest newMeetingRequest(java.util.UUID committeeId, String title) {
+    private CreateMeetingRequest newMeetingRequest(String adminToken, java.util.UUID committeeId, String title) {
         Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
         return new CreateMeetingRequest(title, "Quarterly review", "Virtual", start,
-                start.plus(1, ChronoUnit.HOURS), committeeId, MeetingType.BOARD);
+                start.plus(1, ChronoUnit.HOURS), committeeId, defaultMeetingTypeId(adminToken));
     }
 
     private void createBoardMember(String adminToken, String email) {

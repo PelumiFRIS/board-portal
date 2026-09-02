@@ -10,4 +10,6 @@ public interface MeetingRepository extends JpaRepository<Meeting, UUID> {
     List<Meeting> findByOrganizationIdOrderByScheduledStartDesc(UUID organizationId);
 
     Optional<Meeting> findByIdAndOrganizationId(UUID id, UUID organizationId);
+
+    boolean existsByMeetingTypeId(UUID meetingTypeId);
 }
