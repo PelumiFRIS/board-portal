@@ -136,6 +136,16 @@ export interface MeetingDetail {
   actionItems: ActionItemSummary[];
 }
 
+export interface MeetingRecordingSummary {
+  id: string;
+  meetingId: string;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+  recordedByName: string;
+  createdAt: string;
+}
+
 export interface MatterArisingItem {
   id: string;
   title: string;

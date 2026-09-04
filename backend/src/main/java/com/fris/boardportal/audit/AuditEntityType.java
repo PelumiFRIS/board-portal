@@ -15,5 +15,6 @@ public enum AuditEntityType {
     CONVERSATION,
     RESOURCE,
     API_KEY,
-    MEETING_TYPE
+    MEETING_TYPE,
+    MEETING_RECORDING
 }

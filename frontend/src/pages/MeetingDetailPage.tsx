@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   addAgendaItem,
@@ -19,6 +19,12 @@ import {
   openResolution,
 } from "../api/resolutions";
 import { createActionItem, deleteActionItem, updateActionItemStatus } from "../api/actionItems";
+import {
+  deleteMeetingRecording,
+  downloadMeetingRecording,
+  listMeetingRecordings,
+  uploadMeetingRecording,
+} from "../api/meetingRecordings";
 import { listDirectory } from "../api/auth";
 import { extractErrorMessage } from "../api/client";
 import { STANDARD_AGENDA_ITEMS } from "../constants/agendaTemplates";
@@ -27,17 +33,31 @@ import type {
   AgendaItem,
   MatterArisingItem,
   MeetingDetail as MeetingDetailType,
+  MeetingRecordingSummary,
   ResolutionSummary,
   UserSummary,
   VoteChoice,
   VoteRecord,
 } from "../api/types";
 import { CommentThread } from "../components/CommentThread";
+import { RecordingPlayer } from "../components/RecordingPlayer";
 import { Sidebar } from "../components/Sidebar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 
 const MAX_RESOLUTION_BATCH_SIZE = 12;
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDuration(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
 
 export function MeetingDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -66,6 +86,19 @@ export function MeetingDetailPage() {
 
   const [minutesDraft, setMinutesDraft] = useState("");
   const [savingMinutes, setSavingMinutes] = useState(false);
+
+  const [recordings, setRecordings] = useState<MeetingRecordingSummary[]>([]);
+  const [loadingRecordings, setLoadingRecordings] = useState(true);
+  const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [uploadingRecording, setUploadingRecording] = useState(false);
+  const [deletingRecordingId, setDeletingRecordingId] = useState<string | null>(null);
+  const [expandedRecordingId, setExpandedRecordingId] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
 
   const [newResolutionTitle, setNewResolutionTitle] = useState("");
   const [queuedResolutionTitles, setQueuedResolutionTitles] = useState<string[]>([]);
@@ -109,6 +142,100 @@ export function MeetingDetailPage() {
       .catch((err) => setMattersArisingError(extractErrorMessage(err)))
       .finally(() => setLoadingMattersArising(false));
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    setLoadingRecordings(true);
+    listMeetingRecordings(id)
+      .then(setRecordings)
+      .catch((err) => setRecordingError(extractErrorMessage(err)))
+      .finally(() => setLoadingRecordings(false));
+  }, [id]);
+
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) window.clearInterval(recordingTimerRef.current);
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
+  async function handleStartRecording() {
+    setRecordingError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      recordedChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) recordedChunksRef.current.push(event.data);
+      };
+      mediaRecorderRef.current = recorder;
+      mediaStreamRef.current = stream;
+      recorder.start();
+      setIsRecording(true);
+      setRecordingSeconds(0);
+      recordingTimerRef.current = window.setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
+    } catch {
+      setRecordingError("Microphone access was denied or is unavailable.");
+    }
+  }
+
+  async function handleStopRecording() {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || !id) return;
+    if (recordingTimerRef.current) {
+      window.clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    setIsRecording(false);
+
+    const stopped = new Promise<void>((resolve) => {
+      recorder.addEventListener("stop", () => resolve(), { once: true });
+    });
+    recorder.stop();
+    await stopped;
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
+
+    const blob = new Blob(recordedChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+    recordedChunksRef.current = [];
+    setUploadingRecording(true);
+    try {
+      const fileName = `recording-${new Date().toISOString().replace(/[:.]/g, "-")}.webm`;
+      const created = await uploadMeetingRecording(id, blob, fileName);
+      setRecordings((prev) => [created, ...prev]);
+    } catch (err) {
+      setRecordingError(extractErrorMessage(err));
+    } finally {
+      setUploadingRecording(false);
+    }
+  }
+
+  async function handleDownloadRecording(recordingId: string, fileName: string) {
+    if (!id) return;
+    setRecordingError(null);
+    try {
+      await downloadMeetingRecording(id, recordingId, fileName);
+    } catch (err) {
+      setRecordingError(extractErrorMessage(err));
+    }
+  }
+
+  async function handleDeleteRecording(recordingId: string) {
+    if (!id) return;
+    setRecordingError(null);
+    setDeletingRecordingId(recordingId);
+    try {
+      await deleteMeetingRecording(id, recordingId);
+      setRecordings((prev) => prev.filter((r) => r.id !== recordingId));
+      if (expandedRecordingId === recordingId) setExpandedRecordingId(null);
+    } catch (err) {
+      setRecordingError(extractErrorMessage(err));
+    } finally {
+      setDeletingRecordingId(null);
+    }
+  }
 
   async function handleAddAgendaItem(event: FormEvent) {
     event.preventDefault();
@@ -851,6 +978,72 @@ export function MeetingDetailPage() {
                 </>
               ) : (
                 <p>{meeting.minutesContent ?? "No minutes published yet."}</p>
+              )}
+            </section>
+
+            <section className="dashboard-section">
+              <h2>Recording</h2>
+              <p className="table-hint">
+                Record and keep an audio file of the meeting alongside your typed minutes.
+              </p>
+              {recordingError && <p className="form-error">{recordingError}</p>}
+              {loadingRecordings && <p>Loading recordings...</p>}
+              {!loadingRecordings && recordings.length === 0 && (
+                <div className="empty-state">
+                  <p>No recordings yet.</p>
+                </div>
+              )}
+              {!loadingRecordings &&
+                recordings.map((recording) => (
+                  <div key={recording.id} className="resolution-card">
+                    <div className="resolution-card-header">
+                      <strong>{new Date(recording.createdAt).toLocaleString()}</strong>
+                      <span className="table-hint">
+                        {recording.recordedByName} &middot; {formatFileSize(recording.fileSize)}
+                      </span>
+                    </div>
+                    {expandedRecordingId === recording.id ? (
+                      <RecordingPlayer meetingId={id!} recordingId={recording.id} />
+                    ) : (
+                      <button className="secondary small" onClick={() => setExpandedRecordingId(recording.id)}>
+                        Play
+                      </button>
+                    )}
+                    <div className="field-row">
+                      <button
+                        className="secondary small"
+                        onClick={() => handleDownloadRecording(recording.id, recording.fileName)}
+                      >
+                        Download
+                      </button>
+                      {canManage && (
+                        <button
+                          className="secondary small"
+                          disabled={deletingRecordingId === recording.id}
+                          onClick={() => handleDeleteRecording(recording.id)}
+                        >
+                          {deletingRecordingId === recording.id ? "Removing..." : "Delete"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+              {canManage && (
+                <div className="field-row">
+                  {!isRecording ? (
+                    <button onClick={handleStartRecording} disabled={uploadingRecording}>
+                      {uploadingRecording ? "Uploading..." : "Start recording"}
+                    </button>
+                  ) : (
+                    <button className="secondary" onClick={handleStopRecording}>
+                      <span className="recording-indicator">
+                        <span className="recording-indicator-dot" />
+                        Stop recording ({formatDuration(recordingSeconds)})
+                      </span>
+                    </button>
+                  )}
+                </div>
               )}
             </section>
 
