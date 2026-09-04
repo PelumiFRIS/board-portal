@@ -315,6 +315,7 @@ export function CommitteesPage() {
         </div>
 
         <section className="dashboard-section">
+          <h2>Committees</h2>
           {loading && <p>Loading committees...</p>}
           {loadError && <p className="form-error">{loadError}</p>}
           {actionError && <p className="form-error">{actionError}</p>}
@@ -334,54 +335,54 @@ export function CommitteesPage() {
                 {committee.subCommittees.map((sub) => renderCommitteeCard(sub, true))}
               </div>
             ))}
-
-          {canManage && (
-            <>
-              <h3>Create a committee</h3>
-              <form className="add-user-form" onSubmit={handleCreate}>
-                <label>
-                  Quick add from template
-                  <select
-                    value={templatePick}
-                    onChange={(e) => {
-                      setTemplatePick(e.target.value);
-                      if (e.target.value) setNewName(e.target.value);
-                    }}
-                  >
-                    <option value="">— choose a standard committee —</option>
-                    {STANDARD_COMMITTEES.map((label) => (
-                      <option key={label} value={label}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Name
-                  <input value={newName} onChange={(e) => setNewName(e.target.value)} required />
-                </label>
-                <label>
-                  Description
-                  <input value={newDescription} onChange={(e) => setNewDescription(e.target.value)} />
-                </label>
-                <label>
-                  Parent committee (optional)
-                  <select value={newParentId} onChange={(e) => setNewParentId(e.target.value)}>
-                    <option value="">None — top-level committee</option>
-                    {committees.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button type="submit" disabled={creating}>
-                  {creating ? "Creating..." : "Create committee"}
-                </button>
-              </form>
-            </>
-          )}
         </section>
+
+        {canManage && (
+          <section className="dashboard-section">
+            <h2>Create a committee</h2>
+            <form className="add-user-form" onSubmit={handleCreate}>
+              <label>
+                Quick add from template
+                <select
+                  value={templatePick}
+                  onChange={(e) => {
+                    setTemplatePick(e.target.value);
+                    if (e.target.value) setNewName(e.target.value);
+                  }}
+                >
+                  <option value="">— choose a standard committee —</option>
+                  {STANDARD_COMMITTEES.map((label) => (
+                    <option key={label} value={label}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Name
+                <input value={newName} onChange={(e) => setNewName(e.target.value)} required />
+              </label>
+              <label>
+                Description
+                <input value={newDescription} onChange={(e) => setNewDescription(e.target.value)} />
+              </label>
+              <label>
+                Parent committee (optional)
+                <select value={newParentId} onChange={(e) => setNewParentId(e.target.value)}>
+                  <option value="">None — top-level committee</option>
+                  {committees.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button type="submit" disabled={creating}>
+                {creating ? "Creating..." : "Create committee"}
+              </button>
+            </form>
+          </section>
+        )}
       </main>
     </div>
   );

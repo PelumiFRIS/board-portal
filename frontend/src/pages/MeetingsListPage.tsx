@@ -187,6 +187,7 @@ export function MeetingsListPage() {
         </div>
 
         <section className="dashboard-section">
+          <h2>Meetings</h2>
           <div className="field-row">
             <label>
               Filter by committee
@@ -243,8 +244,10 @@ export function MeetingsListPage() {
             </table>
             </div>
           )}
+        </section>
 
-          <h3>Subscribe to calendar</h3>
+        <section className="dashboard-section">
+          <h2>Subscribe to calendar</h2>
           <p className="table-hint">
             Get a personal link you can add to Google Calendar, Outlook, or Apple Calendar as a subscription — new
             meetings show up automatically. Treat the link like a password; anyone with it can see your meeting
@@ -267,104 +270,108 @@ export function MeetingsListPage() {
               </button>
             </div>
           )}
-
-          {canManage && (
-            <>
-              <h3>Schedule a meeting</h3>
-              <form className="add-user-form" onSubmit={handleSchedule}>
-                <label>
-                  Title
-                  <input value={title} onChange={(e) => setTitle(e.target.value)} required />
-                </label>
-                <label>
-                  Description
-                  <input value={description} onChange={(e) => setDescription(e.target.value)} />
-                </label>
-                <div className="field-row">
-                  <label>
-                    Location
-                    <input value={location} onChange={(e) => setLocation(e.target.value)} />
-                  </label>
-                  <label>
-                    Start
-                    <input
-                      type="datetime-local"
-                      value={scheduledStart}
-                      onChange={(e) => setScheduledStart(e.target.value)}
-                      required
-                    />
-                  </label>
-                  <label>
-                    End (optional)
-                    <input
-                      type="datetime-local"
-                      value={scheduledEnd}
-                      onChange={(e) => setScheduledEnd(e.target.value)}
-                    />
-                  </label>
-                </div>
-                <label>
-                  Committee (optional)
-                  <select value={committeeId} onChange={(e) => setCommitteeId(e.target.value)}>
-                    <option value="">Full board</option>
-                    {flatCommittees.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.parentCommitteeId ? `— ${c.name}` : c.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Meeting type
-                  <select
-                    value={meetingTypeId}
-                    onChange={(e) => setMeetingTypeId(e.target.value)}
-                    required
-                  >
-                    <option value="" disabled>
-                      — choose a meeting type —
-                    </option>
-                    {meetingTypes.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {formError && <p className="form-error">{formError}</p>}
-                <button type="submit" disabled={submitting}>
-                  {submitting ? "Scheduling..." : "Schedule meeting"}
-                </button>
-              </form>
-
-              <h3>Manage meeting types</h3>
-              {typeError && <p className="form-error">{typeError}</p>}
-              {meetingTypes.map((type) => (
-                <div key={type.id} className="agenda-item-row">
-                  <div className="agenda-item-body">
-                    <strong>{type.name}</strong>
-                  </div>
-                  <button
-                    className="secondary small"
-                    disabled={deletingTypeId === type.id}
-                    onClick={() => handleDeleteMeetingType(type.id)}
-                  >
-                    {deletingTypeId === type.id ? "Removing..." : "Delete"}
-                  </button>
-                </div>
-              ))}
-              <form className="add-user-form" onSubmit={handleAddMeetingType}>
-                <label>
-                  New meeting type
-                  <input value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} required />
-                </label>
-                <button type="submit" disabled={typeBusy}>
-                  {typeBusy ? "Adding..." : "Add meeting type"}
-                </button>
-              </form>
-            </>
-          )}
         </section>
+
+        {canManage && (
+          <section className="dashboard-section">
+            <h2>Schedule a meeting</h2>
+            <form className="add-user-form" onSubmit={handleSchedule}>
+              <label>
+                Title
+                <input value={title} onChange={(e) => setTitle(e.target.value)} required />
+              </label>
+              <label>
+                Description
+                <input value={description} onChange={(e) => setDescription(e.target.value)} />
+              </label>
+              <div className="field-row">
+                <label>
+                  Location
+                  <input value={location} onChange={(e) => setLocation(e.target.value)} />
+                </label>
+                <label>
+                  Start
+                  <input
+                    type="datetime-local"
+                    value={scheduledStart}
+                    onChange={(e) => setScheduledStart(e.target.value)}
+                    required
+                  />
+                </label>
+                <label>
+                  End (optional)
+                  <input
+                    type="datetime-local"
+                    value={scheduledEnd}
+                    onChange={(e) => setScheduledEnd(e.target.value)}
+                  />
+                </label>
+              </div>
+              <label>
+                Committee (optional)
+                <select value={committeeId} onChange={(e) => setCommitteeId(e.target.value)}>
+                  <option value="">Full board</option>
+                  {flatCommittees.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.parentCommitteeId ? `— ${c.name}` : c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Meeting type
+                <select
+                  value={meetingTypeId}
+                  onChange={(e) => setMeetingTypeId(e.target.value)}
+                  required
+                >
+                  <option value="" disabled>
+                    — choose a meeting type —
+                  </option>
+                  {meetingTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {formError && <p className="form-error">{formError}</p>}
+              <button type="submit" disabled={submitting}>
+                {submitting ? "Scheduling..." : "Schedule meeting"}
+              </button>
+            </form>
+          </section>
+        )}
+
+        {canManage && (
+          <section className="dashboard-section">
+            <h2>Manage meeting types</h2>
+            {typeError && <p className="form-error">{typeError}</p>}
+            {meetingTypes.map((type) => (
+              <div key={type.id} className="agenda-item-row">
+                <div className="agenda-item-body">
+                  <strong>{type.name}</strong>
+                </div>
+                <button
+                  className="secondary small"
+                  disabled={deletingTypeId === type.id}
+                  onClick={() => handleDeleteMeetingType(type.id)}
+                >
+                  {deletingTypeId === type.id ? "Removing..." : "Delete"}
+                </button>
+              </div>
+            ))}
+            <form className="add-user-form" onSubmit={handleAddMeetingType}>
+              <label>
+                New meeting type
+                <input value={newTypeName} onChange={(e) => setNewTypeName(e.target.value)} required />
+              </label>
+              <button type="submit" disabled={typeBusy}>
+                {typeBusy ? "Adding..." : "Add meeting type"}
+              </button>
+            </form>
+          </section>
+        )}
       </main>
     </div>
   );

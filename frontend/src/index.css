@@ -868,6 +868,7 @@ code {
   padding-top: 16px;
 }
 
+h2 + .add-user-form,
 h3 + .add-user-form {
   border-top: none;
   padding-top: 0;

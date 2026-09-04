@@ -407,8 +407,12 @@ export function DashboardPage() {
               </table>
               </div>
             )}
+          </section>
+        )}
 
-            <h3>Add a member</h3>
+        {isAdmin && (
+          <section className="dashboard-section">
+            <h2>Add a member</h2>
             <form className="add-user-form" onSubmit={handleAddUser}>
               <div className="field-row">
                 <label>

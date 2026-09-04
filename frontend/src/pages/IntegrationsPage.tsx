@@ -104,6 +104,7 @@ export function IntegrationsPage() {
         )}
 
         <section className="dashboard-section">
+          <h2>API keys</h2>
           {loading && <p>Loading API keys...</p>}
           {loadError && <p className="form-error">{loadError}</p>}
           {actionError && <p className="form-error">{actionError}</p>}
@@ -142,8 +143,10 @@ export function IntegrationsPage() {
                 </p>
               </div>
             ))}
+        </section>
 
-          <h3>Generate a new key</h3>
+        <section className="dashboard-section">
+          <h2>Generate a new key</h2>
           <form className="add-user-form" onSubmit={handleCreate}>
             <label>
               Name

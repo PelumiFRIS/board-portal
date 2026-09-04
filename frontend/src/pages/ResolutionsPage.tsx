@@ -193,6 +193,7 @@ export function ResolutionsPage() {
         </div>
 
         <section className="dashboard-section">
+          <h2>Resolutions</h2>
           {loading && <p>Loading resolutions...</p>}
           {loadError && <p className="form-error">{loadError}</p>}
           {actionError && <p className="form-error">{actionError}</p>}
@@ -306,10 +307,11 @@ export function ResolutionsPage() {
                 </div>
               );
             })}
+        </section>
 
-          {canManage && (
-            <>
-              <h3>Propose resolutions</h3>
+        {canManage && (
+          <section className="dashboard-section">
+            <h2>Propose resolutions</h2>
               <div className="add-user-form">
                 <label>
                   Meeting
@@ -357,9 +359,8 @@ export function ResolutionsPage() {
                   </button>
                 </>
               )}
-            </>
-          )}
-        </section>
+          </section>
+        )}
       </main>
     </div>
   );

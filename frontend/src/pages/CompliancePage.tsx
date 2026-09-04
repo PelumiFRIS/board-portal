@@ -148,6 +148,7 @@ export function CompliancePage() {
         </div>
 
         <section className="dashboard-section">
+          <h2>Compliance filings</h2>
           {loading && <p>Loading filings...</p>}
           {loadError && <p className="form-error">{loadError}</p>}
           {actionError && <p className="form-error">{actionError}</p>}
@@ -239,10 +240,11 @@ export function CompliancePage() {
                 </div>
               );
             })}
+        </section>
 
-          {canManage && (
-            <>
-              <h3>Add a filing</h3>
+        {canManage && (
+          <section className="dashboard-section">
+            <h2>Add a filing</h2>
               <form className="add-user-form" onSubmit={handleCreate}>
                 <label>
                   Title
@@ -260,9 +262,8 @@ export function CompliancePage() {
                   {creating ? "Adding..." : "Add filing"}
                 </button>
               </form>
-            </>
-          )}
-        </section>
+          </section>
+        )}
       </main>
     </div>
   );

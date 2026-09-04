@@ -95,7 +95,7 @@ export function ConflictOfInterestPage() {
         </div>
 
         <section className="dashboard-section">
-          <h3>Declare</h3>
+          <h2>Declare a conflict</h2>
           {actionError && <p className="form-error">{actionError}</p>}
           <form className="add-user-form" onSubmit={handleDeclare}>
             <label>

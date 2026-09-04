@@ -259,6 +259,7 @@ export function DocumentsListPage() {
         </div>
 
         <section className="dashboard-section">
+          <h2>Documents</h2>
           <div className="field-row">
             <label>
               Filter by committee
@@ -443,10 +444,11 @@ export function DocumentsListPage() {
             </table>
             </div>
           )}
+        </section>
 
-          {canManage && (
-            <>
-              <h3>Upload a document</h3>
+        {canManage && (
+          <section className="dashboard-section">
+            <h2>Upload a document</h2>
               <form className="add-user-form" onSubmit={handleUpload}>
                 <label>
                   File
@@ -498,9 +500,8 @@ export function DocumentsListPage() {
                   {submitting ? "Uploading..." : "Upload document"}
                 </button>
               </form>
-            </>
-          )}
-        </section>
+          </section>
+        )}
       </main>
     </div>
   );
