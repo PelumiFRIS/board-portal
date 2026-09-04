@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { getUnreadCount } from "../api/messaging";
 import { useAuth } from "../context/AuthContext";
@@ -189,25 +189,33 @@ function ConflictIcon() {
 }
 
 const NAV_ITEMS = [
-  { to: "/dashboard", label: "Dashboard", icon: DashboardIcon, adminOnly: false, managementOnly: false },
-  { to: "/meetings", label: "Meetings", icon: MeetingsIcon, adminOnly: false, managementOnly: false },
-  { to: "/resolutions", label: "Resolutions", icon: ResolutionsIcon, adminOnly: false, managementOnly: false },
+  { to: "/dashboard", label: "Dashboard", icon: DashboardIcon, adminOnly: false, managementOnly: false, group: "Overview" },
+  { to: "/meetings", label: "Meetings", icon: MeetingsIcon, adminOnly: false, managementOnly: false, group: "Governance" },
+  { to: "/resolutions", label: "Resolutions", icon: ResolutionsIcon, adminOnly: false, managementOnly: false, group: "Governance" },
   {
     to: "/matters-arising",
     label: "Agenda & Matters Arising",
     icon: MattersArisingIcon,
     adminOnly: false,
     managementOnly: false,
+    group: "Governance",
   },
-  { to: "/documents", label: "Documents", icon: DocumentsIcon, adminOnly: false, managementOnly: false },
-  { to: "/directory", label: "Directory", icon: DirectoryIcon, adminOnly: false, managementOnly: false },
-  { to: "/messages", label: "Messages", icon: MessagesIcon, adminOnly: false, managementOnly: false },
-  { to: "/committees", label: "Committees", icon: CommitteesIcon, adminOnly: false, managementOnly: false },
-  { to: "/compliance", label: "Compliance", icon: ComplianceIcon, adminOnly: false, managementOnly: false },
-  { to: "/conflicts", label: "Conflicts of Interest", icon: ConflictIcon, adminOnly: false, managementOnly: false },
-  { to: "/resources", label: "Resources", icon: ResourcesIcon, adminOnly: false, managementOnly: false },
-  { to: "/audit", label: "Audit Trail", icon: AuditIcon, adminOnly: false, managementOnly: true },
-  { to: "/integrations", label: "Integrations", icon: IntegrationsIcon, adminOnly: true, managementOnly: false },
+  { to: "/committees", label: "Committees", icon: CommitteesIcon, adminOnly: false, managementOnly: false, group: "Governance" },
+  { to: "/documents", label: "Documents", icon: DocumentsIcon, adminOnly: false, managementOnly: false, group: "Records" },
+  { to: "/resources", label: "Resources", icon: ResourcesIcon, adminOnly: false, managementOnly: false, group: "Records" },
+  { to: "/compliance", label: "Compliance", icon: ComplianceIcon, adminOnly: false, managementOnly: false, group: "Compliance" },
+  {
+    to: "/conflicts",
+    label: "Conflicts of Interest",
+    icon: ConflictIcon,
+    adminOnly: false,
+    managementOnly: false,
+    group: "Compliance",
+  },
+  { to: "/directory", label: "Directory", icon: DirectoryIcon, adminOnly: false, managementOnly: false, group: "People" },
+  { to: "/messages", label: "Messages", icon: MessagesIcon, adminOnly: false, managementOnly: false, group: "People" },
+  { to: "/audit", label: "Audit Trail", icon: AuditIcon, adminOnly: false, managementOnly: true, group: "Admin" },
+  { to: "/integrations", label: "Integrations", icon: IntegrationsIcon, adminOnly: true, managementOnly: false, group: "Admin" },
 ];
 
 export function Sidebar() {
@@ -265,17 +273,19 @@ export function Sidebar() {
         </div>
         <div className="sidebar-org">{user.organizationName}</div>
         <nav className="sidebar-nav">
-          {visibleNavItems.map(({ to, label, icon: Icon }) => (
-            <Link
-              key={to}
-              to={to}
-              className={location.pathname === to || location.pathname.startsWith(`${to}/`) ? "active" : ""}
-              onClick={() => setIsOpen(false)}
-            >
-              <Icon />
-              {label}
-              {to === "/messages" && unreadCount > 0 && <span className="nav-unread-badge">{unreadCount}</span>}
-            </Link>
+          {visibleNavItems.map(({ to, label, icon: Icon, group }, index) => (
+            <Fragment key={to}>
+              {group !== visibleNavItems[index - 1]?.group && <span className="sidebar-nav-group">{group}</span>}
+              <Link
+                to={to}
+                className={location.pathname === to || location.pathname.startsWith(`${to}/`) ? "active" : ""}
+                onClick={() => setIsOpen(false)}
+              >
+                <Icon />
+                {label}
+                {to === "/messages" && unreadCount > 0 && <span className="nav-unread-badge">{unreadCount}</span>}
+              </Link>
+            </Fragment>
           ))}
         </nav>
         <div className="sidebar-footer">

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { DashboardStats as DashboardStatsType, MonthlyCount } from "../api/types";
 
 function formatPercent(rate: number): string {
@@ -10,11 +11,14 @@ interface StatCardProps {
   breakdown: string;
   overdue?: number;
   overdueLabel?: string;
+  accent: "primary" | "gold" | "info" | "success";
+  icon: ReactNode;
 }
 
-function StatCard({ label, value, breakdown, overdue, overdueLabel }: StatCardProps) {
+function StatCard({ label, value, breakdown, overdue, overdueLabel, accent, icon }: StatCardProps) {
   return (
-    <div className="stat-card">
+    <div className={`stat-card stat-card-${accent}`}>
+      <span className="stat-card-icon">{icon}</span>
       <span className="stat-card-label">{label}</span>
       <span className="stat-card-value">{value}</span>
       <span className="stat-card-breakdown">{breakdown}</span>
@@ -24,6 +28,58 @@ function StatCard({ label, value, breakdown, overdue, overdueLabel }: StatCardPr
         </span>
       )}
     </div>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18.75zm0-7.5h18"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function GavelIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChecklistIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M9 6.75h10.5M9 12h10.5M9 17.25h10.5M4.5 6.75h.008v.008H4.5V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM4.5 12h.008v.008H4.5V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.008v.008H4.5v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M9 12.75L11.25 15 15 9.75m6-3.75c0 5.592-3.824 9.75-9 11.25C6.824 15.75 3 11.592 3 6c1.6-.6 3.6-1.2 6-1.2s4.4.6 6 1.2z"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -99,23 +155,31 @@ export function DashboardStats({ stats }: { stats: DashboardStatsType }) {
           label="Meetings"
           value={meetings.total}
           breakdown={`${meetings.scheduled} scheduled · ${meetings.completed} completed · ${meetings.cancelled} cancelled`}
+          accent="primary"
+          icon={<CalendarIcon />}
         />
         <StatCard
           label="Resolutions"
           value={resolutions.total}
           breakdown={`${resolutions.open} open · ${resolutions.closed} closed`}
+          accent="gold"
+          icon={<GavelIcon />}
         />
         <StatCard
           label="Action items"
           value={actionItems.total}
           breakdown={`${actionItems.open} open · ${actionItems.done} done`}
           overdue={actionItems.overdue}
+          accent="info"
+          icon={<ChecklistIcon />}
         />
         <StatCard
           label="Compliance filings"
           value={compliance.total}
           breakdown={`${compliance.submitted} submitted · ${compliance.pending} pending`}
           overdue={compliance.overdue}
+          accent="success"
+          icon={<ShieldIcon />}
         />
       </div>
 
