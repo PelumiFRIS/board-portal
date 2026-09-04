@@ -26,13 +26,16 @@ public class MeetingRecordingService {
     private final MeetingRepository meetingRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final OpenAiTranscriptionService transcriptionService;
 
     public MeetingRecordingService(MeetingRecordingRepository meetingRecordingRepository,
-            MeetingRepository meetingRepository, UserRepository userRepository, AuditLogService auditLogService) {
+            MeetingRepository meetingRepository, UserRepository userRepository, AuditLogService auditLogService,
+            OpenAiTranscriptionService transcriptionService) {
         this.meetingRecordingRepository = meetingRecordingRepository;
         this.meetingRepository = meetingRepository;
         this.userRepository = userRepository;
         this.auditLogService = auditLogService;
+        this.transcriptionService = transcriptionService;
     }
 
     public List<MeetingRecordingSummary> listForMeeting(AppUserPrincipal principal, UUID meetingId) {
@@ -96,6 +99,32 @@ public class MeetingRecordingService {
                 recording.getId(), "Deleted a recording from this meeting");
     }
 
+    public MeetingRecordingSummary generateTranscript(AppUserPrincipal admin, UUID meetingId, UUID recordingId) {
+        MeetingRecording recording = findInOrg(admin, recordingId);
+        if (!recording.getMeetingId().equals(meetingId)) {
+            throw ApiException.notFound("Recording not found");
+        }
+
+        try {
+            String text = transcriptionService.transcribe(recording.getFileData(), recording.getFileName(),
+                    recording.getContentType());
+            recording.setTranscriptText(text);
+            recording.setTranscriptionStatus(TranscriptionStatus.COMPLETE);
+            meetingRecordingRepository.save(recording);
+
+            auditLogService.record(admin, AuditAction.TRANSCRIPTION_GENERATED, AuditEntityType.MEETING_RECORDING,
+                    recording.getId(), "Generated a transcript for this recording");
+        } catch (RuntimeException e) {
+            recording.setTranscriptionStatus(TranscriptionStatus.FAILED);
+            meetingRecordingRepository.save(recording);
+            throw e;
+        }
+
+        Map<UUID, User> usersById = userRepository.findByOrganizationId(admin.getOrganizationId()).stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
+        return toSummary(recording, usersById);
+    }
+
     private void findMeetingInOrg(AppUserPrincipal principal, UUID meetingId) {
         meetingRepository.findByIdAndOrganizationId(meetingId, principal.getOrganizationId())
                 .orElseThrow(() -> ApiException.notFound("Meeting not found"));
@@ -112,6 +141,7 @@ public class MeetingRecordingService {
                 ? recordedBy.getFirstName() + " " + recordedBy.getLastName()
                 : "Unknown";
         return new MeetingRecordingSummary(recording.getId(), recording.getMeetingId(), recording.getFileName(),
-                recording.getContentType(), recording.getFileSize(), recordedByName, recording.getCreatedAt());
+                recording.getContentType(), recording.getFileSize(), recordedByName, recording.getCreatedAt(),
+                recording.getTranscriptText(), recording.getTranscriptionStatus());
     }
 }

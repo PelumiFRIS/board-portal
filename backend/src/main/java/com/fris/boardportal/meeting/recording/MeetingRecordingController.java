@@ -63,4 +63,11 @@ public class MeetingRecordingController {
         meetingRecordingService.delete(principal, meetingId, recordingId);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{recordingId}/transcript")
+    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    public MeetingRecordingSummary generateTranscript(@AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID meetingId, @PathVariable UUID recordingId) {
+        return meetingRecordingService.generateTranscript(principal, meetingId, recordingId);
+    }
 }

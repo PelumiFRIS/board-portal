@@ -2,6 +2,8 @@ package com.fris.boardportal.meeting.recording;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
@@ -46,6 +48,13 @@ public class MeetingRecording {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "transcript_text")
+    private String transcriptText;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transcription_status", nullable = false)
+    private TranscriptionStatus transcriptionStatus;
+
     public static MeetingRecording create(UUID organizationId, UUID meetingId, String fileName, String contentType,
             byte[] fileData, UUID recordedBy) {
         MeetingRecording recording = new MeetingRecording();
@@ -58,6 +67,7 @@ public class MeetingRecording {
         recording.setFileData(fileData);
         recording.setRecordedBy(recordedBy);
         recording.setCreatedAt(Instant.now());
+        recording.setTranscriptionStatus(TranscriptionStatus.NONE);
         return recording;
     }
 }

@@ -136,6 +136,8 @@ export interface MeetingDetail {
   actionItems: ActionItemSummary[];
 }
 
+export type TranscriptionStatus = "NONE" | "PENDING" | "COMPLETE" | "FAILED";
+
 export interface MeetingRecordingSummary {
   id: string;
   meetingId: string;
@@ -144,6 +146,8 @@ export interface MeetingRecordingSummary {
   fileSize: number;
   recordedByName: string;
   createdAt: string;
+  transcriptText: string | null;
+  transcriptionStatus: TranscriptionStatus;
 }
 
 export interface MatterArisingItem {

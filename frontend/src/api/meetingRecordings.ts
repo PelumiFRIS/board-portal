@@ -43,3 +43,10 @@ export async function downloadMeetingRecording(meetingId: string, recordingId: s
 export async function deleteMeetingRecording(meetingId: string, recordingId: string): Promise<void> {
   await apiClient.delete(`/api/meetings/${meetingId}/recordings/${recordingId}`);
 }
+
+export async function generateTranscript(meetingId: string, recordingId: string): Promise<MeetingRecordingSummary> {
+  const { data } = await apiClient.post<MeetingRecordingSummary>(
+    `/api/meetings/${meetingId}/recordings/${recordingId}/transcript`,
+  );
+  return data;
+}

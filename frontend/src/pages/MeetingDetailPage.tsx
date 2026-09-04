@@ -22,6 +22,7 @@ import { createActionItem, deleteActionItem, updateActionItemStatus } from "../a
 import {
   deleteMeetingRecording,
   downloadMeetingRecording,
+  generateTranscript,
   listMeetingRecordings,
   uploadMeetingRecording,
 } from "../api/meetingRecordings";
@@ -95,6 +96,7 @@ export function MeetingDetailPage() {
   const [uploadingRecording, setUploadingRecording] = useState(false);
   const [deletingRecordingId, setDeletingRecordingId] = useState<string | null>(null);
   const [expandedRecordingId, setExpandedRecordingId] = useState<string | null>(null);
+  const [transcribingRecordingId, setTranscribingRecordingId] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -235,6 +237,27 @@ export function MeetingDetailPage() {
     } finally {
       setDeletingRecordingId(null);
     }
+  }
+
+  async function handleGenerateTranscript(recordingId: string) {
+    if (!id) return;
+    setRecordingError(null);
+    setTranscribingRecordingId(recordingId);
+    try {
+      const updated = await generateTranscript(id, recordingId);
+      setRecordings((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      if (updated.transcriptionStatus === "FAILED") {
+        setRecordingError("Transcription failed. Try again, or check the server's transcription configuration.");
+      }
+    } catch (err) {
+      setRecordingError(extractErrorMessage(err));
+    } finally {
+      setTranscribingRecordingId(null);
+    }
+  }
+
+  function handleAddTranscriptToMinutes(transcriptText: string) {
+    setMinutesDraft((prev) => (prev ? `${prev}\n\n${transcriptText}` : transcriptText));
   }
 
   async function handleAddAgendaItem(event: FormEvent) {
@@ -1016,6 +1039,15 @@ export function MeetingDetailPage() {
                       >
                         Download
                       </button>
+                      {canManage && recording.transcriptionStatus !== "COMPLETE" && (
+                        <button
+                          className="secondary small"
+                          disabled={transcribingRecordingId === recording.id}
+                          onClick={() => handleGenerateTranscript(recording.id)}
+                        >
+                          {transcribingRecordingId === recording.id ? "Transcribing..." : "Generate transcript"}
+                        </button>
+                      )}
                       {canManage && (
                         <button
                           className="secondary small"
@@ -1026,6 +1058,23 @@ export function MeetingDetailPage() {
                         </button>
                       )}
                     </div>
+                    {recording.transcriptionStatus === "FAILED" && (
+                      <p className="form-error">
+                        Transcription failed. Try again, or check the transcription service configuration.
+                      </p>
+                    )}
+                    {recording.transcriptText && (
+                      <div className="resource-body">
+                        <p className="table-hint">Transcript</p>
+                        <p>{recording.transcriptText}</p>
+                        <button
+                          className="secondary small"
+                          onClick={() => handleAddTranscriptToMinutes(recording.transcriptText!)}
+                        >
+                          Add to minutes
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
 

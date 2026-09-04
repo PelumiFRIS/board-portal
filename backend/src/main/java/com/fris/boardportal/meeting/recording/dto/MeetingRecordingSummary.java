@@ -1,5 +1,6 @@
 package com.fris.boardportal.meeting.recording.dto;
 
+import com.fris.boardportal.meeting.recording.TranscriptionStatus;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -10,5 +11,7 @@ public record MeetingRecordingSummary(
         String contentType,
         long fileSize,
         String recordedByName,
-        Instant createdAt) {
+        Instant createdAt,
+        String transcriptText,
+        TranscriptionStatus transcriptionStatus) {
 }
