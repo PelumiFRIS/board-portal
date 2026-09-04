@@ -41,7 +41,6 @@ export function ResolutionsPage() {
 
   const [meetingId, setMeetingId] = useState("");
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -74,11 +73,10 @@ export function ResolutionsPage() {
     }
     setCreating(true);
     try {
-      const resolution = await createResolution({ meetingId, title, description: description || undefined });
+      const resolution = await createResolution({ meetingId, title });
       setResolutions((prev) => [resolution, ...prev]);
       setMeetingId("");
       setTitle("");
-      setDescription("");
     } catch (err) {
       setFormError(extractErrorMessage(err));
     } finally {
@@ -301,10 +299,6 @@ export function ResolutionsPage() {
                 <label>
                   Title
                   <input value={title} onChange={(e) => setTitle(e.target.value)} required />
-                </label>
-                <label>
-                  Description
-                  <input value={description} onChange={(e) => setDescription(e.target.value)} />
                 </label>
                 {formError && <p className="form-error">{formError}</p>}
                 <button type="submit" disabled={creating}>

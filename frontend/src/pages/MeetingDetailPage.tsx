@@ -65,7 +65,6 @@ export function MeetingDetailPage() {
   const [savingMinutes, setSavingMinutes] = useState(false);
 
   const [newResolutionTitle, setNewResolutionTitle] = useState("");
-  const [newResolutionDescription, setNewResolutionDescription] = useState("");
   const [creatingResolution, setCreatingResolution] = useState(false);
   const [busyResolutionId, setBusyResolutionId] = useState<string | null>(null);
   const [expandedResolutionId, setExpandedResolutionId] = useState<string | null>(null);
@@ -215,11 +214,9 @@ export function MeetingDetailPage() {
       const resolution = await createResolution({
         meetingId: id,
         title: newResolutionTitle,
-        description: newResolutionDescription || undefined,
       });
       setMeeting((prev) => (prev ? { ...prev, resolutions: [resolution, ...prev.resolutions] } : prev));
       setNewResolutionTitle("");
-      setNewResolutionDescription("");
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
@@ -416,7 +413,7 @@ export function MeetingDetailPage() {
             </section>
 
             <section className="dashboard-section">
-              <h2>Agenda</h2>
+              <h2>Agenda Setting</h2>
               {meeting.agendaItems.length === 0 && (
                 <div className="empty-state">
                   <p>No agenda items yet.</p>
@@ -626,10 +623,6 @@ export function MeetingDetailPage() {
                   <label>
                     New resolution
                     <input value={newResolutionTitle} onChange={(e) => setNewResolutionTitle(e.target.value)} required />
-                  </label>
-                  <label>
-                    Description
-                    <input value={newResolutionDescription} onChange={(e) => setNewResolutionDescription(e.target.value)} />
                   </label>
                   <button type="submit" disabled={creatingResolution}>
                     {creatingResolution ? "Creating..." : "Add resolution"}

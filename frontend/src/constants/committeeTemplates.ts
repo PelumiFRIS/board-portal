@@ -4,7 +4,10 @@ export const STANDARD_COMMITTEES: string[] = [
   "Nominations & Governance Committee",
   "Enterprise Risk Committee",
   "Remuneration & Compensation",
-  "IT Steering/Cyber Committee",
+  "IT Steering/Cyber Security Committee",
   "Advisory Committee",
   "Ad-hoc Committee",
+  "Audit Committee",
+  "Compliance Committee",
+  "ESG/Sustainability Committee",
 ];

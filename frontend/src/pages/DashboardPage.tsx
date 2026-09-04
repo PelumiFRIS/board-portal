@@ -27,7 +27,7 @@ import { STANDARD_COMMITTEES } from "../constants/committeeTemplates";
 
 const ROLE_OPTIONS: Role[] = ["BOARD_MEMBER", "EXECUTIVE", "ADMIN"];
 const ROLE_LABELS: Record<Role, string> = {
-  BOARD_MEMBER: "Board Members",
+  BOARD_MEMBER: "Board Member",
   EXECUTIVE: "Executive Management",
   ADMIN: "Admin",
 };
