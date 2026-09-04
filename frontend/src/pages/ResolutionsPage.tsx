@@ -16,6 +16,8 @@ import { Sidebar } from "../components/Sidebar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 
+const MAX_BATCH_SIZE = 12;
+
 function EmptyResolutionsIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -40,8 +42,9 @@ export function ResolutionsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const [meetingId, setMeetingId] = useState("");
-  const [title, setTitle] = useState("");
-  const [creating, setCreating] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [queuedTitles, setQueuedTitles] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -64,23 +67,48 @@ export function ResolutionsPage() {
     setResolutions((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
   }
 
-  async function handleCreateResolution(event: FormEvent) {
+  function handleQueueTitle(event: FormEvent) {
     event.preventDefault();
     setFormError(null);
-    if (!meetingId) {
-      setFormError("Pick a meeting for this resolution.");
+    const trimmed = draftTitle.trim();
+    if (!trimmed) return;
+    if (queuedTitles.length >= MAX_BATCH_SIZE) {
+      setFormError(`You can queue up to ${MAX_BATCH_SIZE} resolutions at a time.`);
       return;
     }
-    setCreating(true);
-    try {
-      const resolution = await createResolution({ meetingId, title });
-      setResolutions((prev) => [resolution, ...prev]);
+    setQueuedTitles((prev) => [...prev, trimmed]);
+    setDraftTitle("");
+  }
+
+  function handleRemoveQueuedTitle(index: number) {
+    setQueuedTitles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleSubmitBatch() {
+    setFormError(null);
+    if (!meetingId) {
+      setFormError("Pick a meeting for these resolutions.");
+      return;
+    }
+    if (queuedTitles.length === 0) return;
+    setSubmitting(true);
+    const remaining: string[] = [];
+    const errors: string[] = [];
+    for (const queuedTitle of queuedTitles) {
+      try {
+        const resolution = await createResolution({ meetingId, title: queuedTitle });
+        setResolutions((prev) => [resolution, ...prev]);
+      } catch (err) {
+        remaining.push(queuedTitle);
+        errors.push(`"${queuedTitle}": ${extractErrorMessage(err)}`);
+      }
+    }
+    setQueuedTitles(remaining);
+    setSubmitting(false);
+    if (errors.length > 0) {
+      setFormError(errors.join(" · "));
+    } else {
       setMeetingId("");
-      setTitle("");
-    } catch (err) {
-      setFormError(extractErrorMessage(err));
-    } finally {
-      setCreating(false);
     }
   }
 
@@ -281,14 +309,12 @@ export function ResolutionsPage() {
 
           {canManage && (
             <>
-              <h3>Propose a resolution</h3>
-              <form className="add-user-form" onSubmit={handleCreateResolution}>
+              <h3>Propose resolutions</h3>
+              <div className="add-user-form">
                 <label>
                   Meeting
-                  <select value={meetingId} onChange={(e) => setMeetingId(e.target.value)} required>
-                    <option value="" disabled>
-                      — choose a meeting —
-                    </option>
+                  <select value={meetingId} onChange={(e) => setMeetingId(e.target.value)}>
+                    <option value="">— choose a meeting —</option>
                     {meetings.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.title} ({new Date(m.scheduledStart).toLocaleDateString()})
@@ -296,15 +322,41 @@ export function ResolutionsPage() {
                     ))}
                   </select>
                 </label>
+              </div>
+
+              <form className="add-user-form" onSubmit={handleQueueTitle}>
                 <label>
-                  Title
-                  <input value={title} onChange={(e) => setTitle(e.target.value)} required />
+                  Resolution title
+                  <input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} required />
                 </label>
                 {formError && <p className="form-error">{formError}</p>}
-                <button type="submit" disabled={creating}>
-                  {creating ? "Creating..." : "Add resolution"}
+                <button type="submit" disabled={queuedTitles.length >= MAX_BATCH_SIZE}>
+                  Add to batch
                 </button>
               </form>
+
+              {queuedTitles.length > 0 && (
+                <>
+                  <p className="table-hint">
+                    {queuedTitles.length}/{MAX_BATCH_SIZE} queued
+                  </p>
+                  {queuedTitles.map((queuedTitle, index) => (
+                    <div key={`${queuedTitle}-${index}`} className="agenda-item-row">
+                      <div className="agenda-item-body">
+                        <strong>{queuedTitle}</strong>
+                      </div>
+                      <button className="secondary small" onClick={() => handleRemoveQueuedTitle(index)}>
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <button disabled={submitting} onClick={handleSubmitBatch}>
+                    {submitting
+                      ? "Proposing..."
+                      : `Propose ${queuedTitles.length} resolution${queuedTitles.length === 1 ? "" : "s"}`}
+                  </button>
+                </>
+              )}
             </>
           )}
         </section>

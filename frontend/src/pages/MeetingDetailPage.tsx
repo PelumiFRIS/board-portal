@@ -37,6 +37,8 @@ import { Sidebar } from "../components/Sidebar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 
+const MAX_RESOLUTION_BATCH_SIZE = 12;
+
 export function MeetingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -50,7 +52,8 @@ export function MeetingDetailPage() {
   const [newItemTitle, setNewItemTitle] = useState("");
   const [newItemDescription, setNewItemDescription] = useState("");
   const [addingItem, setAddingItem] = useState(false);
-  const [templatePick, setTemplatePick] = useState("");
+  const [selectedTemplateItems, setSelectedTemplateItems] = useState<string[]>([]);
+  const [addingTemplateItems, setAddingTemplateItems] = useState(false);
 
   const [mattersArising, setMattersArising] = useState<MatterArisingItem[]>([]);
   const [loadingMattersArising, setLoadingMattersArising] = useState(true);
@@ -65,7 +68,8 @@ export function MeetingDetailPage() {
   const [savingMinutes, setSavingMinutes] = useState(false);
 
   const [newResolutionTitle, setNewResolutionTitle] = useState("");
-  const [creatingResolution, setCreatingResolution] = useState(false);
+  const [queuedResolutionTitles, setQueuedResolutionTitles] = useState<string[]>([]);
+  const [submittingResolutions, setSubmittingResolutions] = useState(false);
   const [busyResolutionId, setBusyResolutionId] = useState<string | null>(null);
   const [expandedResolutionId, setExpandedResolutionId] = useState<string | null>(null);
   const [resolutionVotes, setResolutionVotes] = useState<Record<string, VoteRecord[]>>({});
@@ -116,12 +120,35 @@ export function MeetingDetailPage() {
       setMeeting((prev) => (prev ? { ...prev, agendaItems: [...prev.agendaItems, item] } : prev));
       setNewItemTitle("");
       setNewItemDescription("");
-      setTemplatePick("");
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
       setAddingItem(false);
     }
+  }
+
+  function handleToggleTemplateItem(itemLabel: string) {
+    setSelectedTemplateItems((prev) =>
+      prev.includes(itemLabel) ? prev.filter((label) => label !== itemLabel) : [...prev, itemLabel],
+    );
+  }
+
+  async function handleAddTemplateItems() {
+    if (!id || selectedTemplateItems.length === 0) return;
+    setActionError(null);
+    setAddingTemplateItems(true);
+    const remaining: string[] = [];
+    for (const label of selectedTemplateItems) {
+      try {
+        const item = await addAgendaItem(id, { title: label });
+        setMeeting((prev) => (prev ? { ...prev, agendaItems: [...prev.agendaItems, item] } : prev));
+      } catch (err) {
+        remaining.push(label);
+        setActionError(extractErrorMessage(err));
+      }
+    }
+    setSelectedTemplateItems(remaining);
+    setAddingTemplateItems(false);
   }
 
   async function handleAddMatterToAgenda(matter: MatterArisingItem) {
@@ -205,22 +232,42 @@ export function MeetingDetailPage() {
     );
   }
 
-  async function handleCreateResolution(event: FormEvent) {
+  function handleQueueResolutionTitle(event: FormEvent) {
     event.preventDefault();
-    if (!id) return;
     setActionError(null);
-    setCreatingResolution(true);
-    try {
-      const resolution = await createResolution({
-        meetingId: id,
-        title: newResolutionTitle,
-      });
-      setMeeting((prev) => (prev ? { ...prev, resolutions: [resolution, ...prev.resolutions] } : prev));
-      setNewResolutionTitle("");
-    } catch (err) {
-      setActionError(extractErrorMessage(err));
-    } finally {
-      setCreatingResolution(false);
+    const trimmed = newResolutionTitle.trim();
+    if (!trimmed) return;
+    if (queuedResolutionTitles.length >= MAX_RESOLUTION_BATCH_SIZE) {
+      setActionError(`You can queue up to ${MAX_RESOLUTION_BATCH_SIZE} resolutions at a time.`);
+      return;
+    }
+    setQueuedResolutionTitles((prev) => [...prev, trimmed]);
+    setNewResolutionTitle("");
+  }
+
+  function handleRemoveQueuedResolutionTitle(index: number) {
+    setQueuedResolutionTitles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleSubmitResolutionBatch() {
+    if (!id || queuedResolutionTitles.length === 0) return;
+    setActionError(null);
+    setSubmittingResolutions(true);
+    const remaining: string[] = [];
+    const errors: string[] = [];
+    for (const queuedTitle of queuedResolutionTitles) {
+      try {
+        const resolution = await createResolution({ meetingId: id, title: queuedTitle });
+        setMeeting((prev) => (prev ? { ...prev, resolutions: [resolution, ...prev.resolutions] } : prev));
+      } catch (err) {
+        remaining.push(queuedTitle);
+        errors.push(`"${queuedTitle}": ${extractErrorMessage(err)}`);
+      }
+    }
+    setQueuedResolutionTitles(remaining);
+    setSubmittingResolutions(false);
+    if (errors.length > 0) {
+      setActionError(errors.join(" · "));
     }
   }
 
@@ -458,36 +505,49 @@ export function MeetingDetailPage() {
               )}
 
               {canManage && (
-                <form className="add-user-form" onSubmit={handleAddAgendaItem}>
-                  <label>
-                    Quick add from template
-                    <select
-                      value={templatePick}
-                      onChange={(e) => {
-                        setTemplatePick(e.target.value);
-                        if (e.target.value) setNewItemTitle(e.target.value);
-                      }}
-                    >
-                      <option value="">— choose a standard item —</option>
+                <>
+                  <div className="add-user-form">
+                    <label>Quick add from template</label>
+                    <div className="recipient-picker">
                       {STANDARD_AGENDA_ITEMS.map((label) => (
-                        <option key={label} value={label}>
-                          {label}
-                        </option>
+                        <label key={label} className="recipient-picker-item">
+                          <input
+                            type="checkbox"
+                            checked={selectedTemplateItems.includes(label)}
+                            onChange={() => handleToggleTemplateItem(label)}
+                          />
+                          <span>{label}</span>
+                        </label>
                       ))}
-                    </select>
-                  </label>
-                  <label>
-                    New agenda item
-                    <input value={newItemTitle} onChange={(e) => setNewItemTitle(e.target.value)} required />
-                  </label>
-                  <label>
-                    Description
-                    <input value={newItemDescription} onChange={(e) => setNewItemDescription(e.target.value)} />
-                  </label>
-                  <button type="submit" disabled={addingItem}>
-                    {addingItem ? "Adding..." : "Add agenda item"}
-                  </button>
-                </form>
+                    </div>
+                    {selectedTemplateItems.length > 0 && (
+                      <button
+                        type="button"
+                        className="secondary small"
+                        disabled={addingTemplateItems}
+                        onClick={handleAddTemplateItems}
+                      >
+                        {addingTemplateItems
+                          ? "Adding..."
+                          : `Add ${selectedTemplateItems.length} selected item${selectedTemplateItems.length === 1 ? "" : "s"}`}
+                      </button>
+                    )}
+                  </div>
+
+                  <form className="add-user-form" onSubmit={handleAddAgendaItem}>
+                    <label>
+                      New agenda item
+                      <input value={newItemTitle} onChange={(e) => setNewItemTitle(e.target.value)} required />
+                    </label>
+                    <label>
+                      Description
+                      <input value={newItemDescription} onChange={(e) => setNewItemDescription(e.target.value)} />
+                    </label>
+                    <button type="submit" disabled={addingItem}>
+                      {addingItem ? "Adding..." : "Add agenda item"}
+                    </button>
+                  </form>
+                </>
               )}
             </section>
 
@@ -619,15 +679,47 @@ export function MeetingDetailPage() {
               })}
 
               {canManage && (
-                <form className="add-user-form" onSubmit={handleCreateResolution}>
-                  <label>
-                    New resolution
-                    <input value={newResolutionTitle} onChange={(e) => setNewResolutionTitle(e.target.value)} required />
-                  </label>
-                  <button type="submit" disabled={creatingResolution}>
-                    {creatingResolution ? "Creating..." : "Add resolution"}
-                  </button>
-                </form>
+                <>
+                  <form className="add-user-form" onSubmit={handleQueueResolutionTitle}>
+                    <label>
+                      Resolution title
+                      <input
+                        value={newResolutionTitle}
+                        onChange={(e) => setNewResolutionTitle(e.target.value)}
+                        required
+                      />
+                    </label>
+                    <button type="submit" disabled={queuedResolutionTitles.length >= MAX_RESOLUTION_BATCH_SIZE}>
+                      Add to batch
+                    </button>
+                  </form>
+
+                  {queuedResolutionTitles.length > 0 && (
+                    <>
+                      <p className="table-hint">
+                        {queuedResolutionTitles.length}/{MAX_RESOLUTION_BATCH_SIZE} queued
+                      </p>
+                      {queuedResolutionTitles.map((queuedTitle, index) => (
+                        <div key={`${queuedTitle}-${index}`} className="agenda-item-row">
+                          <div className="agenda-item-body">
+                            <strong>{queuedTitle}</strong>
+                          </div>
+                          <button
+                            className="secondary small"
+                            onClick={() => handleRemoveQueuedResolutionTitle(index)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                      <button disabled={submittingResolutions} onClick={handleSubmitResolutionBatch}>
+                        {submittingResolutions
+                          ? "Proposing..."
+                          : `Propose ${queuedResolutionTitles.length} resolution${queuedResolutionTitles.length === 1 ? "" : "s"}`}
+                      </button>
+                    </>
+                  )}
+                </>
               )}
             </section>
 
