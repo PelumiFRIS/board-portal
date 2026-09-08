@@ -427,12 +427,12 @@ code {
 
 .sidebar-logo {
   background: #fff;
-  padding: 14px 20px;
+  padding: 18px 20px;
   border-bottom: 3px solid var(--accent);
 }
 
 .sidebar-logo img {
-  height: 22px;
+  height: 32px;
   width: auto;
   display: block;
 }
@@ -664,7 +664,7 @@ code {
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 30px;
 }
 
 .page-header h1 {
@@ -701,12 +701,12 @@ code {
 .dashboard-section {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 28px 30px;
+  border-radius: 14px;
+  padding: 30px 32px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 26px;
   box-shadow: var(--shadow-card), var(--shadow-inset-top);
 }
 
@@ -726,20 +726,26 @@ code {
 
 .stat-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
 }
 
 .stat-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 18px 16px 16px;
+  gap: 6px;
+  padding: 24px 22px 22px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-top: 3px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: 14px;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.stat-card:hover {
+  box-shadow: 0 4px 14px -6px rgba(16, 24, 40, 0.16);
+  transform: translateY(-1px);
 }
 
 .stat-card-primary { border-top-color: var(--primary); }
@@ -751,10 +757,10 @@ code {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  margin-bottom: 6px;
-  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 8px;
+  border-radius: 9px;
   background: var(--primary-tint);
   color: var(--primary);
 }
@@ -765,23 +771,25 @@ code {
 .stat-card-success .stat-card-icon { background: var(--success-bg); color: var(--success-text); }
 
 .stat-card-icon svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 .stat-card-label {
   font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
   font-family: var(--font-heading);
   font-weight: 600;
 }
 
 .stat-card-value {
-  font-size: 28px;
+  font-size: 38px;
   font-weight: 700;
   font-family: var(--font-heading);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
   color: var(--text-h);
 }
 
@@ -792,20 +800,21 @@ code {
 
 .stat-card-overdue {
   align-self: flex-start;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .stats-detail-grid {
   display: grid;
   grid-template-columns: 1.3fr 1fr;
-  gap: 24px;
+  gap: 28px;
+  padding-top: 22px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
 }
 
 .cadence-chart h3,
 .rate-bar-group h3 {
-  margin: 0 0 12px;
-  font-size: 14px;
-  color: var(--text-muted);
+  margin-bottom: 14px;
 }
 
 .cadence-chart-svg {
