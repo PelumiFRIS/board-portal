@@ -362,6 +362,12 @@ button.small {
   margin: 0;
 }
 
+.form-success {
+  color: var(--success-text);
+  font-size: 14px;
+  margin: 0;
+}
+
 code {
   font-family: "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.9em;
@@ -502,14 +508,24 @@ code {
 
 .nav-unread-badge {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
   background: var(--accent);
   color: #12406e;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   font-family: var(--font-heading);
   border-radius: 999px;
-  padding: 1px 6px;
-  line-height: 1.5;
+  line-height: 1;
+}
+
+.nav-unread-badge-danger {
+  background: var(--danger);
+  color: #fff;
 }
 
 .sidebar-footer {
@@ -764,41 +780,80 @@ code {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  min-width: 160px;
+  min-width: 240px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   box-shadow: var(--shadow-lg);
   overflow: hidden;
   z-index: 30;
 }
 
+.topbar-user-menu-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-user-menu-header strong {
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.topbar-user-menu-header span {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.topbar-user-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.topbar-user-menu a,
 .topbar-user-menu button {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   width: 100%;
   text-align: left;
-  padding: 10px 14px;
+  padding: 10px 16px;
   background: none;
   border: none;
   border-radius: 0;
   color: var(--text);
+  text-decoration: none;
   font-weight: 500;
   font-size: 13.5px;
+  font-family: var(--font-heading);
   box-shadow: none;
 }
 
+.topbar-user-menu a svg,
 .topbar-user-menu button svg {
   width: 16px;
   height: 16px;
+  flex-shrink: 0;
 }
 
+.topbar-user-menu a:hover,
 .topbar-user-menu button:hover {
   background: var(--primary-tint);
   color: var(--primary);
   transform: none;
   box-shadow: none;
+}
+
+.topbar-user-menu-danger {
+  color: var(--danger) !important;
+}
+
+.topbar-user-menu-danger:hover {
+  background: var(--danger-bg) !important;
+  color: var(--danger) !important;
 }
 
 @media (max-width: 768px) {

@@ -2,6 +2,7 @@ package com.fris.boardportal.user;
 
 import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.user.dto.CalendarTokenResponse;
+import com.fris.boardportal.user.dto.ChangePasswordRequest;
 import com.fris.boardportal.user.dto.CreateUserRequest;
 import com.fris.boardportal.user.dto.UpdateUserRequest;
 import com.fris.boardportal.user.dto.UserSummary;
@@ -83,6 +84,13 @@ public class UserController {
     public ResponseEntity<Void> deletePhoto(@AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID id) {
         userService.deletePhoto(principal, id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/me/password")
+    public ResponseEntity<Void> changePassword(@AuthenticationPrincipal AppUserPrincipal principal,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        userService.changePassword(principal, request);
         return ResponseEntity.noContent().build();
     }
 

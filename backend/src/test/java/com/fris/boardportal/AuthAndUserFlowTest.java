@@ -8,6 +8,7 @@ import com.fris.boardportal.organization.dto.OrganizationSignupRequest;
 import com.fris.boardportal.support.IntegrationTestSupport;
 import com.fris.boardportal.user.Role;
 import com.fris.boardportal.user.UserStatus;
+import com.fris.boardportal.user.dto.ChangePasswordRequest;
 import com.fris.boardportal.user.dto.CreateUserRequest;
 import com.fris.boardportal.user.dto.UpdateUserRequest;
 import com.fris.boardportal.user.dto.UserSummary;
@@ -135,6 +136,38 @@ class AuthAndUserFlowTest extends IntegrationTestSupport {
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void userCanChangeTheirOwnPasswordAndLoginWithIt() {
+        String email = uniqueEmail();
+        AuthResponse auth = signup(email, "Password Change Org");
+
+        ResponseEntity<Void> changed = restTemplate.exchange(
+                "/api/users/me/password", HttpMethod.POST,
+                authedRequest(auth.accessToken(), new ChangePasswordRequest("password123", "newpassword456")),
+                Void.class);
+        assertThat(changed.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        ResponseEntity<AuthResponse> oldLogin = restTemplate.postForEntity(
+                "/api/auth/login", new LoginRequest(email, "password123"), AuthResponse.class);
+        assertThat(oldLogin.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        ResponseEntity<AuthResponse> newLogin = restTemplate.postForEntity(
+                "/api/auth/login", new LoginRequest(email, "newpassword456"), AuthResponse.class);
+        assertThat(newLogin.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void changePasswordFailsWithWrongCurrentPassword() {
+        AuthResponse auth = signup(uniqueEmail(), "Wrong Current Password Org");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/users/me/password", HttpMethod.POST,
+                authedRequest(auth.accessToken(), new ChangePasswordRequest("not-the-password", "newpassword456")),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
 }

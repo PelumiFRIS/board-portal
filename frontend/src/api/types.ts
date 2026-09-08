@@ -29,6 +29,11 @@ export interface UpdateUserProfilePayload {
   bio?: string;
 }
 
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface CommitteeMemberDto {
   userId: string;
   firstName: string;

@@ -1,6 +1,7 @@
 import { apiClient } from "./client";
 import type {
   AuthResponse,
+  ChangePasswordPayload,
   CreateUserPayload,
   LoginPayload,
   SignupPayload,
@@ -47,4 +48,8 @@ export async function listDirectory(): Promise<UserSummary[]> {
 export async function updateUserProfile(userId: string, payload: UpdateUserProfilePayload): Promise<UserSummary> {
   const { data } = await apiClient.patch<UserSummary>(`/api/users/${userId}`, payload);
   return data;
+}
+
+export async function changePassword(payload: ChangePasswordPayload): Promise<void> {
+  await apiClient.post("/api/users/me/password", payload);
 }

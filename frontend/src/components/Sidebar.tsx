@@ -1,10 +1,12 @@
 import { Fragment, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { getDashboardStats } from "../api/dashboard";
 import { getUnreadCount } from "../api/messaging";
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "./Avatar";
 
 const UNREAD_POLL_MS = 25000;
+const OVERDUE_POLL_MS = 60000;
 
 function MenuIcon() {
   return (
@@ -236,6 +238,8 @@ export function Sidebar() {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [actionItemsOverdue, setActionItemsOverdue] = useState(0);
+  const [complianceOverdue, setComplianceOverdue] = useState(0);
 
   useEffect(() => {
     setIsOpen(false);
@@ -250,6 +254,21 @@ export function Sidebar() {
     }
     refresh();
     const interval = setInterval(refresh, UNREAD_POLL_MS);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    function refresh() {
+      getDashboardStats()
+        .then((stats) => {
+          setActionItemsOverdue(stats.actionItems.overdue);
+          setComplianceOverdue(stats.compliance.overdue);
+        })
+        .catch(() => {});
+    }
+    refresh();
+    const interval = setInterval(refresh, OVERDUE_POLL_MS);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -297,6 +316,12 @@ export function Sidebar() {
                 <Icon />
                 {label}
                 {to === "/messages" && unreadCount > 0 && <span className="nav-unread-badge">{unreadCount}</span>}
+                {to === "/matters-arising" && actionItemsOverdue > 0 && (
+                  <span className="nav-unread-badge nav-unread-badge-danger">{actionItemsOverdue}</span>
+                )}
+                {to === "/compliance" && complianceOverdue > 0 && (
+                  <span className="nav-unread-badge nav-unread-badge-danger">{complianceOverdue}</span>
+                )}
               </Link>
             </Fragment>
           ))}

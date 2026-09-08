@@ -11,6 +11,7 @@ import { MattersArisingPage } from "./pages/MattersArisingPage";
 import { DocumentsListPage } from "./pages/DocumentsListPage";
 import { AuditLogPage } from "./pages/AuditLogPage";
 import { DirectoryPage } from "./pages/DirectoryPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { MessagesPage } from "./pages/MessagesPage";
 import { ResourcesPage } from "./pages/ResourcesPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
@@ -85,6 +86,14 @@ function App() {
           element={
             <ProtectedRoute>
               <DirectoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
             </ProtectedRoute>
           }
         />

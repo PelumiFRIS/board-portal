@@ -8,6 +8,7 @@ import com.fris.boardportal.common.ApiException;
 import com.fris.boardportal.notification.EmailNotificationService;
 import com.fris.boardportal.organization.OrganizationRepository;
 import com.fris.boardportal.security.AppUserPrincipal;
+import com.fris.boardportal.user.dto.ChangePasswordRequest;
 import com.fris.boardportal.user.dto.CreateUserRequest;
 import com.fris.boardportal.user.dto.UpdateUserRequest;
 import com.fris.boardportal.user.dto.UserSummary;
@@ -158,6 +159,23 @@ public class UserService {
 
         return UserSummary.from(user, organizationName(principal.getOrganizationId()), photoUpdatedAt(user.getId()),
                 committeeService.committeesForUser(user.getId()));
+    }
+
+    @Transactional
+    public void changePassword(AppUserPrincipal principal, ChangePasswordRequest request) {
+        User user = userRepository.findById(principal.getUserId())
+                .orElseThrow(() -> ApiException.notFound("User not found"));
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw ApiException.badRequest("Current password is incorrect");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setUpdatedAt(Instant.now());
+        userRepository.save(user);
+
+        auditLogService.record(principal, AuditAction.PASSWORD_CHANGED, AuditEntityType.USER, user.getId(),
+                "Changed their own password");
     }
 
     @Transactional
