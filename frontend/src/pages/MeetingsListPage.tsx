@@ -12,6 +12,7 @@ import { createMeetingType, deleteMeetingType, listMeetingTypes } from "../api/m
 import { extractErrorMessage } from "../api/client";
 import type { CommitteeSummary, MeetingSummary, MeetingTypeSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 
@@ -181,6 +182,7 @@ export function MeetingsListPage() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
+        <TopBar />
         <div className="page-header">
           <h1>Meetings</h1>
           <p>Board and committee meetings for {user.organizationName}</p>

@@ -15,6 +15,7 @@ import { listMeetings } from "../api/meetings";
 import { listCommittees } from "../api/committees";
 import type { CommitteeSummary, DocumentCategory, DocumentDetail, DocumentSummary, MeetingSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
 
 const CATEGORY_OPTIONS: DocumentCategory[] = [
@@ -253,6 +254,7 @@ export function DocumentsListPage() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
+        <TopBar />
         <div className="page-header">
           <h1>Documents</h1>
           <p>Board packs, policies, and governance documents for {user.organizationName}</p>

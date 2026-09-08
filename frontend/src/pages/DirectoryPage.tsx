@@ -5,6 +5,7 @@ import { deleteUserPhoto, uploadUserPhoto } from "../api/userPhotos";
 import type { UserSummary } from "../api/types";
 import { Avatar } from "../components/Avatar";
 import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
 
 export function DirectoryPage() {
@@ -84,6 +85,7 @@ export function DirectoryPage() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
+        <TopBar />
         <div className="page-header">
           <h1>Directory</h1>
           <p>Board and team members at {user.organizationName}</p>

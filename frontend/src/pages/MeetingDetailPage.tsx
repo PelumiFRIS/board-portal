@@ -43,6 +43,7 @@ import type {
 import { CommentThread } from "../components/CommentThread";
 import { RecordingPlayer } from "../components/RecordingPlayer";
 import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 
@@ -564,6 +565,7 @@ export function MeetingDetailPage() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
+        <TopBar />
         <p>
           <Link to="/meetings">&larr; Back to meetings</Link>
         </p>

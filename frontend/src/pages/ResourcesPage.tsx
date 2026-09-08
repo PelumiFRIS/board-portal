@@ -3,6 +3,7 @@ import { createResource, deleteResource, downloadResource, listResources, update
 import { extractErrorMessage } from "../api/client";
 import type { ResourceCategory, ResourceSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
 
 const CATEGORY_ORDER: ResourceCategory[] = [
@@ -156,6 +157,7 @@ export function ResourcesPage() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
+        <TopBar />
         <div className="page-header">
           <h1>Resources</h1>
           <p>Onboarding materials and governance guidance for {user.organizationName}</p>

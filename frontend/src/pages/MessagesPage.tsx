@@ -5,6 +5,7 @@ import { createConversation, listConversations, listMessages, sendMessage } from
 import type { ConversationSummary, MessageDto, ParticipantSummary, UserSummary } from "../api/types";
 import { Avatar } from "../components/Avatar";
 import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
 
 const LIST_POLL_MS = 20000;
@@ -220,6 +221,7 @@ export function MessagesPage() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
+        <TopBar />
         <div className="page-header page-header-with-actions">
           <div>
             <h1>Messages</h1>

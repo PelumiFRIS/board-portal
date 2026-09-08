@@ -5,6 +5,7 @@ import { listActionItems, updateActionItemStatus } from "../api/actionItems";
 import { extractErrorMessage } from "../api/client";
 import type { AgendaItem, ActionItemSummary, MeetingSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
 
 function EmptyStateIcon() {
@@ -108,6 +109,7 @@ export function MattersArisingPage() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
+        <TopBar />
         <div className="page-header">
           <h1>Agenda &amp; Matters Arising</h1>
           <p>What's coming up and what's still outstanding, across every meeting</p>

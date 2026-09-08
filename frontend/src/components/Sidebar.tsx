@@ -201,7 +201,7 @@ function LogoutIcon() {
   );
 }
 
-const NAV_ITEMS = [
+export const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: DashboardIcon, adminOnly: false, managementOnly: false, group: "Overview" },
   { to: "/meetings", label: "Meetings", icon: MeetingsIcon, adminOnly: false, managementOnly: false, group: "Governance" },
   { to: "/resolutions", label: "Resolutions", icon: ResolutionsIcon, adminOnly: false, managementOnly: false, group: "Governance" },

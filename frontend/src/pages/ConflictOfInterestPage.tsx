@@ -3,6 +3,7 @@ import { createDeclaration, listAllDeclarations, listMyDeclarations } from "../a
 import { extractErrorMessage } from "../api/client";
 import type { ConflictDeclarationSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
 
 function EmptyDeclarationsIcon() {
@@ -89,6 +90,7 @@ export function ConflictOfInterestPage() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
+        <TopBar />
         <div className="page-header">
           <h1>Conflicts of Interest</h1>
           <p>Declare and review conflicts of interest for {user.organizationName}</p>

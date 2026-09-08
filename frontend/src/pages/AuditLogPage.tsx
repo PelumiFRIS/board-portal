@@ -5,6 +5,7 @@ import { downloadActionItemsCsv } from "../api/actionItems";
 import { extractErrorMessage } from "../api/client";
 import type { AuditLogEntry } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
 
 function EmptyAuditIcon() {
@@ -82,6 +83,7 @@ export function AuditLogPage() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
+        <TopBar />
         <div className="page-header page-header-with-actions">
           <div>
             <h1>Audit trail</h1>

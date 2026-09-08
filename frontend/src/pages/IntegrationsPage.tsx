@@ -3,6 +3,7 @@ import { createApiKey, listApiKeys, revokeApiKey } from "../api/apiKeys";
 import { extractErrorMessage } from "../api/client";
 import type { ApiKeySummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
 
 function EmptyKeysIcon() {
@@ -82,6 +83,7 @@ export function IntegrationsPage() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
+        <TopBar />
         <div className="page-header">
           <h1>Integrations</h1>
           <p>API keys for read-only programmatic access to {user.organizationName}&apos;s data</p>

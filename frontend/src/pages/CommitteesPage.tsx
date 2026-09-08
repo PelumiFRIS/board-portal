@@ -12,6 +12,7 @@ import {
 import { extractErrorMessage } from "../api/client";
 import type { CommitteeSummary, UserSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
 import { STANDARD_COMMITTEES } from "../constants/committeeTemplates";
 
@@ -309,6 +310,7 @@ export function CommitteesPage() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
+        <TopBar />
         <div className="page-header">
           <h1>Committees</h1>
           <p>Board committee structure at {user.organizationName}</p>

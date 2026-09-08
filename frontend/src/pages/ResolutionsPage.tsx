@@ -13,6 +13,7 @@ import {
 import { extractErrorMessage } from "../api/client";
 import type { MeetingSummary, ResolutionSummary, VoteChoice, VoteRecord } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 
@@ -187,6 +188,7 @@ export function ResolutionsPage() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
+        <TopBar />
         <div className="page-header">
           <h1>Resolutions</h1>
           <p>Every resolution across all meetings for {user.organizationName}</p>

@@ -9,6 +9,7 @@ import {
 import { extractErrorMessage } from "../api/client";
 import type { ComplianceFilingSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 
@@ -142,6 +143,7 @@ export function CompliancePage() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
+        <TopBar />
         <div className="page-header">
           <h1>Compliance</h1>
           <p>Regulatory filing deadlines for {user.organizationName}</p>

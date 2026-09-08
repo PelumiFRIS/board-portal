@@ -21,6 +21,7 @@ import type {
 import { Avatar } from "../components/Avatar";
 import { DashboardStats } from "../components/DashboardStats";
 import { Sidebar } from "../components/Sidebar";
+import { TopBar } from "../components/TopBar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 import { STANDARD_COMMITTEES } from "../constants/committeeTemplates";
@@ -342,6 +343,7 @@ export function DashboardPage() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
+        <TopBar />
         <div className="page-header">
           <h1>Welcome, {user.firstName}</h1>
           <p>{user.organizationName} &middot; {user.role}</p>
