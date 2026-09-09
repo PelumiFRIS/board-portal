@@ -11,5 +11,6 @@ public record ConversationSummary(
         List<ParticipantSummary> participants,
         String lastMessagePreview,
         Instant lastMessageAt,
-        long unreadCount) {
+        long unreadCount,
+        boolean muted) {
 }

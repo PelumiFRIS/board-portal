@@ -162,7 +162,7 @@ export function TopBar() {
   const notifications = useMemo<NotificationEntry[]>(() => {
     if (!user) return [];
     const messageEntries: NotificationEntry[] = conversations
-      .filter((c) => c.unreadCount > 0)
+      .filter((c) => c.unreadCount > 0 && !c.muted)
       .map((c) => ({
         key: `conv-${c.id}`,
         category: "MESSAGE",

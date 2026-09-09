@@ -37,6 +37,9 @@ public class Message {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(nullable = false)
+    private boolean important;
+
     public static Message create(UUID conversationId, UUID senderId, String senderName, String body) {
         Message message = new Message();
         message.setId(UUID.randomUUID());
@@ -45,6 +48,7 @@ public class Message {
         message.setSenderName(senderName);
         message.setBody(body);
         message.setCreatedAt(Instant.now());
+        message.setImportant(false);
         return message;
     }
 }

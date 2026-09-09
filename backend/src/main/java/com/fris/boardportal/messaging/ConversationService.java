@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConversationService {
 
     private static final List<String> ALLOWED_EMOJI = List.of("👍", "❤️", "😂", "🎉", "✅", "👀");
+    private static final long PRESENCE_ONLINE_WINDOW_SECONDS = 120;
 
     private final ConversationRepository conversationRepository;
     private final ConversationParticipantRepository participantRepository;
@@ -63,9 +64,26 @@ public class ConversationService {
 
     public long unreadCount(AppUserPrincipal principal) {
         return participantRepository.findByUserId(principal.getUserId()).stream()
+                .filter(p -> !p.isMuted())
                 .mapToLong(p -> messageRepository.countByConversationIdAndCreatedAtAfter(
                         p.getConversationId(), p.getLastReadAt() != null ? p.getLastReadAt() : Instant.EPOCH))
                 .sum();
+    }
+
+    @Transactional
+    public ConversationSummary toggleMute(AppUserPrincipal principal, UUID conversationId) {
+        Conversation conversation = conversationRepository
+                .findByIdAndOrganizationId(conversationId, principal.getOrganizationId())
+                .orElseThrow(() -> ApiException.notFound("Conversation not found"));
+        ConversationParticipant participant = participantRepository
+                .findByConversationIdAndUserId(conversationId, principal.getUserId())
+                .orElseThrow(() -> ApiException.notFound("Conversation not found"));
+
+        participant.setMuted(!participant.isMuted());
+        participantRepository.save(participant);
+
+        Message lastMessage = messageRepository.findTopByConversationIdOrderByCreatedAtDesc(conversationId).orElse(null);
+        return buildSummary(conversation, participant, lastMessage);
     }
 
     @Transactional
@@ -149,9 +167,7 @@ public class ConversationService {
         Map<UUID, ParticipantSummary> participantsById = allParticipants.stream()
                 .map(ConversationParticipant::getUserId)
                 .distinct()
-                .map(id -> userRepository.findById(id)
-                        .map(u -> new ParticipantSummary(u.getId(), u.getFirstName(), u.getLastName(), u.getEmail()))
-                        .orElse(null))
+                .map(id -> userRepository.findById(id).map(this::toParticipantSummary).orElse(null))
                 .filter(p -> p != null)
                 .collect(Collectors.toMap(ParticipantSummary::userId, p -> p, (a, b) -> a, LinkedHashMap::new));
 
@@ -191,6 +207,22 @@ public class ConversationService {
                 .ifPresentOrElse(
                         messageReactionRepository::delete,
                         () -> messageReactionRepository.save(MessageReaction.create(messageId, principal.getUserId(), emoji)));
+
+        List<ReactionSummary> reactions = summarizeReactions(
+                messageReactionRepository.findByMessageId(messageId), principal.getUserId());
+        return MessageDto.from(message, List.of(), reactions);
+    }
+
+    @Transactional
+    public MessageDto toggleImportant(AppUserPrincipal principal, UUID conversationId, UUID messageId) {
+        participantRepository.findByConversationIdAndUserId(conversationId, principal.getUserId())
+                .orElseThrow(() -> ApiException.notFound("Conversation not found"));
+        Message message = messageRepository.findById(messageId)
+                .filter(m -> m.getConversationId().equals(conversationId))
+                .orElseThrow(() -> ApiException.notFound("Message not found"));
+
+        message.setImportant(!message.isImportant());
+        messageRepository.save(message);
 
         List<ReactionSummary> reactions = summarizeReactions(
                 messageReactionRepository.findByMessageId(messageId), principal.getUserId());
@@ -266,9 +298,7 @@ public class ConversationService {
     private ConversationSummary buildSummary(Conversation conversation, ConversationParticipant myParticipation,
             Message lastMessage) {
         List<ParticipantSummary> participants = participantRepository.findByConversationId(conversation.getId()).stream()
-                .map(p -> userRepository.findById(p.getUserId())
-                        .map(u -> new ParticipantSummary(u.getId(), u.getFirstName(), u.getLastName(), u.getEmail()))
-                        .orElse(null))
+                .map(p -> userRepository.findById(p.getUserId()).map(this::toParticipantSummary).orElse(null))
                 .filter(p -> p != null)
                 .toList();
 
@@ -277,7 +307,13 @@ public class ConversationService {
 
         return new ConversationSummary(conversation.getId(), conversation.isGroup(), conversation.getTitle(),
                 participants, lastMessage != null ? lastMessage.getBody() : null,
-                lastMessage != null ? lastMessage.getCreatedAt() : null, unread);
+                lastMessage != null ? lastMessage.getCreatedAt() : null, unread, myParticipation.isMuted());
+    }
+
+    private ParticipantSummary toParticipantSummary(User user) {
+        boolean online = user.getLastActiveAt() != null
+                && user.getLastActiveAt().isAfter(Instant.now().minusSeconds(PRESENCE_ONLINE_WINDOW_SECONDS));
+        return new ParticipantSummary(user.getId(), user.getFirstName(), user.getLastName(), user.getEmail(), online);
     }
 
     private String senderName(AppUserPrincipal principal) {

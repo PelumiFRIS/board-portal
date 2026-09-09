@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { listDirectory } from "../api/auth";
 import { extractErrorMessage } from "../api/client";
-import { createConversation, listConversations, listMessages, sendMessage, toggleReaction } from "../api/messaging";
+import {
+  createConversation,
+  listConversations,
+  listMessages,
+  sendMessage,
+  toggleImportant,
+  toggleMute,
+  toggleReaction,
+} from "../api/messaging";
 import type { ConversationSummary, MessageDto, ParticipantSummary, UserSummary } from "../api/types";
 import { Avatar } from "../components/Avatar";
 import { Sidebar } from "../components/Sidebar";
@@ -89,6 +97,45 @@ function ReactIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
       <path
         d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168 0-.375 0S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168 0-.375 0s-.375.164-.375-.25.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PinIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M9.75 3.75l10.5 10.5-3 3-2.25-2.25-4.5 4.5H6l4.5-4.5-2.25-2.25 3-3zM4.5 19.5l4.243-4.243"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function BellOutlineIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function BellSlashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M3 3l18 18M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9c0-.909-.19-1.774-.534-2.556M15.591 5.106A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c.98.362 1.99.665 3.026.906m5.848 1.278a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -217,6 +264,8 @@ export function MessagesPage() {
   const [sending, setSending] = useState(false);
   const composeRef = useRef<HTMLTextAreaElement>(null);
   const [openPickerMessageId, setOpenPickerMessageId] = useState<string | null>(null);
+  const [showImportantOnly, setShowImportantOnly] = useState(false);
+  const [mutingConversation, setMutingConversation] = useState(false);
 
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [directory, setDirectory] = useState<UserSummary[]>([]);
@@ -237,6 +286,10 @@ export function MessagesPage() {
     const interval = setInterval(refreshList, LIST_POLL_MS);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    setShowImportantOnly(false);
+  }, [selectedId]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -304,6 +357,29 @@ export function MessagesPage() {
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions: updated.reactions } : m)));
     } catch (err) {
       setThreadError(extractErrorMessage(err));
+    }
+  }
+
+  async function handleToggleImportant(messageId: string) {
+    if (!selectedId) return;
+    try {
+      const updated = await toggleImportant(selectedId, messageId);
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, important: updated.important } : m)));
+    } catch (err) {
+      setThreadError(extractErrorMessage(err));
+    }
+  }
+
+  async function handleToggleMute() {
+    if (!selectedId || mutingConversation) return;
+    setMutingConversation(true);
+    try {
+      const updated = await toggleMute(selectedId);
+      setConversations((prev) => prev.map((c) => (c.id === selectedId ? { ...c, muted: updated.muted } : c)));
+    } catch (err) {
+      setThreadError(extractErrorMessage(err));
+    } finally {
+      setMutingConversation(false);
     }
   }
 
@@ -391,6 +467,46 @@ export function MessagesPage() {
     const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
     return bTime - aTime;
   });
+  const groupConversations = sortedConversations.filter((c) => c.isGroup);
+  const directConversations = sortedConversations.filter((c) => !c.isGroup);
+  const visibleMessages = showImportantOnly ? messages.filter((m) => m.important) : messages;
+
+  const renderConversationItem = (conversation: ConversationSummary) => {
+    const other = otherParticipant(conversation, user.id);
+    return (
+      <button
+        key={conversation.id}
+        className={`messages-list-item${conversation.id === selectedId ? " active" : ""}`}
+        onClick={() => setSelectedId(conversation.id)}
+      >
+        <span className="messages-list-item-avatar">
+          {conversation.isGroup || !other ? (
+            <GroupAvatarIcon />
+          ) : (
+            <Avatar userId={other.userId} firstName={other.firstName} lastName={other.lastName} />
+          )}
+          {!conversation.isGroup && other && (
+            <span className={`presence-dot${other.online ? " online" : ""}`} aria-hidden="true" />
+          )}
+        </span>
+        <div className="messages-list-item-body">
+          <div className="messages-list-item-top">
+            <strong>{conversationName(conversation, user.id)}</strong>
+            <span className="messages-list-item-time">{formatListTimestamp(conversation.lastMessageAt)}</span>
+          </div>
+          <div className="messages-list-item-bottom">
+            <p className="messages-preview">{conversation.lastMessagePreview || "No messages yet"}</p>
+            <span className="messages-list-item-flags">
+              {conversation.muted && <BellSlashIcon />}
+              {conversation.unreadCount > 0 && (
+                <span className="messages-unread-dot">{conversation.unreadCount}</span>
+              )}
+            </span>
+          </div>
+        </div>
+      </button>
+    );
+  };
 
   return (
     <div className="app-shell">
@@ -475,34 +591,18 @@ export function MessagesPage() {
                 <p>No conversations yet. Start one above.</p>
               </div>
             )}
-            {sortedConversations.map((conversation) => {
-              const other = otherParticipant(conversation, user.id);
-              return (
-                <button
-                  key={conversation.id}
-                  className={`messages-list-item${conversation.id === selectedId ? " active" : ""}`}
-                  onClick={() => setSelectedId(conversation.id)}
-                >
-                  {conversation.isGroup || !other ? (
-                    <GroupAvatarIcon />
-                  ) : (
-                    <Avatar userId={other.userId} firstName={other.firstName} lastName={other.lastName} />
-                  )}
-                  <div className="messages-list-item-body">
-                    <div className="messages-list-item-top">
-                      <strong>{conversationName(conversation, user.id)}</strong>
-                      <span className="messages-list-item-time">{formatListTimestamp(conversation.lastMessageAt)}</span>
-                    </div>
-                    <div className="messages-list-item-bottom">
-                      <p className="messages-preview">{conversation.lastMessagePreview || "No messages yet"}</p>
-                      {conversation.unreadCount > 0 && (
-                        <span className="messages-unread-dot">{conversation.unreadCount}</span>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+            {groupConversations.length > 0 && (
+              <div className="messages-list-section">
+                <span className="messages-list-section-label">Group Conversations</span>
+                {groupConversations.map(renderConversationItem)}
+              </div>
+            )}
+            {directConversations.length > 0 && (
+              <div className="messages-list-section">
+                <span className="messages-list-section-label">Direct Messages</span>
+                {directConversations.map(renderConversationItem)}
+              </div>
+            )}
           </div>
 
           <div className="messages-thread-pane">
@@ -527,19 +627,38 @@ export function MessagesPage() {
                       );
                     })()
                   )}
-                  <div>
+                  <div className="messages-thread-header-title">
                     <strong>{conversationName(selectedConversation, user.id)}</strong>
                     <p className="table-hint">
-                      {selectedConversation.isGroup && (
-                        <span className="messages-member-count">
-                          {selectedConversation.participants.length} members &middot;{" "}
-                        </span>
-                      )}
                       {selectedConversation.participants
                         .filter((p) => p.userId !== user.id)
                         .map((p) => p.email)
                         .join(", ")}
                     </p>
+                  </div>
+                  <div className="messages-thread-header-actions">
+                    {selectedConversation.isGroup && (
+                      <span className="messages-header-badge">
+                        Members &middot; {selectedConversation.participants.length}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className={`messages-header-badge messages-important-toggle${showImportantOnly ? " active" : ""}`}
+                      onClick={() => setShowImportantOnly((prev) => !prev)}
+                    >
+                      <PinIcon /> Important &middot; {messages.filter((m) => m.important).length}
+                    </button>
+                    <button
+                      type="button"
+                      className="messages-header-icon-btn"
+                      aria-label={selectedConversation.muted ? "Unmute conversation" : "Mute conversation"}
+                      title={selectedConversation.muted ? "Unmute conversation" : "Mute conversation"}
+                      onClick={handleToggleMute}
+                      disabled={mutingConversation}
+                    >
+                      {selectedConversation.muted ? <BellSlashIcon /> : <BellOutlineIcon />}
+                    </button>
                   </div>
                 </div>
 
@@ -547,17 +666,31 @@ export function MessagesPage() {
                 {threadError && <p className="form-error">{threadError}</p>}
 
                 <div className="messages-thread-body">
-                  {messages.map((message, index) => {
+                  {showImportantOnly && visibleMessages.length === 0 && (
+                    <p className="messages-pane-status">No important messages yet.</p>
+                  )}
+                  {visibleMessages.map((message, index) => {
                     const isSelf = message.senderId === user.id;
-                    const prev = messages[index - 1];
+                    const prev = visibleMessages[index - 1];
                     const showSender = selectedConversation.isGroup && !isSelf && prev?.senderId !== message.senderId;
                     const pickerOpen = openPickerMessageId === message.id;
                     return (
                       <div key={message.id} className={`message-row${isSelf ? " message-row-self" : ""}`}>
-                        <div className={`message-bubble${isSelf ? " message-bubble-self" : ""}`}>
+                        <div
+                          className={`message-bubble${isSelf ? " message-bubble-self" : ""}${message.important ? " message-bubble-important" : ""}`}
+                        >
                           {showSender && <div className="message-bubble-sender">{message.senderName}</div>}
                           <div className="message-bubble-body">{renderMessageBody(message.body)}</div>
                           <span className="message-bubble-time">{formatBubbleTimestamp(message.createdAt)}</span>
+                          <button
+                            type="button"
+                            className={`message-important-trigger${message.important ? " active" : ""}`}
+                            aria-label={message.important ? "Unmark as important" : "Mark as important"}
+                            title={message.important ? "Unmark as important" : "Mark as important"}
+                            onClick={() => handleToggleImportant(message.id)}
+                          >
+                            <PinIcon />
+                          </button>
                           <button
                             type="button"
                             className="message-react-trigger"

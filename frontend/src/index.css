@@ -1592,8 +1592,69 @@ h3 + .add-user-form {
 }
 
 .messages-list-item.active {
-  background: var(--primary-tint);
+  background: var(--primary);
   border-left-color: var(--accent-brass);
+  color: #fff;
+}
+
+.messages-list-item.active .messages-list-item-time,
+.messages-list-item.active .messages-preview {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.messages-list-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.messages-list-section-label {
+  padding: 12px 16px 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.messages-list-item-avatar {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.presence-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  border: 2px solid var(--surface-tint);
+}
+
+.messages-list-item.active .presence-dot {
+  border-color: var(--primary);
+}
+
+.presence-dot.online {
+  background: #22c55e;
+}
+
+.messages-list-item-flags {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.messages-list-item-flags svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+}
+
+.messages-list-item.active .messages-list-item-flags svg {
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .messages-list-item-body {
@@ -1642,10 +1703,6 @@ h3 + .add-user-form {
   color: var(--text-muted);
 }
 
-.messages-list-item.active .messages-preview {
-  color: var(--text);
-}
-
 .messages-unread-dot {
   flex-shrink: 0;
   min-width: 18px;
@@ -1681,9 +1738,78 @@ h3 + .add-user-form {
   display: block;
 }
 
-.messages-member-count {
+.messages-thread-header-title {
+  min-width: 0;
+  flex: 1;
+}
+
+.messages-thread-header-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.messages-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  background: var(--surface-tint);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 12px;
   font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.messages-important-toggle {
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.messages-important-toggle svg {
+  width: 13px;
+  height: 13px;
+}
+
+.messages-important-toggle:hover {
+  background: var(--primary-tint);
+  box-shadow: none;
+  transform: none;
+}
+
+.messages-important-toggle.active {
+  background: var(--primary-tint);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.messages-header-icon-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.messages-header-icon-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.messages-header-icon-btn:hover {
+  background: var(--surface-tint);
   color: var(--text);
+  box-shadow: none;
+  transform: none;
 }
 
 .messages-thread-body {
@@ -1804,6 +1930,56 @@ h3 + .add-user-form {
 .message-bubble-self .message-react-trigger {
   left: -10px;
   right: auto;
+}
+
+.message-important-trigger {
+  position: absolute;
+  top: -10px;
+  right: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+.message-important-trigger svg {
+  width: 12px;
+  height: 12px;
+}
+
+.message-bubble:hover .message-important-trigger,
+.message-important-trigger:focus-visible,
+.message-important-trigger.active {
+  opacity: 1;
+}
+
+.message-important-trigger:hover {
+  background: var(--surface-tint);
+  color: var(--text);
+}
+
+.message-important-trigger.active {
+  background: var(--accent-brass);
+  border-color: var(--accent-brass);
+  color: #fff;
+}
+
+.message-bubble-self .message-important-trigger {
+  left: 22px;
+  right: auto;
+}
+
+.message-bubble-important {
+  border-left: 4px solid var(--accent-brass);
 }
 
 .message-react-picker {

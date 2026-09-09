@@ -31,12 +31,16 @@ public class ConversationParticipant {
     @Column(name = "last_read_at")
     private Instant lastReadAt;
 
+    @Column(nullable = false)
+    private boolean muted;
+
     public static ConversationParticipant create(UUID conversationId, UUID userId, Instant lastReadAt) {
         ConversationParticipant participant = new ConversationParticipant();
         participant.setId(UUID.randomUUID());
         participant.setConversationId(conversationId);
         participant.setUserId(userId);
         participant.setLastReadAt(lastReadAt);
+        participant.setMuted(false);
         return participant;
     }
 }

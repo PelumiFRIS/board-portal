@@ -65,6 +65,9 @@ public class User {
     @Column(name = "calendar_token")
     private String calendarToken;
 
+    @Column(name = "last_active_at")
+    private Instant lastActiveAt;
+
     public static User create(UUID organizationId, String email, String passwordHash,
             String firstName, String lastName, Role role) {
         User user = new User();

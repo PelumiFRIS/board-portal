@@ -13,10 +13,12 @@ public record MessageDto(
         String body,
         Instant createdAt,
         List<ParticipantSummary> seenBy,
-        List<ReactionSummary> reactions) {
+        List<ReactionSummary> reactions,
+        boolean important) {
 
     public static MessageDto from(Message message, List<ParticipantSummary> seenBy, List<ReactionSummary> reactions) {
         return new MessageDto(message.getId(), message.getConversationId(), message.getSenderId(),
-                message.getSenderName(), message.getBody(), message.getCreatedAt(), seenBy, reactions);
+                message.getSenderName(), message.getBody(), message.getCreatedAt(), seenBy, reactions,
+                message.isImportant());
     }
 }

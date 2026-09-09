@@ -39,3 +39,15 @@ export async function toggleReaction(conversationId: string, messageId: string, 
   );
   return data;
 }
+
+export async function toggleImportant(conversationId: string, messageId: string): Promise<MessageDto> {
+  const { data } = await apiClient.post<MessageDto>(
+    `/api/conversations/${conversationId}/messages/${messageId}/important`,
+  );
+  return data;
+}
+
+export async function toggleMute(conversationId: string): Promise<ConversationSummary> {
+  const { data } = await apiClient.post<ConversationSummary>(`/api/conversations/${conversationId}/mute`);
+  return data;
+}

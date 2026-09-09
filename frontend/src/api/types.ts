@@ -470,6 +470,7 @@ export interface ParticipantSummary {
   firstName: string;
   lastName: string;
   email: string;
+  online: boolean;
 }
 
 export interface ConversationSummary {
@@ -480,6 +481,7 @@ export interface ConversationSummary {
   lastMessagePreview: string | null;
   lastMessageAt: string | null;
   unreadCount: number;
+  muted: boolean;
 }
 
 export interface ReactionSummary {
@@ -497,6 +499,7 @@ export interface MessageDto {
   createdAt: string;
   seenBy: ParticipantSummary[];
   reactions: ReactionSummary[];
+  important: boolean;
 }
 
 export interface CreateConversationPayload {

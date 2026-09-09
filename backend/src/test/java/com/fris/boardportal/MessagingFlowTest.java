@@ -9,6 +9,7 @@ import com.fris.boardportal.auth.dto.LoginRequest;
 import com.fris.boardportal.messaging.dto.ConversationSummary;
 import com.fris.boardportal.messaging.dto.CreateConversationRequest;
 import com.fris.boardportal.messaging.dto.MessageDto;
+import com.fris.boardportal.messaging.dto.ParticipantSummary;
 import com.fris.boardportal.messaging.dto.ReactionSummary;
 import com.fris.boardportal.messaging.dto.SendMessageRequest;
 import com.fris.boardportal.messaging.dto.ToggleReactionRequest;
@@ -211,6 +212,90 @@ class MessagingFlowTest extends IntegrationTestSupport {
                 HttpMethod.POST, authedRequest(admin.accessToken(), new ToggleReactionRequest("🍕")), String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void mutingAConversationExcludesItFromUnreadCountButNotFromTheConversationListing() {
+        AuthResponse admin = signup(uniqueEmail(), "Mute Org");
+        String memberEmail = uniqueEmail();
+        UserSummary member = createBoardMember(admin.accessToken(), memberEmail);
+        AuthResponse memberAuth = login(memberEmail);
+
+        ConversationSummary conversation = createConversation(admin.accessToken(), List.of(member.id()), "Ping");
+        assertThat(unreadCount(memberAuth.accessToken())).isEqualTo(1);
+
+        ConversationSummary muted = toggleMute(memberAuth.accessToken(), conversation.id());
+        assertThat(muted.muted()).isTrue();
+        assertThat(unreadCount(memberAuth.accessToken())).isZero();
+
+        // Mute only silences the notification bell -- the Messages list itself still shows the real unread count.
+        List<ConversationSummary> stillListed = listConversations(memberAuth.accessToken());
+        assertThat(stillListed.get(0).unreadCount()).isEqualTo(1);
+
+        ConversationSummary unmuted = toggleMute(memberAuth.accessToken(), conversation.id());
+        assertThat(unmuted.muted()).isFalse();
+        assertThat(unreadCount(memberAuth.accessToken())).isEqualTo(1);
+    }
+
+    @Test
+    void togglingImportantFlagsAndUnflagsAMessageForEveryParticipant() {
+        AuthResponse admin = signup(uniqueEmail(), "Important Org");
+        String memberEmail = uniqueEmail();
+        UserSummary member = createBoardMember(admin.accessToken(), memberEmail);
+        AuthResponse memberAuth = login(memberEmail);
+
+        ConversationSummary conversation = createConversation(admin.accessToken(), List.of(member.id()), "Key decision");
+        UUID messageId = listMessages(admin.accessToken(), conversation.id()).get(0).id();
+
+        MessageDto flagged = toggleImportant(memberAuth.accessToken(), conversation.id(), messageId);
+        assertThat(flagged.important()).isTrue();
+
+        // Visible to every participant, not just the one who flagged it.
+        List<MessageDto> senderView = listMessages(admin.accessToken(), conversation.id());
+        assertThat(senderView.get(0).important()).isTrue();
+
+        MessageDto unflagged = toggleImportant(memberAuth.accessToken(), conversation.id(), messageId);
+        assertThat(unflagged.important()).isFalse();
+    }
+
+    @Test
+    void participantBecomesOnlineAfterMakingAnAuthenticatedRequest() {
+        AuthResponse admin = signup(uniqueEmail(), "Presence Org");
+        String memberEmail = uniqueEmail();
+        UserSummary member = createBoardMember(admin.accessToken(), memberEmail);
+        AuthResponse memberAuth = login(memberEmail);
+
+        ConversationSummary conversation = createConversation(admin.accessToken(), List.of(member.id()), "Hi");
+
+        // Before the member has made any authenticated call, they show up as offline.
+        ParticipantSummary before = participant(listConversations(admin.accessToken()).get(0), memberEmail);
+        assertThat(before.online()).isFalse();
+
+        // One authenticated request from the member touches their presence.
+        listMessages(memberAuth.accessToken(), conversation.id());
+
+        ParticipantSummary after = participant(listConversations(admin.accessToken()).get(0), memberEmail);
+        assertThat(after.online()).isTrue();
+    }
+
+    private ParticipantSummary participant(ConversationSummary conversation, String email) {
+        return conversation.participants().stream().filter(p -> p.email().equals(email)).findFirst().orElseThrow();
+    }
+
+    private ConversationSummary toggleMute(String token, UUID conversationId) {
+        ResponseEntity<ConversationSummary> response = restTemplate.exchange(
+                "/api/conversations/" + conversationId + "/mute",
+                HttpMethod.POST, authedRequest(token), ConversationSummary.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return response.getBody();
+    }
+
+    private MessageDto toggleImportant(String token, UUID conversationId, UUID messageId) {
+        ResponseEntity<MessageDto> response = restTemplate.exchange(
+                "/api/conversations/" + conversationId + "/messages/" + messageId + "/important",
+                HttpMethod.POST, authedRequest(token), MessageDto.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return response.getBody();
     }
 
     private MessageDto toggleReaction(String token, UUID conversationId, UUID messageId, String emoji) {

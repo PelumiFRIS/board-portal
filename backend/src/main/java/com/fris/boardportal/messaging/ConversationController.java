@@ -64,4 +64,15 @@ public class ConversationController {
             @PathVariable UUID id, @PathVariable UUID messageId, @Valid @RequestBody ToggleReactionRequest request) {
         return conversationService.toggleReaction(principal, id, messageId, request.emoji());
     }
+
+    @PostMapping("/{id}/messages/{messageId}/important")
+    public MessageDto toggleImportant(@AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID id, @PathVariable UUID messageId) {
+        return conversationService.toggleImportant(principal, id, messageId);
+    }
+
+    @PostMapping("/{id}/mute")
+    public ConversationSummary toggleMute(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
+        return conversationService.toggleMute(principal, id);
+    }
 }
