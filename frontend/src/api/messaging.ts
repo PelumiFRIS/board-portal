@@ -51,3 +51,36 @@ export async function toggleMute(conversationId: string): Promise<ConversationSu
   const { data } = await apiClient.post<ConversationSummary>(`/api/conversations/${conversationId}/mute`);
   return data;
 }
+
+export async function uploadMessageAttachment(
+  conversationId: string,
+  messageId: string,
+  file: File,
+): Promise<MessageDto> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await apiClient.post<MessageDto>(
+    `/api/conversations/${conversationId}/messages/${messageId}/attachment`,
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return data;
+}
+
+export async function downloadMessageAttachment(
+  conversationId: string,
+  messageId: string,
+  fileName: string,
+): Promise<void> {
+  const response = await apiClient.get(`/api/conversations/${conversationId}/messages/${messageId}/attachment`, {
+    responseType: "blob",
+  });
+  const url = URL.createObjectURL(response.data as Blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

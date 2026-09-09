@@ -4,6 +4,7 @@ import com.fris.boardportal.audit.AuditAction;
 import com.fris.boardportal.audit.AuditEntityType;
 import com.fris.boardportal.audit.AuditLogService;
 import com.fris.boardportal.common.ApiException;
+import com.fris.boardportal.messaging.dto.AttachmentSummary;
 import com.fris.boardportal.messaging.dto.ConversationSummary;
 import com.fris.boardportal.messaging.dto.CreateConversationRequest;
 import com.fris.boardportal.messaging.dto.MessageDto;
@@ -14,6 +15,8 @@ import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.user.User;
 import com.fris.boardportal.user.UserRepository;
 import com.fris.boardportal.user.UserStatus;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -27,6 +30,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class ConversationService {
@@ -38,17 +42,20 @@ public class ConversationService {
     private final ConversationParticipantRepository participantRepository;
     private final MessageRepository messageRepository;
     private final MessageReactionRepository messageReactionRepository;
+    private final MessageAttachmentRepository messageAttachmentRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
 
     public ConversationService(ConversationRepository conversationRepository,
             ConversationParticipantRepository participantRepository, MessageRepository messageRepository,
-            MessageReactionRepository messageReactionRepository, UserRepository userRepository,
+            MessageReactionRepository messageReactionRepository,
+            MessageAttachmentRepository messageAttachmentRepository, UserRepository userRepository,
             AuditLogService auditLogService) {
         this.conversationRepository = conversationRepository;
         this.participantRepository = participantRepository;
         this.messageRepository = messageRepository;
         this.messageReactionRepository = messageReactionRepository;
+        this.messageAttachmentRepository = messageAttachmentRepository;
         this.userRepository = userRepository;
         this.auditLogService = auditLogService;
     }
@@ -176,6 +183,10 @@ public class ConversationService {
                 ? Map.of()
                 : messageReactionRepository.findByMessageIdIn(messageIds).stream()
                         .collect(Collectors.groupingBy(MessageReaction::getMessageId));
+        Map<UUID, AttachmentSummary> attachmentByMessageId = messageIds.isEmpty()
+                ? Map.of()
+                : messageAttachmentRepository.findByMessageIdIn(messageIds).stream()
+                        .collect(Collectors.toMap(MessageAttachment::getMessageId, AttachmentSummary::from));
 
         return messages.stream()
                 .map(message -> {
@@ -187,7 +198,7 @@ public class ConversationService {
                             .toList();
                     List<ReactionSummary> reactions = summarizeReactions(
                             reactionsByMessageId.getOrDefault(message.getId(), List.of()), principal.getUserId());
-                    return MessageDto.from(message, seenBy, reactions);
+                    return MessageDto.from(message, seenBy, reactions, attachmentByMessageId.get(message.getId()));
                 })
                 .toList();
     }
@@ -227,6 +238,46 @@ public class ConversationService {
         List<ReactionSummary> reactions = summarizeReactions(
                 messageReactionRepository.findByMessageId(messageId), principal.getUserId());
         return MessageDto.from(message, List.of(), reactions);
+    }
+
+    @Transactional
+    public MessageDto uploadAttachment(AppUserPrincipal principal, UUID conversationId, UUID messageId,
+            MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw ApiException.badRequest("A file is required");
+        }
+        participantRepository.findByConversationIdAndUserId(conversationId, principal.getUserId())
+                .orElseThrow(() -> ApiException.notFound("Conversation not found"));
+        Message message = messageRepository.findById(messageId)
+                .filter(m -> m.getConversationId().equals(conversationId))
+                .orElseThrow(() -> ApiException.notFound("Message not found"));
+
+        messageAttachmentRepository.findByMessageId(messageId).ifPresent(messageAttachmentRepository::delete);
+
+        byte[] fileData;
+        try {
+            fileData = file.getBytes();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to read uploaded file", e);
+        }
+        String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "attachment";
+        String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
+        MessageAttachment attachment = MessageAttachment.create(messageId, fileName, contentType, fileData);
+        messageAttachmentRepository.save(attachment);
+
+        List<ReactionSummary> reactions = summarizeReactions(
+                messageReactionRepository.findByMessageId(messageId), principal.getUserId());
+        return MessageDto.from(message, List.of(), reactions, AttachmentSummary.from(attachment));
+    }
+
+    public MessageAttachment getAttachment(AppUserPrincipal principal, UUID conversationId, UUID messageId) {
+        participantRepository.findByConversationIdAndUserId(conversationId, principal.getUserId())
+                .orElseThrow(() -> ApiException.notFound("Conversation not found"));
+        messageRepository.findById(messageId)
+                .filter(m -> m.getConversationId().equals(conversationId))
+                .orElseThrow(() -> ApiException.notFound("Message not found"));
+        return messageAttachmentRepository.findByMessageId(messageId)
+                .orElseThrow(() -> ApiException.notFound("Attachment not found"));
     }
 
     private List<ReactionSummary> summarizeReactions(List<MessageReaction> reactions, UUID currentUserId) {

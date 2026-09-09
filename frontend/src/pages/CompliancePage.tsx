@@ -12,6 +12,7 @@ import { Sidebar } from "../components/Sidebar";
 import { TopBar } from "../components/TopBar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 function EmptyFilingsIcon() {
   return (
@@ -34,6 +35,7 @@ function filingStatusLabel(filing: ComplianceFilingSummary): "PENDING" | "SUBMIT
 
 export function CompliancePage() {
   const { user } = useAuth();
+  const toast = useToast();
   const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
 
   const [filings, setFilings] = useState<ComplianceFilingSummary[]>([]);
@@ -117,6 +119,7 @@ export function CompliancePage() {
     try {
       const updated = await markFilingSubmitted(filingId);
       setFilings((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+      toast.success("Filing marked as submitted.");
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
@@ -158,7 +161,7 @@ export function CompliancePage() {
           {!loading && !loadError && filings.length === 0 && (
             <div className="empty-state">
               <EmptyFilingsIcon />
-              <p>No filings on the calendar yet.</p>
+              <p>No filings on the calendar yet. Add one below to start tracking deadlines.</p>
             </div>
           )}
 

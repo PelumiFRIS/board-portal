@@ -122,7 +122,7 @@ export function MattersArisingPage() {
           {!loadingAgenda && !agendaError && agendaGroups.length === 0 && (
             <div className="empty-state">
               <EmptyStateIcon />
-              <p>No agenda items on any upcoming meeting yet.</p>
+              <p>No agenda items on any upcoming meeting yet. Add items when you schedule or open a meeting.</p>
             </div>
           )}
           {!loadingAgenda &&
@@ -154,7 +154,7 @@ export function MattersArisingPage() {
           {!loadingMatters && !mattersError && matterGroups.length === 0 && (
             <div className="empty-state">
               <EmptyStateIcon />
-              <p>Nothing outstanding right now.</p>
+              <p>Nothing outstanding right now — you're all caught up.</p>
             </div>
           )}
           {!loadingMatters &&

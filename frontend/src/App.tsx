@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { ToastProvider } from "./context/ToastContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
@@ -21,8 +22,9 @@ import { ConflictOfInterestPage } from "./pages/ConflictOfInterestPage";
 
 function App() {
   return (
-    <AuthProvider>
-      <Routes>
+    <ToastProvider>
+      <AuthProvider>
+        <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route
@@ -146,8 +148,9 @@ function App() {
           }
         />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </AuthProvider>
+        </Routes>
+      </AuthProvider>
+    </ToastProvider>
   );
 }
 

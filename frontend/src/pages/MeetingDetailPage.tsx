@@ -46,6 +46,7 @@ import { Sidebar } from "../components/Sidebar";
 import { TopBar } from "../components/TopBar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 const MAX_RESOLUTION_BATCH_SIZE = 12;
 
@@ -64,6 +65,7 @@ function formatDuration(totalSeconds: number): string {
 export function MeetingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const toast = useToast();
   const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
 
   const [meeting, setMeeting] = useState<MeetingDetailType | null>(null);
@@ -360,6 +362,7 @@ export function MeetingDetailPage() {
     try {
       const updated = await updateMeeting(id, { minutesContent: minutesDraft });
       setMeeting(updated);
+      toast.success("Minutes saved.");
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
@@ -615,7 +618,7 @@ export function MeetingDetailPage() {
               <h2>Agenda Setting</h2>
               {meeting.agendaItems.length === 0 && (
                 <div className="empty-state">
-                  <p>No agenda items yet.</p>
+                  <p>No agenda items yet. Add one below.</p>
                 </div>
               )}
               {meeting.agendaItems.map((item) =>
@@ -744,7 +747,7 @@ export function MeetingDetailPage() {
               <h2>Resolutions</h2>
               {meeting.resolutions.length === 0 && (
                 <div className="empty-state">
-                  <p>No resolutions on this meeting yet.</p>
+                  <p>No resolutions on this meeting yet. Propose one from the Resolutions page.</p>
                 </div>
               )}
               {meeting.resolutions.map((resolution) => {
@@ -879,7 +882,7 @@ export function MeetingDetailPage() {
               <h2>Action Items</h2>
               {meeting.actionItems.length === 0 && (
                 <div className="empty-state">
-                  <p>No action items on this meeting yet.</p>
+                  <p>No action items on this meeting yet. Add one below.</p>
                 </div>
               )}
               {meeting.actionItems.map((item) => {
@@ -1015,7 +1018,7 @@ export function MeetingDetailPage() {
               {loadingRecordings && <p>Loading recordings...</p>}
               {!loadingRecordings && recordings.length === 0 && (
                 <div className="empty-state">
-                  <p>No recordings yet.</p>
+                  <p>No recordings yet. Record or upload one below.</p>
                 </div>
               )}
               {!loadingRecordings &&

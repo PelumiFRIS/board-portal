@@ -5,6 +5,7 @@ import type { ApiKeySummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
 import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 function EmptyKeysIcon() {
   return (
@@ -21,6 +22,7 @@ function EmptyKeysIcon() {
 
 export function IntegrationsPage() {
   const { user } = useAuth();
+  const toast = useToast();
 
   const [keys, setKeys] = useState<ApiKeySummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +53,7 @@ export function IntegrationsPage() {
       setRevealedKey(created.rawKey);
       setCopied(false);
       setNewName("");
+      toast.success("API key created.");
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
@@ -64,6 +67,7 @@ export function IntegrationsPage() {
     try {
       await revokeApiKey(id);
       setKeys((prev) => prev.filter((k) => k.id !== id));
+      toast.success("API key revoked.");
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
@@ -114,7 +118,7 @@ export function IntegrationsPage() {
           {!loading && !loadError && keys.length === 0 && (
             <div className="empty-state">
               <EmptyKeysIcon />
-              <p>No API keys yet.</p>
+              <p>No API keys yet. Generate one below to start pulling data programmatically.</p>
             </div>
           )}
 

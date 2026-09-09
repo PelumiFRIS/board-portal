@@ -3,16 +3,19 @@ import { listDirectory } from "../api/auth";
 import { extractErrorMessage } from "../api/client";
 import {
   createConversation,
+  downloadMessageAttachment,
   listConversations,
   listMessages,
   sendMessage,
   toggleImportant,
   toggleMute,
   toggleReaction,
+  uploadMessageAttachment,
 } from "../api/messaging";
 import type { ConversationSummary, MessageDto, ParticipantSummary, UserSummary } from "../api/types";
 import { Avatar } from "../components/Avatar";
 import { Sidebar } from "../components/Sidebar";
+import { Skeleton } from "../components/Skeleton";
 import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
 
@@ -92,6 +95,45 @@ function NumberedListIcon() {
   );
 }
 
+function QuoteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M9.75 6.75h-3a2.25 2.25 0 00-2.25 2.25v2.25a2.25 2.25 0 002.25 2.25H8.25v1.5a2.25 2.25 0 01-2.25 2.25M18.75 6.75h-3a2.25 2.25 0 00-2.25 2.25v2.25a2.25 2.25 0 002.25 2.25h1.5v1.5a2.25 2.25 0 01-2.25 2.25"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CodeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M17.25 6.75L22.5 12l-5.25 5.25M6.75 6.75L1.5 12l5.25 5.25M14.25 4.5l-4.5 15"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757M10.81 15.312a4.5 4.5 0 01-1.242-7.244l4.5-4.5a4.5 4.5 0 016.364 6.364l-1.757 1.757"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function ReactIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -131,6 +173,59 @@ function BellOutlineIcon() {
   );
 }
 
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M6 18L18 6M6 6l12 12" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PaperclipIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32a1.5 1.5 0 01-2.122-2.121l9.545-9.546"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function FileIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5A3.375 3.375 0 0010.125 2.25H8.25m5.231 0H8.25a2.25 2.25 0 00-2.25 2.25v15A2.25 2.25 0 008.25 21.75h9a2.25 2.25 0 002.25-2.25v-6.75M13.5 2.25v4.5a2.25 2.25 0 002.25 2.25h4.5"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function formatAttachmentSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function BellSlashIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -153,9 +248,15 @@ function formatSeenBy(seenBy: ParticipantSummary[]): string {
 }
 
 /** Minimal, safe markdown-lite: **bold**, *italic*, ~~strike~~, "- " bullets, "1. " numbered lists. */
+const LINK_TOKEN = /^\[([^\]]+)\]\(([^)]+)\)$/;
+
+function isSafeLinkUrl(url: string): boolean {
+  return /^(https?:|mailto:)/i.test(url.trim());
+}
+
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
   const parts: ReactNode[] = [];
-  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|~~[^~]+~~)/g;
+  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|~~[^~]+~~|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   let key = 0;
@@ -163,8 +264,17 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
     if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
     const token = match[0];
     const k = `${keyPrefix}-${key++}`;
+    const linkMatch = LINK_TOKEN.exec(token);
     if (token.startsWith("**")) parts.push(<strong key={k}>{token.slice(2, -2)}</strong>);
     else if (token.startsWith("~~")) parts.push(<del key={k}>{token.slice(2, -2)}</del>);
+    else if (token.startsWith("`")) parts.push(<code key={k}>{token.slice(1, -1)}</code>);
+    else if (linkMatch && isSafeLinkUrl(linkMatch[2])) {
+      parts.push(
+        <a key={k} href={linkMatch[2]} target="_blank" rel="noopener noreferrer">
+          {linkMatch[1]}
+        </a>,
+      );
+    } else if (linkMatch) parts.push(linkMatch[1]);
     else parts.push(<em key={k}>{token.slice(1, -1)}</em>);
     lastIndex = match.index + token.length;
   }
@@ -180,7 +290,24 @@ function renderMessageBody(text: string): ReactNode {
   while (i < lines.length) {
     const bulletMatch = /^- (.*)$/.exec(lines[i]);
     const numberedMatch = /^\d+\. (.*)$/.exec(lines[i]);
-    if (bulletMatch) {
+    const quoteMatch = /^> (.*)$/.exec(lines[i]);
+    if (quoteMatch) {
+      const quotedLines: string[] = [];
+      while (i < lines.length) {
+        const m = /^> (.*)$/.exec(lines[i]);
+        if (!m) break;
+        quotedLines.push(m[1]);
+        i++;
+      }
+      const k = `q${key++}`;
+      blocks.push(
+        <blockquote key={k}>
+          {quotedLines.map((line, idx) => (
+            <p key={idx}>{renderInline(line, `${k}-${idx}`)}</p>
+          ))}
+        </blockquote>,
+      );
+    } else if (bulletMatch) {
       const items: string[] = [];
       while (i < lines.length) {
         const m = /^- (.*)$/.exec(lines[i]);
@@ -221,7 +348,7 @@ function renderMessageBody(text: string): ReactNode {
   return blocks;
 }
 
-type FormatType = "bold" | "italic" | "strike" | "bullet" | "numbered";
+type FormatType = "bold" | "italic" | "strike" | "bullet" | "numbered" | "quote" | "code" | "link";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -263,8 +390,12 @@ export function MessagesPage() {
   const [composeBody, setComposeBody] = useState("");
   const [sending, setSending] = useState(false);
   const composeRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
   const [openPickerMessageId, setOpenPickerMessageId] = useState<string | null>(null);
   const [showImportantOnly, setShowImportantOnly] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [mutingConversation, setMutingConversation] = useState(false);
 
   const [showNewMessage, setShowNewMessage] = useState(false);
@@ -289,6 +420,9 @@ export function MessagesPage() {
 
   useEffect(() => {
     setShowImportantOnly(false);
+    setSearchOpen(false);
+    setSearchQuery("");
+    setPendingAttachment(null);
   }, [selectedId]);
 
   useEffect(() => {
@@ -335,13 +469,18 @@ export function MessagesPage() {
 
   async function handleSend(event: FormEvent) {
     event.preventDefault();
-    if (!selectedId || !composeBody.trim()) return;
+    if (!selectedId || (!composeBody.trim() && !pendingAttachment)) return;
     setSending(true);
     setThreadError(null);
     try {
-      const message = await sendMessage(selectedId, { body: composeBody });
+      const body = composeBody.trim() || pendingAttachment!.name;
+      let message = await sendMessage(selectedId, { body });
+      if (pendingAttachment) {
+        message = await uploadMessageAttachment(selectedId, message.id, pendingAttachment);
+      }
       setMessages((prev) => [...prev, message]);
       setComposeBody("");
+      setPendingAttachment(null);
     } catch (err) {
       setThreadError(extractErrorMessage(err));
     } finally {
@@ -383,6 +522,15 @@ export function MessagesPage() {
     }
   }
 
+  async function handleDownloadAttachment(messageId: string, fileName: string) {
+    if (!selectedId) return;
+    try {
+      await downloadMessageAttachment(selectedId, messageId, fileName);
+    } catch (err) {
+      setThreadError(extractErrorMessage(err));
+    }
+  }
+
   function applyFormat(type: FormatType) {
     const ta = composeRef.current;
     if (!ta) return;
@@ -390,10 +538,11 @@ export function MessagesPage() {
     const end = ta.selectionEnd;
     const value = composeBody;
 
-    if (type === "bold" || type === "italic" || type === "strike") {
-      const marker = type === "bold" ? "**" : type === "italic" ? "*" : "~~";
+    if (type === "bold" || type === "italic" || type === "strike" || type === "code") {
+      const marker = type === "bold" ? "**" : type === "italic" ? "*" : type === "strike" ? "~~" : "`";
       const selected = value.slice(start, end);
-      const placeholder = type === "bold" ? "bold text" : type === "italic" ? "italic text" : "struck text";
+      const placeholder =
+        type === "bold" ? "bold text" : type === "italic" ? "italic text" : type === "strike" ? "struck text" : "code";
       const inner = selected || placeholder;
       const next = value.slice(0, start) + marker + inner + marker + value.slice(end);
       setComposeBody(next);
@@ -402,6 +551,30 @@ export function MessagesPage() {
         ta.focus();
         ta.setSelectionRange(selected ? cursor : start + marker.length, selected ? cursor : start + marker.length + inner.length);
       });
+    } else if (type === "link") {
+      const selected = value.slice(start, end);
+      const linkText = selected || "link text";
+      const url = "https://";
+      const inserted = `[${linkText}](${url})`;
+      const next = value.slice(0, start) + inserted + value.slice(end);
+      setComposeBody(next);
+      const urlStart = start + 1 + linkText.length + 2;
+      requestAnimationFrame(() => {
+        ta.focus();
+        ta.setSelectionRange(urlStart, urlStart + url.length);
+      });
+    } else if (type === "quote") {
+      const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+      let lineEnd = value.indexOf("\n", end);
+      if (lineEnd === -1) lineEnd = value.length;
+      const block = value.slice(lineStart, lineEnd);
+      const prefixed = block
+        .split("\n")
+        .map((line) => `> ${line}`)
+        .join("\n");
+      const next = value.slice(0, lineStart) + prefixed + value.slice(lineEnd);
+      setComposeBody(next);
+      requestAnimationFrame(() => ta.focus());
     } else {
       const lineStart = value.lastIndexOf("\n", start - 1) + 1;
       let lineEnd = value.indexOf("\n", end);
@@ -418,7 +591,7 @@ export function MessagesPage() {
   function handleComposeKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      if (composeBody.trim() && !sending) {
+      if ((composeBody.trim() || pendingAttachment) && !sending) {
         handleSend(event as unknown as FormEvent);
       }
     }
@@ -469,7 +642,10 @@ export function MessagesPage() {
   });
   const groupConversations = sortedConversations.filter((c) => c.isGroup);
   const directConversations = sortedConversations.filter((c) => !c.isGroup);
-  const visibleMessages = showImportantOnly ? messages.filter((m) => m.important) : messages;
+  const trimmedSearch = searchQuery.trim().toLowerCase();
+  const visibleMessages = messages
+    .filter((m) => !showImportantOnly || m.important)
+    .filter((m) => !trimmedSearch || m.body.toLowerCase().includes(trimmedSearch));
 
   const renderConversationItem = (conversation: ConversationSummary) => {
     const other = otherParticipant(conversation, user.id);
@@ -583,7 +759,16 @@ export function MessagesPage() {
 
         <div className="messages-layout">
           <div className="messages-list-pane">
-            {listLoading && <p className="messages-pane-status">Loading conversations...</p>}
+            {listLoading &&
+              [0, 1, 2, 3, 4].map((i) => (
+                <div className="messages-list-item" key={i}>
+                  <Skeleton width={40} height={40} radius={999} />
+                  <div className="messages-list-item-body">
+                    <Skeleton width="70%" height={13} />
+                    <Skeleton width="90%" height={12} />
+                  </div>
+                </div>
+              ))}
             {listError && <p className="form-error">{listError}</p>}
             {!listLoading && !listError && sortedConversations.length === 0 && (
               <div className="empty-state">
@@ -637,6 +822,15 @@ export function MessagesPage() {
                     </p>
                   </div>
                   <div className="messages-thread-header-actions">
+                    <button
+                      type="button"
+                      className={`messages-header-icon-btn${searchOpen ? " active" : ""}`}
+                      aria-label="Search this conversation"
+                      title="Search this conversation"
+                      onClick={() => setSearchOpen((prev) => !prev)}
+                    >
+                      <SearchIcon />
+                    </button>
                     {selectedConversation.isGroup && (
                       <span className="messages-header-badge">
                         Members &middot; {selectedConversation.participants.length}
@@ -662,12 +856,44 @@ export function MessagesPage() {
                   </div>
                 </div>
 
-                {threadLoading && <p className="messages-pane-status">Loading messages...</p>}
+                {searchOpen && (
+                  <div className="messages-search-bar">
+                    <SearchIcon />
+                    <input
+                      autoFocus
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search in this conversation..."
+                    />
+                    <button
+                      type="button"
+                      aria-label="Close search"
+                      onClick={() => {
+                        setSearchOpen(false);
+                        setSearchQuery("");
+                      }}
+                    >
+                      <CloseIcon />
+                    </button>
+                  </div>
+                )}
+
+                {threadLoading && (
+                  <div className="messages-thread-body">
+                    {[0, 1, 2].map((i) => (
+                      <div className={`message-row${i === 1 ? " message-row-self" : ""}`} key={i}>
+                        <Skeleton width={i === 1 ? 180 : 240} height={48} radius={14} />
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {threadError && <p className="form-error">{threadError}</p>}
 
                 <div className="messages-thread-body">
-                  {showImportantOnly && visibleMessages.length === 0 && (
-                    <p className="messages-pane-status">No important messages yet.</p>
+                  {visibleMessages.length === 0 && (showImportantOnly || trimmedSearch) && (
+                    <p className="messages-pane-status">
+                      {trimmedSearch ? `No messages match "${searchQuery.trim()}".` : "No important messages yet."}
+                    </p>
                   )}
                   {visibleMessages.map((message, index) => {
                     const isSelf = message.senderId === user.id;
@@ -681,6 +907,17 @@ export function MessagesPage() {
                         >
                           {showSender && <div className="message-bubble-sender">{message.senderName}</div>}
                           <div className="message-bubble-body">{renderMessageBody(message.body)}</div>
+                          {message.attachment && (
+                            <button
+                              type="button"
+                              className="message-attachment-chip"
+                              onClick={() => handleDownloadAttachment(message.id, message.attachment!.fileName)}
+                            >
+                              <FileIcon />
+                              <span className="message-attachment-name">{message.attachment.fileName}</span>
+                              <span className="message-attachment-size">{formatAttachmentSize(message.attachment.fileSize)}</span>
+                            </button>
+                          )}
                           <span className="message-bubble-time">{formatBubbleTimestamp(message.createdAt)}</span>
                           <button
                             type="button"
@@ -755,7 +992,40 @@ export function MessagesPage() {
                     <button type="button" className="fmt-btn" title="Numbered list" onClick={() => applyFormat("numbered")}>
                       <NumberedListIcon />
                     </button>
+                    <span className="messages-toolbar-divider" />
+                    <button type="button" className="fmt-btn" title="Quote" onClick={() => applyFormat("quote")}>
+                      <QuoteIcon />
+                    </button>
+                    <button type="button" className="fmt-btn" title="Code" onClick={() => applyFormat("code")}>
+                      <CodeIcon />
+                    </button>
+                    <button type="button" className="fmt-btn" title="Link" onClick={() => applyFormat("link")}>
+                      <LinkIcon />
+                    </button>
+                    <span className="messages-toolbar-divider" />
+                    <button type="button" className="fmt-btn" title="Attach a file" onClick={() => fileInputRef.current?.click()}>
+                      <PaperclipIcon />
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="messages-file-input"
+                      onChange={(e) => {
+                        setPendingAttachment(e.target.files?.[0] ?? null);
+                        e.target.value = "";
+                      }}
+                    />
                   </div>
+                  {pendingAttachment && (
+                    <div className="messages-pending-attachment">
+                      <FileIcon />
+                      <span>{pendingAttachment.name}</span>
+                      <span className="table-hint">{formatAttachmentSize(pendingAttachment.size)}</span>
+                      <button type="button" aria-label="Remove attachment" onClick={() => setPendingAttachment(null)}>
+                        <CloseIcon />
+                      </button>
+                    </div>
+                  )}
                   <textarea
                     ref={composeRef}
                     rows={2}
@@ -763,11 +1033,15 @@ export function MessagesPage() {
                     onChange={(e) => setComposeBody(e.target.value)}
                     onKeyDown={handleComposeKeyDown}
                     placeholder="Write a message..."
-                    required
                   />
                   <div className="messages-compose-footer">
                     <span className="messages-compose-hint">Enter to send &middot; Shift+Enter for a new line</span>
-                    <button type="submit" className="messages-send-btn" disabled={sending || !composeBody.trim()} aria-label="Send message">
+                    <button
+                      type="submit"
+                      className="messages-send-btn"
+                      disabled={sending || (!composeBody.trim() && !pendingAttachment)}
+                      aria-label="Send message"
+                    >
                       <SendIcon />
                     </button>
                   </div>

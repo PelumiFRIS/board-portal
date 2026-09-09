@@ -490,6 +490,13 @@ export interface ReactionSummary {
   reactedByMe: boolean;
 }
 
+export interface AttachmentSummary {
+  id: string;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+}
+
 export interface MessageDto {
   id: string;
   conversationId: string;
@@ -500,6 +507,7 @@ export interface MessageDto {
   seenBy: ParticipantSummary[];
   reactions: ReactionSummary[];
   important: boolean;
+  attachment: AttachmentSummary | null;
 }
 
 export interface CreateConversationPayload {

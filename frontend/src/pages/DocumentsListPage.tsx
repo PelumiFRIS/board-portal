@@ -15,8 +15,10 @@ import { listMeetings } from "../api/meetings";
 import { listCommittees } from "../api/committees";
 import type { CommitteeSummary, DocumentCategory, DocumentDetail, DocumentSummary, MeetingSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
+import { Skeleton } from "../components/Skeleton";
 import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 const CATEGORY_OPTIONS: DocumentCategory[] = [
   "BOARD_PACK",
@@ -50,6 +52,7 @@ function EmptyDocumentsIcon() {
 
 export function DocumentsListPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
 
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
@@ -129,6 +132,7 @@ export function DocumentsListPage() {
       setMeetingId("");
       setCommitteeId("");
       (event.target as HTMLFormElement).reset();
+      toast.success(`"${created.title}" uploaded.`);
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
@@ -276,7 +280,35 @@ export function DocumentsListPage() {
             </label>
           </div>
 
-          {loading && <p>Loading documents...</p>}
+          {loading && (
+            <div className="table-scroll">
+              <table className="user-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Committee</th>
+                    <th>Size</th>
+                    <th>Uploaded</th>
+                    <th>Retention</th>
+                    <th>Sign-off</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <tr key={i}>
+                      {[0, 1, 2, 3, 4, 5, 6, 7].map((c) => (
+                        <td key={c}>
+                          <Skeleton width={c === 0 ? "80%" : "60%"} height={12} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           {loadError && <p className="form-error">{loadError}</p>}
           {actionError && <p className="form-error">{actionError}</p>}
           {!loading && !loadError && documents.length === 0 && (

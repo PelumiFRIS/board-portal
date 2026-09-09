@@ -6,9 +6,11 @@ import { Avatar } from "../components/Avatar";
 import { Sidebar } from "../components/Sidebar";
 import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 export function ProfilePage() {
   const { user, refreshUser } = useAuth();
+  const toast = useToast();
 
   const [title, setTitle] = useState(user?.title ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
@@ -16,7 +18,6 @@ export function ProfilePage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
-  const [profileSaved, setProfileSaved] = useState(false);
   const [removingPhoto, setRemovingPhoto] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -24,14 +25,12 @@ export function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordSaved, setPasswordSaved] = useState(false);
 
   if (!user) return null;
 
   async function handleSaveProfile(event: FormEvent) {
     event.preventDefault();
     setProfileError(null);
-    setProfileSaved(false);
     setSavingProfile(true);
     try {
       if (photoFile) {
@@ -40,7 +39,7 @@ export function ProfilePage() {
       await updateUserProfile(user!.id, { title, phone, bio });
       await refreshUser();
       setPhotoFile(null);
-      setProfileSaved(true);
+      toast.success("Profile updated.");
     } catch (err) {
       setProfileError(extractErrorMessage(err));
     } finally {
@@ -64,7 +63,6 @@ export function ProfilePage() {
   async function handleChangePassword(event: FormEvent) {
     event.preventDefault();
     setPasswordError(null);
-    setPasswordSaved(false);
     if (newPassword !== confirmPassword) {
       setPasswordError("New password and confirmation don't match");
       return;
@@ -75,7 +73,7 @@ export function ProfilePage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setPasswordSaved(true);
+      toast.success("Password changed.");
     } catch (err) {
       setPasswordError(extractErrorMessage(err));
     } finally {
@@ -96,7 +94,6 @@ export function ProfilePage() {
         <section className="dashboard-section">
           <h2>Profile</h2>
           {profileError && <p className="form-error">{profileError}</p>}
-          {profileSaved && <p className="form-success">Profile updated.</p>}
           <form className="add-user-form" onSubmit={handleSaveProfile}>
             <div className="name-cell">
               <Avatar userId={user.id} photoUpdatedAt={user.photoUpdatedAt} firstName={user.firstName} lastName={user.lastName} />
@@ -137,7 +134,6 @@ export function ProfilePage() {
         <section className="dashboard-section">
           <h2>Change password</h2>
           {passwordError && <p className="form-error">{passwordError}</p>}
-          {passwordSaved && <p className="form-success">Password changed.</p>}
           <form className="add-user-form" onSubmit={handleChangePassword}>
             <label>
               Current password

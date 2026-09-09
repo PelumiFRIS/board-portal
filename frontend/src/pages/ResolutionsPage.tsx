@@ -13,9 +13,11 @@ import {
 import { extractErrorMessage } from "../api/client";
 import type { MeetingSummary, ResolutionSummary, VoteChoice, VoteRecord } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
+import { Skeleton } from "../components/Skeleton";
 import { TopBar } from "../components/TopBar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 const MAX_BATCH_SIZE = 12;
 
@@ -34,6 +36,7 @@ function EmptyResolutionsIcon() {
 
 export function ResolutionsPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
 
   const [resolutions, setResolutions] = useState<ResolutionSummary[]>([]);
@@ -104,12 +107,16 @@ export function ResolutionsPage() {
         errors.push(`"${queuedTitle}": ${extractErrorMessage(err)}`);
       }
     }
+    const succeeded = queuedTitles.length - remaining.length;
     setQueuedTitles(remaining);
     setSubmitting(false);
     if (errors.length > 0) {
       setFormError(errors.join(" · "));
     } else {
       setMeetingId("");
+    }
+    if (succeeded > 0) {
+      toast.success(succeeded === 1 ? "Resolution proposed." : `${succeeded} resolutions proposed.`);
     }
   }
 
@@ -196,14 +203,24 @@ export function ResolutionsPage() {
 
         <section className="dashboard-section">
           <h2>Resolutions</h2>
-          {loading && <p>Loading resolutions...</p>}
+          {loading &&
+            [0, 1, 2].map((i) => (
+              <div key={i} className="resolution-card">
+                <div className="resolution-card-header">
+                  <Skeleton width="45%" height={16} />
+                  <Skeleton width={70} height={20} radius={999} />
+                </div>
+                <Skeleton width="30%" height={12} />
+                <Skeleton width="85%" height={13} />
+              </div>
+            ))}
           {loadError && <p className="form-error">{loadError}</p>}
           {actionError && <p className="form-error">{actionError}</p>}
 
           {!loading && !loadError && resolutions.length === 0 && (
             <div className="empty-state">
               <EmptyResolutionsIcon />
-              <p>No resolutions have been proposed yet.</p>
+              <p>No resolutions have been proposed yet. Propose one below to get started.</p>
             </div>
           )}
 

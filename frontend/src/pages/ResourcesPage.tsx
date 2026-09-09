@@ -171,7 +171,7 @@ export function ResourcesPage() {
           <section className="dashboard-section">
             <div className="empty-state">
               <EmptyResourcesIcon />
-              <p>No resources have been added yet.</p>
+              <p>No resources have been added yet. Add one below to build your library.</p>
             </div>
           </section>
         )}

@@ -14,11 +14,17 @@ public record MessageDto(
         Instant createdAt,
         List<ParticipantSummary> seenBy,
         List<ReactionSummary> reactions,
-        boolean important) {
+        boolean important,
+        AttachmentSummary attachment) {
 
     public static MessageDto from(Message message, List<ParticipantSummary> seenBy, List<ReactionSummary> reactions) {
+        return from(message, seenBy, reactions, null);
+    }
+
+    public static MessageDto from(Message message, List<ParticipantSummary> seenBy, List<ReactionSummary> reactions,
+            AttachmentSummary attachment) {
         return new MessageDto(message.getId(), message.getConversationId(), message.getSenderId(),
                 message.getSenderName(), message.getBody(), message.getCreatedAt(), seenBy, reactions,
-                message.isImportant());
+                message.isImportant(), attachment);
     }
 }

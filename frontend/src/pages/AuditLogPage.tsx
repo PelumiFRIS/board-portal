@@ -111,7 +111,7 @@ export function AuditLogPage() {
           {!loading && !loadError && entries.length === 0 && (
             <div className="empty-state">
               <EmptyAuditIcon />
-              <p>No activity recorded yet.</p>
+              <p>No activity recorded yet. Actions taken across the portal will show up here.</p>
             </div>
           )}
           {!loading && !loadError && entries.length > 0 && (

@@ -241,7 +241,7 @@ export function CommitteesPage() {
             </div>
 
             {committee.members.length === 0 ? (
-              <p className="table-hint">No members yet.</p>
+              <p className="table-hint">No members yet. Add one below.</p>
             ) : (
               <ul className="vote-record-list">
                 {committee.members.map((member) => (
@@ -325,7 +325,7 @@ export function CommitteesPage() {
           {!loading && !loadError && committees.length === 0 && (
             <div className="empty-state">
               <EmptyCommitteesIcon />
-              <p>No committees have been set up yet.</p>
+              <p>No committees have been set up yet. Create one below to get started.</p>
             </div>
           )}
 

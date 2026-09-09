@@ -21,9 +21,15 @@ import com.fris.boardportal.support.IntegrationTestSupport;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 class MessagingFlowTest extends IntegrationTestSupport {
 
@@ -276,6 +282,78 @@ class MessagingFlowTest extends IntegrationTestSupport {
 
         ParticipantSummary after = participant(listConversations(admin.accessToken()).get(0), memberEmail);
         assertThat(after.online()).isTrue();
+    }
+
+    @Test
+    void uploadingAnAttachmentIsReturnedInTheAttachmentAndDownloadsWithTheSameBytes() {
+        AuthResponse admin = signup(uniqueEmail(), "Attachments Org");
+        String memberEmail = uniqueEmail();
+        UserSummary member = createBoardMember(admin.accessToken(), memberEmail);
+        AuthResponse memberAuth = login(memberEmail);
+
+        ConversationSummary conversation = createConversation(admin.accessToken(), List.of(member.id()), "See attached");
+        UUID messageId = listMessages(admin.accessToken(), conversation.id()).get(0).id();
+        byte[] content = "board pack excerpt".getBytes();
+
+        MessageDto uploaded = uploadAttachment(memberAuth.accessToken(), conversation.id(), messageId, content, "notes.txt");
+        assertThat(uploaded.attachment()).isNotNull();
+        assertThat(uploaded.attachment().fileName()).isEqualTo("notes.txt");
+        assertThat(uploaded.attachment().fileSize()).isEqualTo(content.length);
+
+        // Visible to every participant, not just the uploader.
+        List<MessageDto> senderView = listMessages(admin.accessToken(), conversation.id());
+        assertThat(senderView.get(0).attachment()).isNotNull();
+        assertThat(senderView.get(0).attachment().fileName()).isEqualTo("notes.txt");
+
+        ResponseEntity<byte[]> downloaded = restTemplate.exchange(
+                "/api/conversations/" + conversation.id() + "/messages/" + messageId + "/attachment",
+                HttpMethod.GET, authedRequest(admin.accessToken()), byte[].class);
+        assertThat(downloaded.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(downloaded.getBody()).isEqualTo(content);
+    }
+
+    @Test
+    void nonParticipantCannotUploadOrDownloadAnAttachment() {
+        AuthResponse admin = signup(uniqueEmail(), "Attachments Access Org");
+        UserSummary member = createBoardMember(admin.accessToken(), uniqueEmail());
+        UserSummary outsider = createBoardMember(admin.accessToken(), uniqueEmail());
+        AuthResponse outsiderAuth = login(outsider.email());
+
+        ConversationSummary conversation = createConversation(admin.accessToken(), List.of(member.id()), "Private");
+        UUID messageId = listMessages(admin.accessToken(), conversation.id()).get(0).id();
+
+        ResponseEntity<String> uploadAttempt = restTemplate.exchange(
+                "/api/conversations/" + conversation.id() + "/messages/" + messageId + "/attachment",
+                HttpMethod.POST, attachmentUploadRequest(outsiderAuth.accessToken(), "sneaky".getBytes(), "x.txt"),
+                String.class);
+        assertThat(uploadAttempt.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+        ResponseEntity<String> downloadAttempt = restTemplate.exchange(
+                "/api/conversations/" + conversation.id() + "/messages/" + messageId + "/attachment",
+                HttpMethod.GET, authedRequest(outsiderAuth.accessToken()), String.class);
+        assertThat(downloadAttempt.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    private MessageDto uploadAttachment(String token, UUID conversationId, UUID messageId, byte[] content, String fileName) {
+        ResponseEntity<MessageDto> response = restTemplate.exchange(
+                "/api/conversations/" + conversationId + "/messages/" + messageId + "/attachment",
+                HttpMethod.POST, attachmentUploadRequest(token, content, fileName), MessageDto.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return response.getBody();
+    }
+
+    private HttpEntity<MultiValueMap<String, Object>> attachmentUploadRequest(String token, byte[] content, String fileName) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", new ByteArrayResource(content) {
+            @Override
+            public String getFilename() {
+                return fileName;
+            }
+        });
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.setBearerAuth(token);
+        return new HttpEntity<>(body, headers);
     }
 
     private ParticipantSummary participant(ConversationSummary conversation, String email) {

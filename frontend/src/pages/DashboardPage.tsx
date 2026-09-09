@@ -21,6 +21,7 @@ import type {
 import { Avatar } from "../components/Avatar";
 import { DashboardStats } from "../components/DashboardStats";
 import { Sidebar } from "../components/Sidebar";
+import { Skeleton } from "../components/Skeleton";
 import { TopBar } from "../components/TopBar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
@@ -116,7 +117,33 @@ function MemberDashboard() {
     }
   }
 
-  if (loading) return <p>Loading your dashboard...</p>;
+  if (loading) {
+    return (
+      <div className="app-shell">
+        <Sidebar />
+        <main className="main-content">
+          <TopBar />
+          <div className="page-header">
+            <Skeleton width={220} height={28} />
+            <Skeleton width={160} height={16} />
+          </div>
+          <section className="dashboard-section">
+            <Skeleton width={180} height={20} />
+            <div className="stat-card-grid">
+              {[0, 1, 2, 3].map((i) => (
+                <div className="stat-card" key={i}>
+                  <Skeleton width={36} height={36} radius={10} />
+                  <Skeleton width="60%" height={12} />
+                  <Skeleton width="40%" height={26} />
+                  <Skeleton width="80%" height={12} />
+                </div>
+              ))}
+            </div>
+          </section>
+        </main>
+      </div>
+    );
+  }
   if (loadError) return <p className="form-error">{loadError}</p>;
   if (!user) return null;
 
@@ -221,7 +248,7 @@ function MemberDashboard() {
 
       <section className="dashboard-section">
         <h2>Upcoming meetings</h2>
-        {upcomingMeetings.length === 0 && <p className="table-hint">Nothing scheduled.</p>}
+        {upcomingMeetings.length === 0 && <p className="table-hint">Nothing scheduled — enjoy the quiet.</p>}
         {upcomingMeetings.map((m) => (
           <div key={m.id} className="agenda-item-row">
             <div className="agenda-item-body">
@@ -243,7 +270,7 @@ function MemberDashboard() {
 
       <section className="dashboard-section">
         <h2>Recent documents</h2>
-        {recentDocuments.length === 0 && <p className="table-hint">No documents yet.</p>}
+        {recentDocuments.length === 0 && <p className="table-hint">No documents uploaded yet.</p>}
         {recentDocuments.map((doc) => (
           <div key={doc.id} className="document-row">
             <div>

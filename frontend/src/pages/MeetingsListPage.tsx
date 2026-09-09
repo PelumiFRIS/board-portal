@@ -12,6 +12,7 @@ import { createMeetingType, deleteMeetingType, listMeetingTypes } from "../api/m
 import { extractErrorMessage } from "../api/client";
 import type { CommitteeSummary, MeetingSummary, MeetingTypeSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
+import { Skeleton } from "../components/Skeleton";
 import { TopBar } from "../components/TopBar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
@@ -204,12 +205,38 @@ export function MeetingsListPage() {
             </label>
           </div>
 
-          {loading && <p>Loading meetings...</p>}
+          {loading && (
+            <div className="table-scroll">
+              <table className="user-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Date</th>
+                    <th>Location</th>
+                    <th>Committee</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <tr key={i}>
+                      {[0, 1, 2, 3, 4, 5].map((c) => (
+                        <td key={c}>
+                          <Skeleton width={c === 0 ? "80%" : "60%"} height={12} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           {loadError && <p className="form-error">{loadError}</p>}
           {!loading && !loadError && meetings.length === 0 && (
             <div className="empty-state">
               <EmptyMeetingsIcon />
-              <p>No meetings scheduled yet.</p>
+              <p>No meetings scheduled yet. Schedule one below to get started.</p>
             </div>
           )}
           {!loading && !loadError && meetings.length > 0 && (

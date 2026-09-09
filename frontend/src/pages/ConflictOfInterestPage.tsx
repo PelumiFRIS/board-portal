@@ -5,6 +5,7 @@ import type { ConflictDeclarationSummary } from "../api/types";
 import { Sidebar } from "../components/Sidebar";
 import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 function EmptyDeclarationsIcon() {
   return (
@@ -39,6 +40,7 @@ function DeclarationRow({ declaration, showName }: { declaration: ConflictDeclar
 
 export function ConflictOfInterestPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
 
   const [myDeclarations, setMyDeclarations] = useState<ConflictDeclarationSummary[]>([]);
@@ -77,6 +79,7 @@ export function ConflictOfInterestPage() {
       }
       setHasConflict(false);
       setDetails("");
+      toast.success("Declaration submitted.");
     } catch (err) {
       setActionError(extractErrorMessage(err));
     } finally {
@@ -126,7 +129,7 @@ export function ConflictOfInterestPage() {
           {!loading && !loadError && myDeclarations.length === 0 && (
             <div className="empty-state">
               <EmptyDeclarationsIcon />
-              <p>You haven&apos;t declared anything yet.</p>
+              <p>You haven&apos;t declared anything yet. Use the form below to declare a conflict, or confirm you have none.</p>
             </div>
           )}
           {!loading &&
@@ -140,7 +143,7 @@ export function ConflictOfInterestPage() {
             {!loading && !loadError && allDeclarations.length === 0 && (
               <div className="empty-state">
                 <EmptyDeclarationsIcon />
-                <p>No declarations recorded yet.</p>
+                <p>No declarations recorded yet. Submissions from the whole board will appear here.</p>
               </div>
             )}
             {!loading &&
