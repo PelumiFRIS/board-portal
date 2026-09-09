@@ -248,15 +248,20 @@ function formatSeenBy(seenBy: ParticipantSummary[]): string {
 }
 
 /** Minimal, safe markdown-lite: **bold**, *italic*, ~~strike~~, "- " bullets, "1. " numbered lists. */
-const LINK_TOKEN = /^\[([^\]]+)\]\(([^)]+)\)$/;
+// URL body allows one level of nested parens, e.g. (https://en.wikipedia.org/wiki/Example_(disambiguation))
+const LINK_URL = String.raw`(?:[^\s()]|\([^\s()]*\))+`;
+const LINK_TOKEN = new RegExp(String.raw`^\[([^\]]+)\]\((${LINK_URL})\)$`);
 
-function isSafeLinkUrl(url: string): boolean {
+export function isSafeLinkUrl(url: string): boolean {
   return /^(https?:|mailto:)/i.test(url.trim());
 }
 
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
   const parts: ReactNode[] = [];
-  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|~~[^~]+~~|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
+  const regex = new RegExp(
+    String.raw`(\*\*[^*]+\*\*|\*[^*]+\*|~~[^~]+~~|\`[^\`]+\`|\[[^\]]+\]\(${LINK_URL}\))`,
+    "g",
+  );
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   let key = 0;
@@ -282,7 +287,7 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
   return parts;
 }
 
-function renderMessageBody(text: string): ReactNode {
+export function renderMessageBody(text: string): ReactNode {
   const lines = text.split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
