@@ -1,11 +1,41 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getUnreadCount } from "../api/messaging";
+import { listActionItems } from "../api/actionItems";
+import { getUnreadCount, listConversations } from "../api/messaging";
+import type { ActionItemSummary, ConversationSummary } from "../api/types";
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "./Avatar";
 import { NAV_ITEMS } from "./Sidebar";
 
 const UNREAD_POLL_MS = 25000;
+
+interface NotificationEntry {
+  key: string;
+  category: "MESSAGE" | "ACTION ITEM";
+  title: string;
+  description: string;
+  timestamp: string;
+  to: string;
+}
+
+function conversationDisplayName(conversation: ConversationSummary, selfId: string): string {
+  if (conversation.title) return conversation.title;
+  const others = conversation.participants.filter((p) => p.userId !== selfId);
+  if (others.length === 0) return "You";
+  return others.map((p) => `${p.firstName} ${p.lastName}`).join(", ");
+}
+
+function formatRelativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const minutes = Math.round(diffMs / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
 
 function SearchIcon() {
   return (
@@ -73,7 +103,12 @@ export function TopBar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [overdueItems, setOverdueItems] = useState<ActionItemSummary[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -88,9 +123,24 @@ export function TopBar() {
   }, [user]);
 
   useEffect(() => {
+    if (!notifOpen) return;
+    setNotifLoading(true);
+    Promise.all([listConversations(), listActionItems()])
+      .then(([convos, items]) => {
+        setConversations(convos);
+        setOverdueItems(items);
+      })
+      .catch(() => {})
+      .finally(() => setNotifLoading(false));
+  }, [notifOpen]);
+
+  useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setMenuOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setNotifOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -108,6 +158,36 @@ export function TopBar() {
       return item.label.toLowerCase().includes(q);
     }).slice(0, 6);
   }, [query, isAdmin, canManage]);
+
+  const notifications = useMemo<NotificationEntry[]>(() => {
+    if (!user) return [];
+    const messageEntries: NotificationEntry[] = conversations
+      .filter((c) => c.unreadCount > 0)
+      .map((c) => ({
+        key: `conv-${c.id}`,
+        category: "MESSAGE",
+        title: conversationDisplayName(c, user.id),
+        description: c.lastMessagePreview ?? "New message",
+        timestamp: c.lastMessageAt ?? new Date(0).toISOString(),
+        to: "/messages",
+      }));
+
+    const now = Date.now();
+    const actionEntries: NotificationEntry[] = overdueItems
+      .filter((item) => item.assigneeId === user.id && item.status === "OPEN" && item.dueDate && new Date(item.dueDate).getTime() < now)
+      .map((item) => ({
+        key: `action-${item.id}`,
+        category: "ACTION ITEM",
+        title: item.title,
+        description: `Overdue since ${new Date(item.dueDate as string).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`,
+        timestamp: item.dueDate as string,
+        to: "/matters-arising",
+      }));
+
+    return [...messageEntries, ...actionEntries].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+  }, [conversations, overdueItems, user]);
 
   function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter" && matches.length > 0) {
@@ -150,15 +230,60 @@ export function TopBar() {
       </div>
 
       <div className="topbar-actions">
-        <button
-          type="button"
-          className="topbar-bell"
-          aria-label={unreadCount > 0 ? `${unreadCount} unread messages` : "Notifications"}
-          onClick={() => navigate("/messages")}
-        >
-          <BellIcon />
-          {unreadCount > 0 && <span className="topbar-bell-dot">{unreadCount > 9 ? "9+" : unreadCount}</span>}
-        </button>
+        <div className="topbar-notif" ref={notifRef}>
+          <button
+            type="button"
+            className="topbar-bell"
+            aria-label={unreadCount > 0 ? `${unreadCount} unread messages` : "Notifications"}
+            onClick={() => setNotifOpen((prev) => !prev)}
+          >
+            <BellIcon />
+            {unreadCount > 0 && <span className="topbar-bell-dot">{unreadCount > 9 ? "9+" : unreadCount}</span>}
+          </button>
+          {notifOpen && (
+            <div className="topbar-notif-panel">
+              <div className="topbar-notif-header">
+                <strong>Notifications</strong>
+                <span className="topbar-notif-count">
+                  {notifLoading ? "Loading..." : notifications.length === 0 ? "All caught up" : `${notifications.length} update${notifications.length === 1 ? "" : "s"}`}
+                </span>
+              </div>
+              <div className="topbar-notif-list">
+                {!notifLoading && notifications.length === 0 && (
+                  <div className="topbar-notif-empty">No new messages or overdue action items.</div>
+                )}
+                {notifications.map((item) => (
+                  <button
+                    type="button"
+                    key={item.key}
+                    className="topbar-notif-item"
+                    onClick={() => {
+                      navigate(item.to);
+                      setNotifOpen(false);
+                    }}
+                  >
+                    <span className={`topbar-notif-tag topbar-notif-tag-${item.category === "MESSAGE" ? "message" : "action"}`}>
+                      {item.category}
+                    </span>
+                    <span className="topbar-notif-item-body">
+                      <span className="topbar-notif-item-title">{item.title}</span>
+                      <span className="topbar-notif-item-desc">{item.description}</span>
+                    </span>
+                    <span className="topbar-notif-item-time">{formatRelativeTime(item.timestamp)}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="topbar-notif-footer">
+                <Link to="/messages" onClick={() => setNotifOpen(false)}>
+                  All messages
+                </Link>
+                <Link to="/matters-arising" onClick={() => setNotifOpen(false)}>
+                  All action items
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="topbar-user" ref={menuRef}>
           <button type="button" className="topbar-user-trigger" onClick={() => setMenuOpen((prev) => !prev)}>

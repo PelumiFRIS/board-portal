@@ -76,7 +76,7 @@ function App() {
         <Route
           path="/audit"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireManagement>
               <AuditLogPage />
             </ProtectedRoute>
           }
@@ -140,7 +140,7 @@ function App() {
         <Route
           path="/integrations"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireAdmin>
               <IntegrationsPage />
             </ProtectedRoute>
           }

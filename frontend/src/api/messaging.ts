@@ -31,3 +31,11 @@ export async function sendMessage(conversationId: string, payload: SendMessagePa
   const { data } = await apiClient.post<MessageDto>(`/api/conversations/${conversationId}/messages`, payload);
   return data;
 }
+
+export async function toggleReaction(conversationId: string, messageId: string, emoji: string): Promise<MessageDto> {
+  const { data } = await apiClient.post<MessageDto>(
+    `/api/conversations/${conversationId}/messages/${messageId}/reactions`,
+    { emoji },
+  );
+  return data;
+}

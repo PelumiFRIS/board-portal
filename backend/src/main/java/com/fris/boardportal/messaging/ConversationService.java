@@ -8,16 +8,20 @@ import com.fris.boardportal.messaging.dto.ConversationSummary;
 import com.fris.boardportal.messaging.dto.CreateConversationRequest;
 import com.fris.boardportal.messaging.dto.MessageDto;
 import com.fris.boardportal.messaging.dto.ParticipantSummary;
+import com.fris.boardportal.messaging.dto.ReactionSummary;
 import com.fris.boardportal.messaging.dto.SendMessageRequest;
 import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.user.User;
 import com.fris.boardportal.user.UserRepository;
 import com.fris.boardportal.user.UserStatus;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -27,18 +31,23 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ConversationService {
 
+    private static final List<String> ALLOWED_EMOJI = List.of("👍", "❤️", "😂", "🎉", "✅", "👀");
+
     private final ConversationRepository conversationRepository;
     private final ConversationParticipantRepository participantRepository;
     private final MessageRepository messageRepository;
+    private final MessageReactionRepository messageReactionRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
 
     public ConversationService(ConversationRepository conversationRepository,
             ConversationParticipantRepository participantRepository, MessageRepository messageRepository,
-            UserRepository userRepository, AuditLogService auditLogService) {
+            MessageReactionRepository messageReactionRepository, UserRepository userRepository,
+            AuditLogService auditLogService) {
         this.conversationRepository = conversationRepository;
         this.participantRepository = participantRepository;
         this.messageRepository = messageRepository;
+        this.messageReactionRepository = messageReactionRepository;
         this.userRepository = userRepository;
         this.auditLogService = auditLogService;
     }
@@ -120,7 +129,7 @@ public class ConversationService {
         auditLogService.record(principal, AuditAction.MESSAGE_SENT, AuditEntityType.CONVERSATION, conversation.getId(),
                 "Sent a message in a conversation with " + participantNames(otherParticipantIds));
 
-        return MessageDto.from(message);
+        return MessageDto.from(message, List.of(), List.of());
     }
 
     @Transactional
@@ -134,9 +143,69 @@ public class ConversationService {
         participant.setLastReadAt(Instant.now());
         participantRepository.save(participant);
 
-        return messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId).stream()
-                .map(MessageDto::from)
+        List<Message> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
+
+        List<ConversationParticipant> allParticipants = participantRepository.findByConversationId(conversationId);
+        Map<UUID, ParticipantSummary> participantsById = allParticipants.stream()
+                .map(ConversationParticipant::getUserId)
+                .distinct()
+                .map(id -> userRepository.findById(id)
+                        .map(u -> new ParticipantSummary(u.getId(), u.getFirstName(), u.getLastName(), u.getEmail()))
+                        .orElse(null))
+                .filter(p -> p != null)
+                .collect(Collectors.toMap(ParticipantSummary::userId, p -> p, (a, b) -> a, LinkedHashMap::new));
+
+        List<UUID> messageIds = messages.stream().map(Message::getId).toList();
+        Map<UUID, List<MessageReaction>> reactionsByMessageId = messageIds.isEmpty()
+                ? Map.of()
+                : messageReactionRepository.findByMessageIdIn(messageIds).stream()
+                        .collect(Collectors.groupingBy(MessageReaction::getMessageId));
+
+        return messages.stream()
+                .map(message -> {
+                    List<ParticipantSummary> seenBy = allParticipants.stream()
+                            .filter(p -> !p.getUserId().equals(message.getSenderId()))
+                            .filter(p -> p.getLastReadAt() != null && !p.getLastReadAt().isBefore(message.getCreatedAt()))
+                            .map(p -> participantsById.get(p.getUserId()))
+                            .filter(p -> p != null)
+                            .toList();
+                    List<ReactionSummary> reactions = summarizeReactions(
+                            reactionsByMessageId.getOrDefault(message.getId(), List.of()), principal.getUserId());
+                    return MessageDto.from(message, seenBy, reactions);
+                })
                 .toList();
+    }
+
+    @Transactional
+    public MessageDto toggleReaction(AppUserPrincipal principal, UUID conversationId, UUID messageId, String emoji) {
+        if (!ALLOWED_EMOJI.contains(emoji)) {
+            throw ApiException.badRequest("Unsupported reaction");
+        }
+        participantRepository.findByConversationIdAndUserId(conversationId, principal.getUserId())
+                .orElseThrow(() -> ApiException.notFound("Conversation not found"));
+        Message message = messageRepository.findById(messageId)
+                .filter(m -> m.getConversationId().equals(conversationId))
+                .orElseThrow(() -> ApiException.notFound("Message not found"));
+
+        messageReactionRepository.findByMessageIdAndUserIdAndEmoji(messageId, principal.getUserId(), emoji)
+                .ifPresentOrElse(
+                        messageReactionRepository::delete,
+                        () -> messageReactionRepository.save(MessageReaction.create(messageId, principal.getUserId(), emoji)));
+
+        List<ReactionSummary> reactions = summarizeReactions(
+                messageReactionRepository.findByMessageId(messageId), principal.getUserId());
+        return MessageDto.from(message, List.of(), reactions);
+    }
+
+    private List<ReactionSummary> summarizeReactions(List<MessageReaction> reactions, UUID currentUserId) {
+        Map<String, List<MessageReaction>> byEmoji = reactions.stream()
+                .collect(Collectors.groupingBy(MessageReaction::getEmoji, LinkedHashMap::new, Collectors.toList()));
+        List<ReactionSummary> summaries = new ArrayList<>();
+        for (Map.Entry<String, List<MessageReaction>> entry : byEmoji.entrySet()) {
+            boolean reactedByMe = entry.getValue().stream().anyMatch(r -> r.getUserId().equals(currentUserId));
+            summaries.add(new ReactionSummary(entry.getKey(), entry.getValue().size(), reactedByMe));
+        }
+        return summaries;
     }
 
     private Conversation createConversationRecord(UUID orgId, boolean isGroup, String title,

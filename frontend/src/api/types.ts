@@ -482,6 +482,12 @@ export interface ConversationSummary {
   unreadCount: number;
 }
 
+export interface ReactionSummary {
+  emoji: string;
+  count: number;
+  reactedByMe: boolean;
+}
+
 export interface MessageDto {
   id: string;
   conversationId: string;
@@ -489,6 +495,8 @@ export interface MessageDto {
   senderName: string;
   body: string;
   createdAt: string;
+  seenBy: ParticipantSummary[];
+  reactions: ReactionSummary[];
 }
 
 export interface CreateConversationPayload {

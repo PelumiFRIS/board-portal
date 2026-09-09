@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { listDirectory } from "../api/auth";
 import { extractErrorMessage } from "../api/client";
-import { createConversation, listConversations, listMessages, sendMessage } from "../api/messaging";
+import { createConversation, listConversations, listMessages, sendMessage, toggleReaction } from "../api/messaging";
 import type { ConversationSummary, MessageDto, ParticipantSummary, UserSummary } from "../api/types";
 import { Avatar } from "../components/Avatar";
 import { Sidebar } from "../components/Sidebar";
@@ -82,6 +82,27 @@ function NumberedListIcon() {
       />
     </svg>
   );
+}
+
+function ReactIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168 0-.375 0S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168 0-.375 0s-.375.164-.375-.25.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+const REACTION_EMOJI = ["👍", "❤️", "😂", "🎉", "✅", "👀"];
+
+function formatSeenBy(seenBy: ParticipantSummary[]): string {
+  const names = seenBy.map((p) => p.firstName);
+  if (names.length <= 2) return `Seen by ${names.join(" and ")}`;
+  return `Seen by ${names.slice(0, 2).join(", ")} and ${names.length - 2} more`;
 }
 
 /** Minimal, safe markdown-lite: **bold**, *italic*, ~~strike~~, "- " bullets, "1. " numbered lists. */
@@ -195,6 +216,7 @@ export function MessagesPage() {
   const [composeBody, setComposeBody] = useState("");
   const [sending, setSending] = useState(false);
   const composeRef = useRef<HTMLTextAreaElement>(null);
+  const [openPickerMessageId, setOpenPickerMessageId] = useState<string | null>(null);
 
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [directory, setDirectory] = useState<UserSummary[]>([]);
@@ -241,6 +263,18 @@ export function MessagesPage() {
       .catch((err) => setCreateError(extractErrorMessage(err)));
   }, [showNewMessage, directory.length]);
 
+  useEffect(() => {
+    if (!openPickerMessageId) return;
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as HTMLElement;
+      if (!target.closest(".message-react-picker") && !target.closest(".message-react-trigger")) {
+        setOpenPickerMessageId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openPickerMessageId]);
+
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.id === selectedId) ?? null,
     [conversations, selectedId],
@@ -259,6 +293,17 @@ export function MessagesPage() {
       setThreadError(extractErrorMessage(err));
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleToggleReaction(messageId: string, emoji: string) {
+    if (!selectedId) return;
+    setOpenPickerMessageId(null);
+    try {
+      const updated = await toggleReaction(selectedId, messageId, emoji);
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions: updated.reactions } : m)));
+    } catch (err) {
+      setThreadError(extractErrorMessage(err));
     }
   }
 
@@ -506,11 +551,54 @@ export function MessagesPage() {
                     const isSelf = message.senderId === user.id;
                     const prev = messages[index - 1];
                     const showSender = selectedConversation.isGroup && !isSelf && prev?.senderId !== message.senderId;
+                    const pickerOpen = openPickerMessageId === message.id;
                     return (
-                      <div key={message.id} className={`message-bubble${isSelf ? " message-bubble-self" : ""}`}>
-                        {showSender && <div className="message-bubble-sender">{message.senderName}</div>}
-                        <div className="message-bubble-body">{renderMessageBody(message.body)}</div>
-                        <span className="message-bubble-time">{formatBubbleTimestamp(message.createdAt)}</span>
+                      <div key={message.id} className={`message-row${isSelf ? " message-row-self" : ""}`}>
+                        <div className={`message-bubble${isSelf ? " message-bubble-self" : ""}`}>
+                          {showSender && <div className="message-bubble-sender">{message.senderName}</div>}
+                          <div className="message-bubble-body">{renderMessageBody(message.body)}</div>
+                          <span className="message-bubble-time">{formatBubbleTimestamp(message.createdAt)}</span>
+                          <button
+                            type="button"
+                            className="message-react-trigger"
+                            aria-label="Add reaction"
+                            onClick={() => setOpenPickerMessageId(pickerOpen ? null : message.id)}
+                          >
+                            <ReactIcon />
+                          </button>
+                          {pickerOpen && (
+                            <div className="message-react-picker">
+                              {REACTION_EMOJI.map((emoji) => (
+                                <button
+                                  type="button"
+                                  key={emoji}
+                                  onClick={() => handleToggleReaction(message.id, emoji)}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {message.reactions.length > 0 && (
+                          <div className="message-reactions">
+                            {message.reactions.map((reaction) => (
+                              <button
+                                type="button"
+                                key={reaction.emoji}
+                                className={`message-reaction-pill${reaction.reactedByMe ? " active" : ""}`}
+                                onClick={() => handleToggleReaction(message.id, reaction.emoji)}
+                              >
+                                <span>{reaction.emoji}</span> {reaction.count}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {isSelf && message.seenBy.length > 0 && (
+                          <div className="message-seen-by" title={message.seenBy.map((p) => `${p.firstName} ${p.lastName}`).join(", ")}>
+                            {formatSeenBy(message.seenBy)}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

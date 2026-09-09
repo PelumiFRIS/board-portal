@@ -4,6 +4,7 @@ import com.fris.boardportal.messaging.dto.ConversationSummary;
 import com.fris.boardportal.messaging.dto.CreateConversationRequest;
 import com.fris.boardportal.messaging.dto.MessageDto;
 import com.fris.boardportal.messaging.dto.SendMessageRequest;
+import com.fris.boardportal.messaging.dto.ToggleReactionRequest;
 import com.fris.boardportal.messaging.dto.UnreadCountResponse;
 import com.fris.boardportal.security.AppUserPrincipal;
 import jakarta.validation.Valid;
@@ -56,5 +57,11 @@ public class ConversationController {
             @PathVariable UUID id, @Valid @RequestBody SendMessageRequest request) {
         MessageDto created = conversationService.sendMessage(principal, id, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @PostMapping("/{id}/messages/{messageId}/reactions")
+    public MessageDto toggleReaction(@AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID id, @PathVariable UUID messageId, @Valid @RequestBody ToggleReactionRequest request) {
+        return conversationService.toggleReaction(principal, id, messageId, request.emoji());
     }
 }

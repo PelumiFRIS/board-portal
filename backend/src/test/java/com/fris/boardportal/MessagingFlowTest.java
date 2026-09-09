@@ -9,7 +9,9 @@ import com.fris.boardportal.auth.dto.LoginRequest;
 import com.fris.boardportal.messaging.dto.ConversationSummary;
 import com.fris.boardportal.messaging.dto.CreateConversationRequest;
 import com.fris.boardportal.messaging.dto.MessageDto;
+import com.fris.boardportal.messaging.dto.ReactionSummary;
 import com.fris.boardportal.messaging.dto.SendMessageRequest;
+import com.fris.boardportal.messaging.dto.ToggleReactionRequest;
 import com.fris.boardportal.messaging.dto.UnreadCountResponse;
 import com.fris.boardportal.user.Role;
 import com.fris.boardportal.user.dto.CreateUserRequest;
@@ -150,6 +152,73 @@ class MessagingFlowTest extends IntegrationTestSupport {
         assertThat(messageEntries.get(0).summary())
                 .contains(member.firstName())
                 .doesNotContain("A very private secret");
+    }
+
+    @Test
+    void readingMessagesMarksSenderAsSeenByTheReader() {
+        AuthResponse admin = signup(uniqueEmail(), "Seen By Org");
+        String memberEmail = uniqueEmail();
+        UserSummary member = createBoardMember(admin.accessToken(), memberEmail);
+        AuthResponse memberAuth = login(memberEmail);
+
+        ConversationSummary conversation = createConversation(admin.accessToken(), List.of(member.id()), "Please review");
+
+        // Before the member has opened the conversation, the sender's copy shows no one has seen it yet.
+        List<MessageDto> beforeRead = listMessages(admin.accessToken(), conversation.id());
+        assertThat(beforeRead.get(0).seenBy()).isEmpty();
+
+        // Member opens the conversation (listMessages bumps their lastReadAt).
+        listMessages(memberAuth.accessToken(), conversation.id());
+
+        List<MessageDto> afterRead = listMessages(admin.accessToken(), conversation.id());
+        assertThat(afterRead.get(0).seenBy()).extracting(p -> p.email()).containsExactly(memberEmail);
+    }
+
+    @Test
+    void togglingAReactionAddsThenRemovesIt() {
+        AuthResponse admin = signup(uniqueEmail(), "Reactions Org");
+        String memberEmail = uniqueEmail();
+        UserSummary member = createBoardMember(admin.accessToken(), memberEmail);
+        AuthResponse memberAuth = login(memberEmail);
+
+        ConversationSummary conversation = createConversation(admin.accessToken(), List.of(member.id()), "Nice work");
+        UUID messageId = listMessages(admin.accessToken(), conversation.id()).get(0).id();
+
+        MessageDto reacted = toggleReaction(memberAuth.accessToken(), conversation.id(), messageId, "👍");
+        assertThat(reacted.reactions()).hasSize(1);
+        ReactionSummary summary = reacted.reactions().get(0);
+        assertThat(summary.emoji()).isEqualTo("👍");
+        assertThat(summary.count()).isEqualTo(1);
+        assertThat(summary.reactedByMe()).isTrue();
+
+        // The sender's own view of the message shows the reaction too, but reactedByMe is false for them.
+        List<MessageDto> senderView = listMessages(admin.accessToken(), conversation.id());
+        assertThat(senderView.get(0).reactions().get(0).reactedByMe()).isFalse();
+
+        MessageDto unreacted = toggleReaction(memberAuth.accessToken(), conversation.id(), messageId, "👍");
+        assertThat(unreacted.reactions()).isEmpty();
+    }
+
+    @Test
+    void reactionWithUnsupportedEmojiIsRejected() {
+        AuthResponse admin = signup(uniqueEmail(), "Bad Reaction Org");
+        UserSummary member = createBoardMember(admin.accessToken(), uniqueEmail());
+        ConversationSummary conversation = createConversation(admin.accessToken(), List.of(member.id()), "Hi");
+        UUID messageId = listMessages(admin.accessToken(), conversation.id()).get(0).id();
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/conversations/" + conversation.id() + "/messages/" + messageId + "/reactions",
+                HttpMethod.POST, authedRequest(admin.accessToken(), new ToggleReactionRequest("🍕")), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    private MessageDto toggleReaction(String token, UUID conversationId, UUID messageId, String emoji) {
+        ResponseEntity<MessageDto> response = restTemplate.exchange(
+                "/api/conversations/" + conversationId + "/messages/" + messageId + "/reactions",
+                HttpMethod.POST, authedRequest(token, new ToggleReactionRequest(emoji)), MessageDto.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return response.getBody();
     }
 
     private ConversationSummary createConversation(String token, List<UUID> participantIds, String initialMessage) {
