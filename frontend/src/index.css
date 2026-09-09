@@ -1562,10 +1562,27 @@ h3 + .add-user-form {
   margin-bottom: 6px;
 }
 
-.message-bubble p {
-  margin: 0;
+.message-bubble-body {
   line-height: 1.5;
+}
+
+.message-bubble-body p {
+  margin: 0;
   white-space: pre-wrap;
+}
+
+.message-bubble-body > *:not(:last-child) {
+  margin-bottom: 6px;
+}
+
+.message-bubble-body ul,
+.message-bubble-body ol {
+  margin: 0;
+  padding-left: 1.15em;
+}
+
+.message-bubble-body li {
+  margin-bottom: 2px;
 }
 
 .message-bubble-self {
@@ -1596,28 +1613,97 @@ h3 + .add-user-form {
   color: rgba(255, 255, 255, 0.72);
 }
 
-.messages-compose-form {
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-  padding: 12px 22px;
-  border-top: 1px solid var(--border);
+.messages-compose-card {
+  margin: 0 22px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
   background: var(--surface);
+  overflow: hidden;
 }
 
-.messages-compose-form textarea {
-  flex: 1;
+.messages-compose-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-tint);
+}
+
+.fmt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: var(--font-heading);
+  box-shadow: none;
+}
+
+.fmt-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.fmt-btn:hover {
+  background: var(--primary-tint);
+  color: var(--primary);
+  transform: none;
+  box-shadow: none;
+}
+
+.fmt-bold {
+  font-weight: 700;
+}
+
+.fmt-italic {
+  font-style: italic;
+}
+
+.fmt-strike {
+  text-decoration: line-through;
+}
+
+.messages-toolbar-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+.messages-compose-card textarea {
+  display: block;
+  width: 100%;
   resize: none;
   max-height: 140px;
-  border-radius: 20px;
-  padding: 10px 16px;
+  border: none;
+  border-radius: 0;
+  padding: 10px 14px;
   line-height: 1.4;
+}
+
+.messages-compose-card textarea:focus-visible {
+  box-shadow: none;
+}
+
+.messages-compose-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px 8px;
 }
 
 .messages-send-btn {
   flex-shrink: 0;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   padding: 0;
   display: inline-flex;
@@ -1626,16 +1712,13 @@ h3 + .add-user-form {
 }
 
 .messages-send-btn svg {
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
 }
 
 .messages-compose-hint {
-  margin: 0;
-  padding: 0 22px 12px;
   font-size: 11.5px;
   color: var(--text-muted);
-  background: var(--surface);
 }
 
 .avatar-group {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { listDirectory } from "../api/auth";
 import { extractErrorMessage } from "../api/client";
 import { createConversation, listConversations, listMessages, sendMessage } from "../api/messaging";
@@ -58,6 +58,103 @@ function SendIcon() {
   );
 }
 
+function BulletListIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M8.25 6.75h12M8.25 12h12M8.25 17.25h12M3.75 6.75h.008v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.008v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.008v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function NumberedListIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path
+        d="M8.25 6.75h12M8.25 12h12M8.25 17.25h12M4.5 5.25v3M4.5 5.25L3.75 6M3.75 15.75h1.5l-1.5 1.5h1.5m-1.5-3.75a.75.75 0 01.75-.75h.75v1.5H4.5"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Minimal, safe markdown-lite: **bold**, *italic*, ~~strike~~, "- " bullets, "1. " numbered lists. */
+function renderInline(text: string, keyPrefix: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|~~[^~]+~~)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+    const token = match[0];
+    const k = `${keyPrefix}-${key++}`;
+    if (token.startsWith("**")) parts.push(<strong key={k}>{token.slice(2, -2)}</strong>);
+    else if (token.startsWith("~~")) parts.push(<del key={k}>{token.slice(2, -2)}</del>);
+    else parts.push(<em key={k}>{token.slice(1, -1)}</em>);
+    lastIndex = match.index + token.length;
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts;
+}
+
+function renderMessageBody(text: string): ReactNode {
+  const lines = text.split("\n");
+  const blocks: ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+  while (i < lines.length) {
+    const bulletMatch = /^- (.*)$/.exec(lines[i]);
+    const numberedMatch = /^\d+\. (.*)$/.exec(lines[i]);
+    if (bulletMatch) {
+      const items: string[] = [];
+      while (i < lines.length) {
+        const m = /^- (.*)$/.exec(lines[i]);
+        if (!m) break;
+        items.push(m[1]);
+        i++;
+      }
+      const k = `b${key++}`;
+      blocks.push(
+        <ul key={k}>
+          {items.map((item, idx) => (
+            <li key={idx}>{renderInline(item, `${k}-${idx}`)}</li>
+          ))}
+        </ul>,
+      );
+    } else if (numberedMatch) {
+      const items: string[] = [];
+      while (i < lines.length) {
+        const m = /^\d+\. (.*)$/.exec(lines[i]);
+        if (!m) break;
+        items.push(m[1]);
+        i++;
+      }
+      const k = `n${key++}`;
+      blocks.push(
+        <ol key={k}>
+          {items.map((item, idx) => (
+            <li key={idx}>{renderInline(item, `${k}-${idx}`)}</li>
+          ))}
+        </ol>,
+      );
+    } else {
+      const k = `p${key++}`;
+      blocks.push(<p key={k}>{renderInline(lines[i], k)}</p>);
+      i++;
+    }
+  }
+  return blocks;
+}
+
+type FormatType = "bold" | "italic" | "strike" | "bullet" | "numbered";
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function formatListTimestamp(iso: string | null): string {
@@ -97,6 +194,7 @@ export function MessagesPage() {
   const [threadError, setThreadError] = useState<string | null>(null);
   const [composeBody, setComposeBody] = useState("");
   const [sending, setSending] = useState(false);
+  const composeRef = useRef<HTMLTextAreaElement>(null);
 
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [directory, setDirectory] = useState<UserSummary[]>([]);
@@ -161,6 +259,38 @@ export function MessagesPage() {
       setThreadError(extractErrorMessage(err));
     } finally {
       setSending(false);
+    }
+  }
+
+  function applyFormat(type: FormatType) {
+    const ta = composeRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const value = composeBody;
+
+    if (type === "bold" || type === "italic" || type === "strike") {
+      const marker = type === "bold" ? "**" : type === "italic" ? "*" : "~~";
+      const selected = value.slice(start, end);
+      const placeholder = type === "bold" ? "bold text" : type === "italic" ? "italic text" : "struck text";
+      const inner = selected || placeholder;
+      const next = value.slice(0, start) + marker + inner + marker + value.slice(end);
+      setComposeBody(next);
+      const cursor = start + marker.length + inner.length + marker.length;
+      requestAnimationFrame(() => {
+        ta.focus();
+        ta.setSelectionRange(selected ? cursor : start + marker.length, selected ? cursor : start + marker.length + inner.length);
+      });
+    } else {
+      const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+      let lineEnd = value.indexOf("\n", end);
+      if (lineEnd === -1) lineEnd = value.length;
+      const block = value.slice(lineStart, lineEnd);
+      const lines = block.split("\n");
+      const prefixed = lines.map((line, i) => (type === "bullet" ? `- ${line}` : `${i + 1}. ${line}`)).join("\n");
+      const next = value.slice(0, lineStart) + prefixed + value.slice(lineEnd);
+      setComposeBody(next);
+      requestAnimationFrame(() => ta.focus());
     }
   }
 
@@ -379,15 +509,34 @@ export function MessagesPage() {
                     return (
                       <div key={message.id} className={`message-bubble${isSelf ? " message-bubble-self" : ""}`}>
                         {showSender && <div className="message-bubble-sender">{message.senderName}</div>}
-                        <p>{message.body}</p>
+                        <div className="message-bubble-body">{renderMessageBody(message.body)}</div>
                         <span className="message-bubble-time">{formatBubbleTimestamp(message.createdAt)}</span>
                       </div>
                     );
                   })}
                 </div>
 
-                <form className="messages-compose-form" onSubmit={handleSend}>
+                <form className="messages-compose-card" onSubmit={handleSend}>
+                  <div className="messages-compose-toolbar">
+                    <button type="button" className="fmt-btn fmt-bold" title="Bold" onClick={() => applyFormat("bold")}>
+                      B
+                    </button>
+                    <button type="button" className="fmt-btn fmt-italic" title="Italic" onClick={() => applyFormat("italic")}>
+                      I
+                    </button>
+                    <button type="button" className="fmt-btn fmt-strike" title="Strikethrough" onClick={() => applyFormat("strike")}>
+                      S
+                    </button>
+                    <span className="messages-toolbar-divider" />
+                    <button type="button" className="fmt-btn" title="Bulleted list" onClick={() => applyFormat("bullet")}>
+                      <BulletListIcon />
+                    </button>
+                    <button type="button" className="fmt-btn" title="Numbered list" onClick={() => applyFormat("numbered")}>
+                      <NumberedListIcon />
+                    </button>
+                  </div>
                   <textarea
+                    ref={composeRef}
                     rows={2}
                     value={composeBody}
                     onChange={(e) => setComposeBody(e.target.value)}
@@ -395,11 +544,13 @@ export function MessagesPage() {
                     placeholder="Write a message..."
                     required
                   />
-                  <button type="submit" className="messages-send-btn" disabled={sending || !composeBody.trim()} aria-label="Send message">
-                    <SendIcon />
-                  </button>
+                  <div className="messages-compose-footer">
+                    <span className="messages-compose-hint">Enter to send &middot; Shift+Enter for a new line</span>
+                    <button type="submit" className="messages-send-btn" disabled={sending || !composeBody.trim()} aria-label="Send message">
+                      <SendIcon />
+                    </button>
+                  </div>
                 </form>
-                <p className="messages-compose-hint">Enter to send &middot; Shift+Enter for a new line</p>
               </>
             )}
           </div>
