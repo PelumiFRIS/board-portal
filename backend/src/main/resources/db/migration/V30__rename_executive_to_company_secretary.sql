@@ -1,0 +1,1 @@
+UPDATE users SET role = 'COMPANY_SECRETARY' WHERE role = 'EXECUTIVE';

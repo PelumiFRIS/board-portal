@@ -23,6 +23,8 @@ import com.fris.boardportal.meeting.dto.AgendaItemDto;
 import com.fris.boardportal.meeting.dto.CreateAgendaItemRequest;
 import com.fris.boardportal.meeting.dto.CreateMeetingRequest;
 import com.fris.boardportal.meeting.dto.MeetingSummary;
+import com.fris.boardportal.organization.dto.OrganizationOnboardRequest;
+import com.fris.boardportal.organization.dto.OrganizationOnboardResponse;
 import com.fris.boardportal.resolution.dto.CreateResolutionRequest;
 import com.fris.boardportal.resolution.dto.ResolutionSummary;
 import com.fris.boardportal.resource.ResourceCategory;
@@ -31,6 +33,7 @@ import com.fris.boardportal.resource.dto.UpdateResourceRequest;
 import com.fris.boardportal.support.IntegrationTestSupport;
 import com.fris.boardportal.user.Role;
 import com.fris.boardportal.user.dto.CreateUserRequest;
+import com.fris.boardportal.user.dto.PasswordResetResponse;
 import com.fris.boardportal.user.dto.UserSummary;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -46,45 +49,45 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
-class ExecutiveRoleFlowTest extends IntegrationTestSupport {
+class CompanySecretaryRoleFlowTest extends IntegrationTestSupport {
 
     @Test
-    void executiveCanScheduleMeetingsAndManageAgendaItems() {
-        AuthResponse admin = signup(uniqueEmail(), "Executive Meetings Org");
-        AuthResponse executive = createUserAndLogin(admin.accessToken(), Role.EXECUTIVE);
+    void companySecretaryCanScheduleMeetingsAndManageAgendaItems() {
+        AuthResponse admin = signup(uniqueEmail(), "Company Secretary Meetings Org");
+        AuthResponse companySecretary = createUserAndLogin(admin.accessToken(), Role.COMPANY_SECRETARY);
 
         ResponseEntity<MeetingSummary> created = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
-                authedRequest(executive.accessToken(),
-                        new CreateMeetingRequest("Exec Scheduled Meeting", null, null, Instant.now(), null, null,
-                                defaultMeetingTypeId(executive.accessToken()))),
+                authedRequest(companySecretary.accessToken(),
+                        new CreateMeetingRequest("Board Scheduled Meeting", null, null, Instant.now(), null, null,
+                                defaultMeetingTypeId(companySecretary.accessToken()))),
                 MeetingSummary.class);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
         ResponseEntity<AgendaItemDto> agendaItem = restTemplate.exchange(
                 "/api/meetings/" + created.getBody().id() + "/agenda-items", HttpMethod.POST,
-                authedRequest(executive.accessToken(), new CreateAgendaItemRequest("Opening remarks", null, null)),
+                authedRequest(companySecretary.accessToken(), new CreateAgendaItemRequest("Opening remarks", null, null)),
                 AgendaItemDto.class);
         assertThat(agendaItem.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
 
     @Test
-    void executiveCanUploadDocumentsAndSetRetention() {
-        AuthResponse admin = signup(uniqueEmail(), "Executive Documents Org");
-        AuthResponse executive = createUserAndLogin(admin.accessToken(), Role.EXECUTIVE);
+    void companySecretaryCanUploadDocumentsAndSetRetention() {
+        AuthResponse admin = signup(uniqueEmail(), "Company Secretary Documents Org");
+        AuthResponse companySecretary = createUserAndLogin(admin.accessToken(), Role.COMPANY_SECRETARY);
 
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("file", new ByteArrayResource("Exec upload".getBytes(StandardCharsets.UTF_8)) {
+        body.add("file", new ByteArrayResource("Board upload".getBytes(StandardCharsets.UTF_8)) {
             @Override
             public String getFilename() {
-                return "exec-report.txt";
+                return "board-report.txt";
             }
         });
-        body.add("title", "Exec Uploaded Report");
+        body.add("title", "Board Uploaded Report");
         body.add("category", DocumentCategory.REPORT.name());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-        headers.setBearerAuth(executive.accessToken());
+        headers.setBearerAuth(companySecretary.accessToken());
 
         ResponseEntity<DocumentSummary> uploaded = restTemplate.exchange(
                 "/api/documents", HttpMethod.POST, new HttpEntity<>(body, headers), DocumentSummary.class);
@@ -92,7 +95,7 @@ class ExecutiveRoleFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<DocumentSummary> retentionSet = restTemplate.exchange(
                 "/api/documents/" + uploaded.getBody().id() + "/retention", HttpMethod.PATCH,
-                authedRequest(executive.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new UpdateDocumentRetentionRequest(LocalDate.now().plusYears(1))),
                 DocumentSummary.class);
         assertThat(retentionSet.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -100,153 +103,227 @@ class ExecutiveRoleFlowTest extends IntegrationTestSupport {
     }
 
     @Test
-    void executiveCanCreateOpenAndCloseResolutions() {
-        AuthResponse admin = signup(uniqueEmail(), "Executive Resolutions Org");
-        AuthResponse executive = createUserAndLogin(admin.accessToken(), Role.EXECUTIVE);
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken(), "Resolutions Meeting");
+    void companySecretaryCanCreateOpenAndCloseResolutions() {
+        AuthResponse admin = signup(uniqueEmail(), "Company Secretary Resolutions Org");
+        AuthResponse companySecretary = createUserAndLogin(admin.accessToken(), Role.COMPANY_SECRETARY);
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken(), "Resolutions Meeting");
 
         ResponseEntity<ResolutionSummary> created = restTemplate.exchange(
                 "/api/resolutions", HttpMethod.POST,
-                authedRequest(executive.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new CreateResolutionRequest(meeting.id(), "Approve the budget", null)),
                 ResolutionSummary.class);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
         ResponseEntity<ResolutionSummary> opened = restTemplate.exchange(
                 "/api/resolutions/" + created.getBody().id() + "/open", HttpMethod.PATCH,
-                authedRequest(executive.accessToken()), ResolutionSummary.class);
+                authedRequest(companySecretary.accessToken()), ResolutionSummary.class);
         assertThat(opened.getStatusCode()).isEqualTo(HttpStatus.OK);
 
         ResponseEntity<ResolutionSummary> closed = restTemplate.exchange(
                 "/api/resolutions/" + created.getBody().id() + "/close", HttpMethod.PATCH,
-                authedRequest(executive.accessToken()), ResolutionSummary.class);
+                authedRequest(companySecretary.accessToken()), ResolutionSummary.class);
         assertThat(closed.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     @Test
-    void executiveCanCreateActionItemsAndUpdateAnyonesStatus() {
-        AuthResponse admin = signup(uniqueEmail(), "Executive Action Items Org");
-        AuthResponse executive = createUserAndLogin(admin.accessToken(), Role.EXECUTIVE);
+    void companySecretaryCanCreateActionItemsAndUpdateAnyonesStatus() {
+        AuthResponse admin = signup(uniqueEmail(), "Company Secretary Action Items Org");
+        AuthResponse companySecretary = createUserAndLogin(admin.accessToken(), Role.COMPANY_SECRETARY);
         String memberEmail = uniqueEmail();
         UserSummary member = createUser(admin.accessToken(), memberEmail, Role.BOARD_MEMBER);
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken(), "Action Items Meeting");
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken(), "Action Items Meeting");
 
         ResponseEntity<ActionItemSummary> created = restTemplate.exchange(
                 "/api/action-items", HttpMethod.POST,
-                authedRequest(executive.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new CreateActionItemRequest(meeting.id(), "Follow up with auditors", null, member.id(), null)),
                 ActionItemSummary.class);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
-        // executive updates an item assigned to someone else, not just their own
+        // company secretary updates an item assigned to someone else, not just their own
         ResponseEntity<ActionItemSummary> updated = restTemplate.exchange(
                 "/api/action-items/" + created.getBody().id() + "/status", HttpMethod.PATCH,
-                authedRequest(executive.accessToken(), new UpdateActionItemStatusRequest(ActionItemStatus.DONE)),
+                authedRequest(companySecretary.accessToken(), new UpdateActionItemStatusRequest(ActionItemStatus.DONE)),
                 ActionItemSummary.class);
         assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(updated.getBody().status()).isEqualTo(ActionItemStatus.DONE);
     }
 
     @Test
-    void executiveCanManageComplianceFilings() {
-        AuthResponse admin = signup(uniqueEmail(), "Executive Compliance Org");
-        AuthResponse executive = createUserAndLogin(admin.accessToken(), Role.EXECUTIVE);
+    void companySecretaryCanManageComplianceFilings() {
+        AuthResponse admin = signup(uniqueEmail(), "Company Secretary Compliance Org");
+        AuthResponse companySecretary = createUserAndLogin(admin.accessToken(), Role.COMPANY_SECRETARY);
 
         ResponseEntity<ComplianceFilingSummary> created = restTemplate.exchange(
                 "/api/compliance-filings", HttpMethod.POST,
-                authedRequest(executive.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new CreateComplianceFilingRequest("Annual Return", null, LocalDate.now().plusDays(30))),
                 ComplianceFilingSummary.class);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
         ResponseEntity<ComplianceFilingSummary> updated = restTemplate.exchange(
                 "/api/compliance-filings/" + created.getBody().id(), HttpMethod.PATCH,
-                authedRequest(executive.accessToken(), new UpdateComplianceFilingRequest("Annual Return (Revised)", null, null)),
+                authedRequest(companySecretary.accessToken(), new UpdateComplianceFilingRequest("Annual Return (Revised)", null, null)),
                 ComplianceFilingSummary.class);
         assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
 
         ResponseEntity<Void> deleted = restTemplate.exchange(
                 "/api/compliance-filings/" + created.getBody().id(), HttpMethod.DELETE,
-                authedRequest(executive.accessToken()), Void.class);
+                authedRequest(companySecretary.accessToken()), Void.class);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
     @Test
-    void executiveCanManageResourcesAndCommittees() {
-        AuthResponse admin = signup(uniqueEmail(), "Executive Resources Org");
-        AuthResponse executive = createUserAndLogin(admin.accessToken(), Role.EXECUTIVE);
+    void companySecretaryCanManageResourcesAndCommittees() {
+        AuthResponse admin = signup(uniqueEmail(), "Company Secretary Resources Org");
+        AuthResponse companySecretary = createUserAndLogin(admin.accessToken(), Role.COMPANY_SECRETARY);
 
         ResponseEntity<ResourceSummary> resource = restTemplate.exchange(
                 "/api/resources", HttpMethod.POST,
-                resourceForm(executive.accessToken(), ResourceCategory.FAQ, "Exec FAQ", "Body"),
+                resourceForm(companySecretary.accessToken(), ResourceCategory.FAQ, "Board FAQ", "Body"),
                 ResourceSummary.class);
         assertThat(resource.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
         ResponseEntity<ResourceSummary> updatedResource = restTemplate.exchange(
                 "/api/resources/" + resource.getBody().id(), HttpMethod.PATCH,
-                authedRequest(executive.accessToken(), new UpdateResourceRequest(null, "Exec FAQ (Revised)", null)),
+                authedRequest(companySecretary.accessToken(), new UpdateResourceRequest(null, "Board FAQ (Revised)", null)),
                 ResourceSummary.class);
         assertThat(updatedResource.getStatusCode()).isEqualTo(HttpStatus.OK);
 
         ResponseEntity<Void> deletedResource = restTemplate.exchange(
                 "/api/resources/" + resource.getBody().id(), HttpMethod.DELETE,
-                authedRequest(executive.accessToken()), Void.class);
+                authedRequest(companySecretary.accessToken()), Void.class);
         assertThat(deletedResource.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         ResponseEntity<CommitteeSummary> committee = restTemplate.exchange(
                 "/api/committees", HttpMethod.POST,
-                authedRequest(executive.accessToken(), new CreateCommitteeRequest("Audit Committee", null, null)),
+                authedRequest(companySecretary.accessToken(), new CreateCommitteeRequest("Audit Committee", null, null)),
                 CommitteeSummary.class);
         assertThat(committee.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
 
     @Test
-    void executiveCanDeclareConflictOnBehalfOfAnotherMemberAndViewAuditLog() {
-        AuthResponse admin = signup(uniqueEmail(), "Executive Conflicts Org");
-        AuthResponse executive = createUserAndLogin(admin.accessToken(), Role.EXECUTIVE);
+    void companySecretaryCanDeclareConflictOnBehalfOfAnotherMemberAndViewAuditLog() {
+        AuthResponse admin = signup(uniqueEmail(), "Company Secretary Conflicts Org");
+        AuthResponse companySecretary = createUserAndLogin(admin.accessToken(), Role.COMPANY_SECRETARY);
         UserSummary member = createUser(admin.accessToken(), uniqueEmail(), Role.BOARD_MEMBER);
 
         ResponseEntity<ConflictDeclarationSummary> declared = restTemplate.exchange(
                 "/api/conflict-declarations", HttpMethod.POST,
-                authedRequest(executive.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new CreateConflictDeclarationRequest(member.id(), true, "Has a family interest")),
                 ConflictDeclarationSummary.class);
         assertThat(declared.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
         ResponseEntity<ConflictDeclarationSummary[]> all = restTemplate.exchange(
-                "/api/conflict-declarations", HttpMethod.GET, authedRequest(executive.accessToken()),
+                "/api/conflict-declarations", HttpMethod.GET, authedRequest(companySecretary.accessToken()),
                 ConflictDeclarationSummary[].class);
         assertThat(all.getStatusCode()).isEqualTo(HttpStatus.OK);
 
         ResponseEntity<AuditLogEntry[]> auditLog = restTemplate.exchange(
-                "/api/audit-logs", HttpMethod.GET, authedRequest(executive.accessToken()), AuditLogEntry[].class);
+                "/api/audit-logs", HttpMethod.GET, authedRequest(companySecretary.accessToken()), AuditLogEntry[].class);
         assertThat(auditLog.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     @Test
-    void executiveCannotManageUsersOrApiKeysButBoardMemberCannotManageAnything() {
-        AuthResponse admin = signup(uniqueEmail(), "Executive Boundary Org");
-        AuthResponse executive = createUserAndLogin(admin.accessToken(), Role.EXECUTIVE);
+    void companySecretaryCannotManageUsersOrApiKeysButBoardMemberCannotManageAnything() {
+        AuthResponse admin = signup(uniqueEmail(), "Company Secretary Boundary Org");
+        AuthResponse companySecretary = createUserAndLogin(admin.accessToken(), Role.COMPANY_SECRETARY);
         AuthResponse boardMember = createUserAndLogin(admin.accessToken(), Role.BOARD_MEMBER);
 
-        ResponseEntity<String> executiveCreatesUser = restTemplate.exchange(
+        ResponseEntity<String> companySecretaryCreatesUser = restTemplate.exchange(
                 "/api/users", HttpMethod.POST,
-                authedRequest(executive.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new CreateUserRequest("Should", "Fail", uniqueEmail(), "password123", Role.BOARD_MEMBER)),
                 String.class);
-        assertThat(executiveCreatesUser.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(companySecretaryCreatesUser.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
-        ResponseEntity<String> executiveCreatesApiKey = restTemplate.exchange(
+        ResponseEntity<String> companySecretaryCreatesApiKey = restTemplate.exchange(
                 "/api/api-keys", HttpMethod.POST,
-                authedRequest(executive.accessToken(), java.util.Map.of("name", "Should fail")),
+                authedRequest(companySecretary.accessToken(), java.util.Map.of("name", "Should fail")),
                 String.class);
-        assertThat(executiveCreatesApiKey.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(companySecretaryCreatesApiKey.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ResponseEntity<String> companySecretaryResetsPassword = restTemplate.exchange(
+                "/api/users/" + companySecretary.user().id() + "/reset-password", HttpMethod.POST,
+                authedRequest(companySecretary.accessToken()), String.class);
+        assertThat(companySecretaryResetsPassword.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
         ResponseEntity<String> boardMemberCreatesResource = restTemplate.exchange(
                 "/api/resources", HttpMethod.POST,
                 resourceForm(boardMember.accessToken(), ResourceCategory.OTHER, "Should fail", "Body"),
                 String.class);
         assertThat(boardMemberCreatesResource.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void adminIsRejectedFromGovernanceContentEndpoints() {
+        AuthResponse admin = signup(uniqueEmail(), "Admin Boundary Org");
+
+        ResponseEntity<String> adminCreatesCommittee = restTemplate.exchange(
+                "/api/committees", HttpMethod.POST,
+                authedRequest(admin.accessToken(), new CreateCommitteeRequest("Should fail", null, null)),
+                String.class);
+        assertThat(adminCreatesCommittee.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ResponseEntity<String> adminCreatesResource = restTemplate.exchange(
+                "/api/resources", HttpMethod.POST,
+                resourceForm(admin.accessToken(), ResourceCategory.OTHER, "Should fail", "Body"),
+                String.class);
+        assertThat(adminCreatesResource.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ResponseEntity<String> adminCreatesComplianceFiling = restTemplate.exchange(
+                "/api/compliance-filings", HttpMethod.POST,
+                authedRequest(admin.accessToken(),
+                        new CreateComplianceFilingRequest("Should fail", null, LocalDate.now().plusDays(30))),
+                String.class);
+        assertThat(adminCreatesComplianceFiling.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void adminCanResetAnyUsersPasswordAcrossOrganizationsAndTheUserCanLogInWithIt() {
+        AuthResponse fris = signup(uniqueEmail(), "FRIS Ops Org");
+        AuthResponse clientAdmin = signup(uniqueEmail(), "Client Org");
+        UserSummary clientMember = createUser(clientAdmin.accessToken(), uniqueEmail(), Role.BOARD_MEMBER);
+
+        ResponseEntity<PasswordResetResponse> reset = restTemplate.exchange(
+                "/api/users/" + clientMember.id() + "/reset-password", HttpMethod.POST,
+                authedRequest(fris.accessToken()), PasswordResetResponse.class);
+        assertThat(reset.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String temporaryPassword = reset.getBody().temporaryPassword();
+        assertThat(temporaryPassword).isNotBlank();
+
+        ResponseEntity<AuthResponse> loggedIn = restTemplate.postForEntity(
+                "/api/auth/login", new LoginRequest(clientMember.email(), temporaryPassword), AuthResponse.class);
+        assertThat(loggedIn.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void adminOnboardedOrgsSeededUserIsAdminAndCanCreateItsOwnCompanySecretary() {
+        AuthResponse frisAdmin = signup(uniqueEmail(), "FRIS Registrar Org");
+        String clientAdminEmail = uniqueEmail();
+
+        ResponseEntity<OrganizationOnboardResponse> onboarded = restTemplate.exchange(
+                "/api/organizations", HttpMethod.POST,
+                authedRequest(frisAdmin.accessToken(),
+                        new OrganizationOnboardRequest("Onboarded Client Ltd", "Client", "Admin", clientAdminEmail)),
+                OrganizationOnboardResponse.class);
+        assertThat(onboarded.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(onboarded.getBody().admin().role()).isEqualTo(Role.ADMIN);
+        String temporaryPassword = onboarded.getBody().temporaryPassword();
+        assertThat(temporaryPassword).isNotBlank();
+
+        ResponseEntity<AuthResponse> clientAdminLogin = restTemplate.postForEntity(
+                "/api/auth/login", new LoginRequest(clientAdminEmail, temporaryPassword), AuthResponse.class);
+        assertThat(clientAdminLogin.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<UserSummary> companySecretary = restTemplate.exchange(
+                "/api/users", HttpMethod.POST,
+                authedRequest(clientAdminLogin.getBody().accessToken(),
+                        new CreateUserRequest("New", "Secretary", uniqueEmail(), "password123", Role.COMPANY_SECRETARY)),
+                UserSummary.class);
+        assertThat(companySecretary.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
 
     private HttpEntity<MultiValueMap<String, Object>> resourceForm(String token, ResourceCategory category,

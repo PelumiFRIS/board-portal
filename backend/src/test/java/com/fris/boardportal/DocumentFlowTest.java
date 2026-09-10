@@ -36,10 +36,11 @@ class DocumentFlowTest extends IntegrationTestSupport {
     private static final byte[] FILE_BYTES = "Q4 board pack contents".getBytes(StandardCharsets.UTF_8);
 
     @Test
-    void adminCanUploadAndListDocument() {
+    void companySecretaryCanUploadAndListDocument() {
         AuthResponse admin = signup(uniqueEmail(), "Docs Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
 
-        ResponseEntity<DocumentSummary> uploaded = uploadDocument(admin.accessToken(), "Q4 Board Pack",
+        ResponseEntity<DocumentSummary> uploaded = uploadDocument(companySecretary.accessToken(), "Q4 Board Pack",
                 DocumentCategory.BOARD_PACK, null);
         assertThat(uploaded.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(uploaded.getBody().fileSize()).isEqualTo(FILE_BYTES.length);
@@ -53,7 +54,8 @@ class DocumentFlowTest extends IntegrationTestSupport {
     @Test
     void downloadReturnsByteIdenticalContent() {
         AuthResponse admin = signup(uniqueEmail(), "Download Org");
-        DocumentSummary uploaded = uploadDocument(admin.accessToken(), "Policy", DocumentCategory.POLICY, null)
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        DocumentSummary uploaded = uploadDocument(companySecretary.accessToken(), "Policy", DocumentCategory.POLICY, null)
                 .getBody();
 
         ResponseEntity<byte[]> response = restTemplate.exchange(
@@ -67,7 +69,8 @@ class DocumentFlowTest extends IntegrationTestSupport {
     @Test
     void downloadingContentRecordsAnAuditEntryButViewingDetailDoesNot() {
         AuthResponse admin = signup(uniqueEmail(), "Download Audit Org");
-        DocumentSummary uploaded = uploadDocument(admin.accessToken(), "Board Pack", DocumentCategory.BOARD_PACK, null)
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        DocumentSummary uploaded = uploadDocument(companySecretary.accessToken(), "Board Pack", DocumentCategory.BOARD_PACK, null)
                 .getBody();
 
         restTemplate.exchange(
@@ -109,7 +112,8 @@ class DocumentFlowTest extends IntegrationTestSupport {
     void adminCannotAccessDocumentFromAnotherOrganization() {
         AuthResponse orgAAdmin = signup(uniqueEmail(), "Docs Org A");
         AuthResponse orgBAdmin = signup(uniqueEmail(), "Docs Org B");
-        DocumentSummary orgBDoc = uploadDocument(orgBAdmin.accessToken(), "Org B Bylaw", DocumentCategory.BYLAW, null)
+        AuthResponse orgBCompanySecretary = createCompanySecretaryAndLogin(orgBAdmin.accessToken());
+        DocumentSummary orgBDoc = uploadDocument(orgBCompanySecretary.accessToken(), "Org B Bylaw", DocumentCategory.BYLAW, null)
                 .getBody();
 
         ResponseEntity<String> response = restTemplate.exchange(
@@ -122,14 +126,15 @@ class DocumentFlowTest extends IntegrationTestSupport {
     @Test
     void documentLinkedToMeetingAppearsInMeetingDetail() {
         AuthResponse admin = signup(uniqueEmail(), "Meeting Docs Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
 
         Instant start = Instant.now().plus(3, ChronoUnit.DAYS);
         ResponseEntity<MeetingSummary> meeting = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
-                authedRequest(admin.accessToken(), new CreateMeetingRequest("Q1 Meeting", null, null, start, null, null, defaultMeetingTypeId(admin.accessToken()))),
+                authedRequest(companySecretary.accessToken(), new CreateMeetingRequest("Q1 Meeting", null, null, start, null, null, defaultMeetingTypeId(admin.accessToken()))),
                 MeetingSummary.class);
 
-        uploadDocument(admin.accessToken(), "Q1 Board Pack", DocumentCategory.BOARD_PACK, meeting.getBody().id());
+        uploadDocument(companySecretary.accessToken(), "Q1 Board Pack", DocumentCategory.BOARD_PACK, meeting.getBody().id());
 
         ResponseEntity<MeetingDetail> detail = restTemplate.exchange(
                 "/api/meetings/" + meeting.getBody().id(), HttpMethod.GET,
@@ -142,11 +147,12 @@ class DocumentFlowTest extends IntegrationTestSupport {
     @Test
     void committeeIdFilterOnDocumentsList() {
         AuthResponse admin = signup(uniqueEmail(), "Committee Docs Org");
-        CommitteeSummary committeeA = createCommittee(admin.accessToken(), "Audit Committee");
-        CommitteeSummary committeeB = createCommittee(admin.accessToken(), "Risk Committee");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        CommitteeSummary committeeA = createCommittee(companySecretary.accessToken(), "Audit Committee");
+        CommitteeSummary committeeB = createCommittee(companySecretary.accessToken(), "Risk Committee");
 
-        uploadDocument(admin.accessToken(), "Audit Doc", DocumentCategory.REPORT, null, committeeA.id());
-        uploadDocument(admin.accessToken(), "Org Wide Doc", DocumentCategory.OTHER, null);
+        uploadDocument(companySecretary.accessToken(), "Audit Doc", DocumentCategory.REPORT, null, committeeA.id());
+        uploadDocument(companySecretary.accessToken(), "Org Wide Doc", DocumentCategory.OTHER, null);
 
         ResponseEntity<DocumentSummary[]> filteredA = restTemplate.exchange(
                 "/api/documents?committeeId=" + committeeA.id(), HttpMethod.GET,
@@ -170,13 +176,14 @@ class DocumentFlowTest extends IntegrationTestSupport {
     @Test
     void uploadingNewVersionSupersedesInListButPreservesHistory() {
         AuthResponse admin = signup(uniqueEmail(), "Version Org");
-        DocumentSummary v1 = uploadDocument(admin.accessToken(), "Q4 Board Pack", DocumentCategory.BOARD_PACK, null)
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        DocumentSummary v1 = uploadDocument(companySecretary.accessToken(), "Q4 Board Pack", DocumentCategory.BOARD_PACK, null)
                 .getBody();
         assertThat(v1.versionNumber()).isEqualTo(1);
         assertThat(v1.rootDocumentId()).isEqualTo(v1.id());
 
         byte[] v2Bytes = "Q4 board pack contents, revised".getBytes(StandardCharsets.UTF_8);
-        ResponseEntity<DocumentSummary> v2Response = uploadNewVersion(admin.accessToken(), v1.id(), v2Bytes);
+        ResponseEntity<DocumentSummary> v2Response = uploadNewVersion(companySecretary.accessToken(), v1.id(), v2Bytes);
         assertThat(v2Response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         DocumentSummary v2 = v2Response.getBody();
         assertThat(v2.versionNumber()).isEqualTo(2);
@@ -210,7 +217,8 @@ class DocumentFlowTest extends IntegrationTestSupport {
     @Test
     void nonAdminCannotUploadNewVersion() {
         AuthResponse admin = signup(uniqueEmail(), "Version Restricted Org");
-        DocumentSummary v1 = uploadDocument(admin.accessToken(), "Policy", DocumentCategory.POLICY, null).getBody();
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        DocumentSummary v1 = uploadDocument(companySecretary.accessToken(), "Policy", DocumentCategory.POLICY, null).getBody();
         String memberEmail = uniqueEmail();
         restTemplate.exchange(
                 "/api/users", HttpMethod.POST,
@@ -227,14 +235,15 @@ class DocumentFlowTest extends IntegrationTestSupport {
     @Test
     void signaturesDoNotCarryForwardToNewVersion() {
         AuthResponse admin = signup(uniqueEmail(), "Version Signature Org");
-        DocumentSummary v1 = uploadDocument(admin.accessToken(), "Charter", DocumentCategory.CHARTER, null).getBody();
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        DocumentSummary v1 = uploadDocument(companySecretary.accessToken(), "Charter", DocumentCategory.CHARTER, null).getBody();
 
         ResponseEntity<DocumentSummary> signed = restTemplate.exchange(
                 "/api/documents/" + v1.id() + "/sign", HttpMethod.POST,
                 authedRequest(admin.accessToken()), DocumentSummary.class);
         assertThat(signed.getBody().signatureCount()).isEqualTo(1);
 
-        DocumentSummary v2 = uploadNewVersion(admin.accessToken(), v1.id(),
+        DocumentSummary v2 = uploadNewVersion(companySecretary.accessToken(), v1.id(),
                 "revised charter".getBytes(StandardCharsets.UTF_8)).getBody();
         assertThat(v2.signatureCount()).isZero();
         assertThat(v2.signedByMe()).isFalse();
@@ -243,12 +252,13 @@ class DocumentFlowTest extends IntegrationTestSupport {
     @Test
     void deletingLatestVersionRevealsThePreviousOneAsCurrent() {
         AuthResponse admin = signup(uniqueEmail(), "Version Delete Org");
-        DocumentSummary v1 = uploadDocument(admin.accessToken(), "Bylaw", DocumentCategory.BYLAW, null).getBody();
-        DocumentSummary v2 = uploadNewVersion(admin.accessToken(), v1.id(),
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        DocumentSummary v1 = uploadDocument(companySecretary.accessToken(), "Bylaw", DocumentCategory.BYLAW, null).getBody();
+        DocumentSummary v2 = uploadNewVersion(companySecretary.accessToken(), v1.id(),
                 "revised bylaw".getBytes(StandardCharsets.UTF_8)).getBody();
 
         ResponseEntity<Void> deleted = restTemplate.exchange(
-                "/api/documents/" + v2.id(), HttpMethod.DELETE, authedRequest(admin.accessToken()), Void.class);
+                "/api/documents/" + v2.id(), HttpMethod.DELETE, authedRequest(companySecretary.accessToken()), Void.class);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         ResponseEntity<DocumentSummary[]> list = restTemplate.exchange(

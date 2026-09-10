@@ -62,23 +62,24 @@ class ConflictDeclarationFlowTest extends IntegrationTestSupport {
     }
 
     @Test
-    void adminCanDeclareOnBehalfAndReviewFullOrgList() {
+    void companySecretaryCanDeclareOnBehalfAndReviewFullOrgList() {
         AuthResponse admin = signup(uniqueEmail(), "Conflict Admin Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         UserSummary member = createBoardMember(admin.accessToken(), uniqueEmail());
 
         ResponseEntity<ConflictDeclarationSummary> declared = restTemplate.exchange(
                 "/api/conflict-declarations", HttpMethod.POST,
-                authedRequest(admin.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new CreateConflictDeclarationRequest(member.id(), true, "Spouse works at a vendor")),
                 ConflictDeclarationSummary.class);
         assertThat(declared.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(declared.getBody().userId()).isEqualTo(member.id());
         assertThat(declared.getBody().hasConflict()).isTrue();
         assertThat(declared.getBody().details()).isEqualTo("Spouse works at a vendor");
-        assertThat(declared.getBody().declaredByName()).isEqualTo("Ada Admin");
+        assertThat(declared.getBody().declaredByName()).isEqualTo("Board Secretary");
 
         ResponseEntity<ConflictDeclarationSummary[]> all = restTemplate.exchange(
-                "/api/conflict-declarations", HttpMethod.GET, authedRequest(admin.accessToken()),
+                "/api/conflict-declarations", HttpMethod.GET, authedRequest(companySecretary.accessToken()),
                 ConflictDeclarationSummary[].class);
         assertThat(all.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(all.getBody()).hasSize(1);
@@ -89,6 +90,7 @@ class ConflictDeclarationFlowTest extends IntegrationTestSupport {
     void declarationsAreScopedToOrganization() {
         AuthResponse orgAAdmin = signup(uniqueEmail(), "Conflict Org A");
         AuthResponse orgBAdmin = signup(uniqueEmail(), "Conflict Org B");
+        AuthResponse orgACompanySecretary = createCompanySecretaryAndLogin(orgAAdmin.accessToken());
 
         restTemplate.exchange(
                 "/api/conflict-declarations", HttpMethod.POST,
@@ -100,7 +102,7 @@ class ConflictDeclarationFlowTest extends IntegrationTestSupport {
                 ConflictDeclarationSummary.class);
 
         ResponseEntity<ConflictDeclarationSummary[]> orgAList = restTemplate.exchange(
-                "/api/conflict-declarations", HttpMethod.GET, authedRequest(orgAAdmin.accessToken()),
+                "/api/conflict-declarations", HttpMethod.GET, authedRequest(orgACompanySecretary.accessToken()),
                 ConflictDeclarationSummary[].class);
         assertThat(orgAList.getBody()).hasSize(1);
     }

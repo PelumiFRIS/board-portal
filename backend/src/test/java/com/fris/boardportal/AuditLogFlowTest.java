@@ -69,12 +69,13 @@ class AuditLogFlowTest extends IntegrationTestSupport {
         List<AuditLogEntry> afterLogin = fetchAuditLog(loggedInAgain.accessToken());
         assertThat(afterLogin).extracting(AuditLogEntry::action).contains(AuditAction.LOGIN);
 
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
-        ResolutionSummary resolution = createResolution(admin.accessToken(), meeting.id());
-        openResolution(admin.accessToken(), resolution.id());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
+        ResolutionSummary resolution = createResolution(companySecretary.accessToken(), meeting.id());
+        openResolution(companySecretary.accessToken(), resolution.id());
         castVote(admin.accessToken(), resolution.id());
-        closeResolution(admin.accessToken(), resolution.id());
-        uploadDocument(admin.accessToken());
+        closeResolution(companySecretary.accessToken(), resolution.id());
+        uploadDocument(companySecretary.accessToken());
 
         List<AuditLogEntry> entries = fetchAuditLog(admin.accessToken());
         List<AuditAction> actions = entries.stream().map(AuditLogEntry::action).toList();

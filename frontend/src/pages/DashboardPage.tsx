@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { createUser, listOrganizationUsers, updateUserStatus } from "../api/auth";
+import { createUser, listOrganizationUsers, resetUserPassword, updateUserStatus } from "../api/auth";
 import { listActionItems, updateActionItemStatus } from "../api/actionItems";
 import { extractErrorMessage } from "../api/client";
 import { addCommitteeMember, createCommittee, listCommittees } from "../api/committees";
@@ -26,13 +26,7 @@ import { TopBar } from "../components/TopBar";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
 import { STANDARD_COMMITTEES } from "../constants/committeeTemplates";
-
-const ROLE_OPTIONS: Role[] = ["BOARD_MEMBER", "EXECUTIVE", "ADMIN"];
-const ROLE_LABELS: Record<Role, string> = {
-  BOARD_MEMBER: "Board Member",
-  EXECUTIVE: "Executive Management",
-  ADMIN: "Admin",
-};
+import { ROLE_LABELS, ROLE_OPTIONS } from "../constants/roles";
 
 function AllCaughtUpIllustration() {
   return (
@@ -309,6 +303,10 @@ export function DashboardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [revealedReset, setRevealedReset] = useState<{ name: string; password: string } | null>(null);
+  const [resetCopied, setResetCopied] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -350,6 +348,26 @@ export function DashboardPage() {
     }
   }
 
+  async function handleResetPassword(target: UserSummary) {
+    setResetError(null);
+    setResettingId(target.id);
+    try {
+      const { temporaryPassword } = await resetUserPassword(target.id);
+      setRevealedReset({ name: `${target.firstName} ${target.lastName}`, password: temporaryPassword });
+      setResetCopied(false);
+    } catch (err) {
+      setResetError(extractErrorMessage(err));
+    } finally {
+      setResettingId(null);
+    }
+  }
+
+  async function handleCopyReset() {
+    if (!revealedReset) return;
+    await navigator.clipboard.writeText(revealedReset.password);
+    setResetCopied(true);
+  }
+
   async function handleToggleStatus(target: UserSummary) {
     const nextStatus = target.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
     setStatusError(null);
@@ -373,7 +391,7 @@ export function DashboardPage() {
         <TopBar />
         <div className="page-header">
           <h1>Welcome, {user.firstName}</h1>
-          <p>{user.organizationName} &middot; {user.role}</p>
+          <p>{user.organizationName} &middot; {ROLE_LABELS[user.role]}</p>
         </div>
 
         {statsError && <p className="form-error">{statsError}</p>}
@@ -381,12 +399,29 @@ export function DashboardPage() {
 
         {!isAdmin && <MemberDashboard />}
 
+        {isAdmin && revealedReset && (
+          <section className="dashboard-section key-reveal">
+            <h2>New password for {revealedReset.name}</h2>
+            <p className="form-error">Copy this now &mdash; it won&apos;t be shown again. Share it with them directly.</p>
+            <div className="key-reveal-value">
+              <code>{revealedReset.password}</code>
+              <button type="button" className="secondary small" onClick={handleCopyReset}>
+                {resetCopied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+            <button type="button" className="secondary small" onClick={() => setRevealedReset(null)}>
+              Done
+            </button>
+          </section>
+        )}
+
         {isAdmin && (
           <section className="dashboard-section">
             <h2>Onboarding</h2>
             {loadingUsers && <p>Loading users...</p>}
             {usersError && <p className="form-error">{usersError}</p>}
             {statusError && <p className="form-error">{statusError}</p>}
+            {resetError && <p className="form-error">{resetError}</p>}
             {!loadingUsers && !usersError && (
               <div className="table-scroll">
               <table className="user-table">
@@ -409,7 +444,7 @@ export function DashboardPage() {
                         </div>
                       </td>
                       <td>{u.email}</td>
-                      <td>{u.role}</td>
+                      <td>{ROLE_LABELS[u.role]}</td>
                       <td>
                         <StatusBadge status={u.status} />
                       </td>
@@ -417,17 +452,26 @@ export function DashboardPage() {
                         {u.id === user.id ? (
                           <span className="table-hint">You</span>
                         ) : (
-                          <button
-                            className="secondary small"
-                            onClick={() => handleToggleStatus(u)}
-                            disabled={statusUpdatingId === u.id}
-                          >
-                            {statusUpdatingId === u.id
-                              ? "Saving..."
-                              : u.status === "ACTIVE"
-                                ? "Deactivate"
-                                : "Reactivate"}
-                          </button>
+                          <div className="field-row">
+                            <button
+                              className="secondary small"
+                              onClick={() => handleResetPassword(u)}
+                              disabled={resettingId === u.id}
+                            >
+                              {resettingId === u.id ? "Resetting..." : "Reset password"}
+                            </button>
+                            <button
+                              className="secondary small"
+                              onClick={() => handleToggleStatus(u)}
+                              disabled={statusUpdatingId === u.id}
+                            >
+                              {statusUpdatingId === u.id
+                                ? "Saving..."
+                                : u.status === "ACTIVE"
+                                  ? "Deactivate"
+                                  : "Reactivate"}
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>

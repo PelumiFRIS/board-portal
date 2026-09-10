@@ -34,14 +34,14 @@ public class MeetingTypeController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResponseEntity<MeetingTypeSummary> create(@AuthenticationPrincipal AppUserPrincipal principal,
             @Valid @RequestBody CreateMeetingTypeRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(meetingTypeService.create(principal, request.name()));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResponseEntity<Void> delete(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         meetingTypeService.delete(principal, id);
         return ResponseEntity.noContent().build();

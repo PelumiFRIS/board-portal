@@ -107,10 +107,10 @@ public class ActionItemService {
     @Transactional
     public ActionItemSummary updateStatus(AppUserPrincipal principal, UUID id, ActionItemStatus status) {
         ActionItem item = findInOrg(principal, id);
-        boolean canManage = principal.getRole() == Role.ADMIN || principal.getRole() == Role.EXECUTIVE;
+        boolean canManage = principal.getRole() == Role.COMPANY_SECRETARY;
         boolean isAssignee = item.getAssigneeId().equals(principal.getUserId());
         if (!canManage && !isAssignee) {
-            throw ApiException.forbidden("Only the assignee, an executive, or an admin can update this action item");
+            throw ApiException.forbidden("Only the assignee or the Company Secretary can update this action item");
         }
 
         item.setStatus(status);

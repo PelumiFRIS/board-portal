@@ -31,11 +31,12 @@ class ResourceFlowTest extends IntegrationTestSupport {
     @Test
     void nonAdminCanViewButNotMutate() {
         AuthResponse admin = signup(uniqueEmail(), "Resource View Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse memberAuth = login(memberEmail);
 
-        ResourceSummary resource = createResource(admin.accessToken(), ResourceCategory.OTHER,
+        ResourceSummary resource = createResource(companySecretary.accessToken(), ResourceCategory.OTHER,
                 "Welcome Guide", "Welcome to the board.");
 
         ResponseEntity<ResourceSummary[]> list = restTemplate.exchange(
@@ -62,16 +63,17 @@ class ResourceFlowTest extends IntegrationTestSupport {
     }
 
     @Test
-    void adminCanCreateEditAndDeleteResources() {
+    void companySecretaryCanCreateEditAndDeleteResources() {
         AuthResponse admin = signup(uniqueEmail(), "Resource Admin Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
 
-        ResourceSummary resource = createResource(admin.accessToken(), ResourceCategory.GOVERNANCE_BEST_PRACTICES,
+        ResourceSummary resource = createResource(companySecretary.accessToken(), ResourceCategory.GOVERNANCE_BEST_PRACTICES,
                 "Conflict Policy", "Declare conflicts promptly.");
         assertThat(resource.category()).isEqualTo(ResourceCategory.GOVERNANCE_BEST_PRACTICES);
 
         ResponseEntity<ResourceSummary> updated = restTemplate.exchange(
                 "/api/resources/" + resource.id(), HttpMethod.PATCH,
-                authedRequest(admin.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new UpdateResourceRequest(ResourceCategory.POLICIES_AND_PROCEDURES, "Conflict Policy (Revised)",
                                 "Updated body")),
                 ResourceSummary.class);
@@ -82,7 +84,7 @@ class ResourceFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<Void> deleted = restTemplate.exchange(
                 "/api/resources/" + resource.id(), HttpMethod.DELETE,
-                authedRequest(admin.accessToken()), Void.class);
+                authedRequest(companySecretary.accessToken()), Void.class);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         ResponseEntity<ResourceSummary[]> list = restTemplate.exchange(
@@ -94,9 +96,11 @@ class ResourceFlowTest extends IntegrationTestSupport {
     void resourcesAreScopedToOrganization() {
         AuthResponse orgAAdmin = signup(uniqueEmail(), "Resource Org A");
         AuthResponse orgBAdmin = signup(uniqueEmail(), "Resource Org B");
+        AuthResponse orgACompanySecretary = createCompanySecretaryAndLogin(orgAAdmin.accessToken());
+        AuthResponse orgBCompanySecretary = createCompanySecretaryAndLogin(orgBAdmin.accessToken());
 
-        createResource(orgAAdmin.accessToken(), ResourceCategory.FAQ, "Org A FAQ", "Answer");
-        ResourceSummary orgBResource = createResource(orgBAdmin.accessToken(), ResourceCategory.FAQ, "Org B FAQ", "Answer");
+        createResource(orgACompanySecretary.accessToken(), ResourceCategory.FAQ, "Org A FAQ", "Answer");
+        ResourceSummary orgBResource = createResource(orgBCompanySecretary.accessToken(), ResourceCategory.FAQ, "Org B FAQ", "Answer");
 
         ResponseEntity<ResourceSummary[]> orgAList = restTemplate.exchange(
                 "/api/resources", HttpMethod.GET, authedRequest(orgAAdmin.accessToken()), ResourceSummary[].class);
@@ -104,7 +108,7 @@ class ResourceFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<String> crossOrgUpdate = restTemplate.exchange(
                 "/api/resources/" + orgBResource.id(), HttpMethod.PATCH,
-                authedRequest(orgAAdmin.accessToken(), new UpdateResourceRequest(null, "Hijacked", null)),
+                authedRequest(orgACompanySecretary.accessToken(), new UpdateResourceRequest(null, "Hijacked", null)),
                 String.class);
         assertThat(crossOrgUpdate.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
@@ -112,15 +116,16 @@ class ResourceFlowTest extends IntegrationTestSupport {
     @Test
     void mutationsAreAuditLoggedWithTheResourceTitle() {
         AuthResponse admin = signup(uniqueEmail(), "Resource Audit Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
 
-        ResourceSummary resource = createResource(admin.accessToken(), ResourceCategory.OTHER, "Handbook", "Body");
+        ResourceSummary resource = createResource(companySecretary.accessToken(), ResourceCategory.OTHER, "Handbook", "Body");
         restTemplate.exchange(
                 "/api/resources/" + resource.id(), HttpMethod.PATCH,
-                authedRequest(admin.accessToken(), new UpdateResourceRequest(null, null, "New body")),
+                authedRequest(companySecretary.accessToken(), new UpdateResourceRequest(null, null, "New body")),
                 ResourceSummary.class);
         restTemplate.exchange(
                 "/api/resources/" + resource.id(), HttpMethod.DELETE,
-                authedRequest(admin.accessToken()), Void.class);
+                authedRequest(companySecretary.accessToken()), Void.class);
 
         ResponseEntity<AuditLogEntry[]> auditLog = restTemplate.exchange(
                 "/api/audit-logs", HttpMethod.GET, authedRequest(admin.accessToken()), AuditLogEntry[].class);
@@ -143,11 +148,12 @@ class ResourceFlowTest extends IntegrationTestSupport {
     @Test
     void resourceCanBeCreatedWithAnAttachedFileAndDownloaded() {
         AuthResponse admin = signup(uniqueEmail(), "Resource File Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         byte[] fileBytes = "Governance handbook contents".getBytes(StandardCharsets.UTF_8);
 
         ResponseEntity<ResourceSummary> created = restTemplate.exchange(
                 "/api/resources", HttpMethod.POST,
-                createResourceRequest(admin.accessToken(), ResourceCategory.FAQ, "Handbook With File", "Body",
+                createResourceRequest(companySecretary.accessToken(), ResourceCategory.FAQ, "Handbook With File", "Body",
                         fileBytes),
                 ResourceSummary.class);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -164,7 +170,8 @@ class ResourceFlowTest extends IntegrationTestSupport {
     @Test
     void resourceWithNoAttachedFileReturnsNotFoundForContent() {
         AuthResponse admin = signup(uniqueEmail(), "Resource No File Org");
-        ResourceSummary resource = createResource(admin.accessToken(), ResourceCategory.OTHER, "Text Only", "Body");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        ResourceSummary resource = createResource(companySecretary.accessToken(), ResourceCategory.OTHER, "Text Only", "Body");
 
         ResponseEntity<String> content = restTemplate.exchange(
                 "/api/resources/" + resource.id() + "/content", HttpMethod.GET,

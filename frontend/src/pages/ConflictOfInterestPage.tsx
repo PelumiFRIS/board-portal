@@ -41,7 +41,7 @@ function DeclarationRow({ declaration, showName }: { declaration: ConflictDeclar
 export function ConflictOfInterestPage() {
   const { user } = useAuth();
   const toast = useToast();
-  const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
+  const canManage = user?.role === "COMPANY_SECRETARY";
 
   const [myDeclarations, setMyDeclarations] = useState<ConflictDeclarationSummary[]>([]);
   const [allDeclarations, setAllDeclarations] = useState<ConflictDeclarationSummary[]>([]);

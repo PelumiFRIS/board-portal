@@ -37,12 +37,13 @@ class MeetingRecordingTranscriptFlowTest extends IntegrationTestSupport {
     @Test
     void generatingATranscriptWithoutAnApiKeyFailsClearlyAndMarksTheRecordingFailed() {
         AuthResponse admin = signup(uniqueEmail(), "Transcript Org");
-        UUID meetingId = scheduleMeeting(admin.accessToken());
-        UUID recordingId = uploadRecording(admin.accessToken(), meetingId).getBody().id();
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        UUID meetingId = scheduleMeeting(companySecretary.accessToken());
+        UUID recordingId = uploadRecording(companySecretary.accessToken(), meetingId).getBody().id();
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/meetings/" + meetingId + "/recordings/" + recordingId + "/transcript", HttpMethod.POST,
-                authedRequest(admin.accessToken()), String.class);
+                authedRequest(companySecretary.accessToken()), String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).contains("OPENAI_API_KEY");
 
@@ -56,8 +57,9 @@ class MeetingRecordingTranscriptFlowTest extends IntegrationTestSupport {
     @Test
     void boardMemberCannotGenerateATranscript() {
         AuthResponse admin = signup(uniqueEmail(), "Transcript Restricted Org");
-        UUID meetingId = scheduleMeeting(admin.accessToken());
-        UUID recordingId = uploadRecording(admin.accessToken(), meetingId).getBody().id();
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        UUID meetingId = scheduleMeeting(companySecretary.accessToken());
+        UUID recordingId = uploadRecording(companySecretary.accessToken(), meetingId).getBody().id();
 
         String memberEmail = uniqueEmail();
         restTemplate.exchange(

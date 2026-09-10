@@ -31,14 +31,15 @@ class MeetingRecordingFlowTest extends IntegrationTestSupport {
     private static final byte[] AUDIO_BYTES = "fake webm audio bytes".getBytes(StandardCharsets.UTF_8);
 
     @Test
-    void adminCanUploadListDownloadAndDeleteARecording() {
+    void companySecretaryCanUploadListDownloadAndDeleteARecording() {
         AuthResponse admin = signup(uniqueEmail(), "Recording Org");
-        UUID meetingId = scheduleMeeting(admin.accessToken());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        UUID meetingId = scheduleMeeting(companySecretary.accessToken());
 
-        ResponseEntity<MeetingRecordingSummary> uploaded = uploadRecording(admin.accessToken(), meetingId);
+        ResponseEntity<MeetingRecordingSummary> uploaded = uploadRecording(companySecretary.accessToken(), meetingId);
         assertThat(uploaded.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(uploaded.getBody().fileSize()).isEqualTo(AUDIO_BYTES.length);
-        assertThat(uploaded.getBody().recordedByName()).isEqualTo("Ada Admin");
+        assertThat(uploaded.getBody().recordedByName()).isEqualTo("Board Secretary");
 
         ResponseEntity<MeetingRecordingSummary[]> list = restTemplate.exchange(
                 "/api/meetings/" + meetingId + "/recordings", HttpMethod.GET,
@@ -54,7 +55,7 @@ class MeetingRecordingFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<Void> deleted = restTemplate.exchange(
                 "/api/meetings/" + meetingId + "/recordings/" + recordingId, HttpMethod.DELETE,
-                authedRequest(admin.accessToken()), Void.class);
+                authedRequest(companySecretary.accessToken()), Void.class);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         ResponseEntity<MeetingRecordingSummary[]> afterDelete = restTemplate.exchange(
@@ -66,8 +67,9 @@ class MeetingRecordingFlowTest extends IntegrationTestSupport {
     @Test
     void boardMemberCanViewButNotUploadOrDelete() {
         AuthResponse admin = signup(uniqueEmail(), "Recording Restricted Org");
-        UUID meetingId = scheduleMeeting(admin.accessToken());
-        UUID recordingId = uploadRecording(admin.accessToken(), meetingId).getBody().id();
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        UUID meetingId = scheduleMeeting(companySecretary.accessToken());
+        UUID recordingId = uploadRecording(companySecretary.accessToken(), meetingId).getBody().id();
 
         String memberEmail = uniqueEmail();
         restTemplate.exchange(

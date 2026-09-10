@@ -47,7 +47,7 @@ public class ResolutionController {
     }
 
     @GetMapping("/export")
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResponseEntity<byte[]> export(@AuthenticationPrincipal AppUserPrincipal principal) {
         byte[] csv = resolutionService.exportCsv(principal);
         String filename = "resolutions-" + LocalDate.now() + ".csv";
@@ -58,20 +58,20 @@ public class ResolutionController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResponseEntity<ResolutionSummary> create(@AuthenticationPrincipal AppUserPrincipal principal,
             @Valid @RequestBody CreateResolutionRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(resolutionService.create(principal, request));
     }
 
     @PatchMapping("/{id}/open")
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResolutionSummary open(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         return resolutionService.open(principal, id);
     }
 
     @PatchMapping("/{id}/close")
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResolutionSummary close(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         return resolutionService.close(principal, id);
     }
@@ -83,7 +83,7 @@ public class ResolutionController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResponseEntity<Void> delete(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         resolutionService.delete(principal, id);
         return ResponseEntity.noContent().build();

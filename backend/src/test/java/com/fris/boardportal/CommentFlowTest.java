@@ -26,7 +26,8 @@ class CommentFlowTest extends IntegrationTestSupport {
     @Test
     void anyOrgMemberCanPostAndThreadIsOldestFirst() {
         AuthResponse admin = signup(uniqueEmail(), "Comment Org");
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse member = login(memberEmail);
@@ -44,7 +45,8 @@ class CommentFlowTest extends IntegrationTestSupport {
     @Test
     void authorCanDeleteOwnCommentButNotSomeoneElses() {
         AuthResponse admin = signup(uniqueEmail(), "Delete Org");
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse member = login(memberEmail);
@@ -75,7 +77,8 @@ class CommentFlowTest extends IntegrationTestSupport {
     void commentingOnAnotherOrganizationsMeetingIsRejected() {
         AuthResponse orgAAdmin = signup(uniqueEmail(), "Comment Org A");
         AuthResponse orgBAdmin = signup(uniqueEmail(), "Comment Org B");
-        MeetingSummary orgBMeeting = scheduleMeeting(orgBAdmin.accessToken());
+        AuthResponse orgBCompanySecretary = createCompanySecretaryAndLogin(orgBAdmin.accessToken());
+        MeetingSummary orgBMeeting = scheduleMeeting(orgBCompanySecretary.accessToken());
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/comments", HttpMethod.POST,

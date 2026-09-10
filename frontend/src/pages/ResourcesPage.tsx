@@ -41,7 +41,7 @@ function EmptyResourcesIcon() {
 
 export function ResourcesPage() {
   const { user } = useAuth();
-  const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
+  const canManage = user?.role === "COMPANY_SECRETARY";
 
   const [resources, setResources] = useState<ResourceSummary[]>([]);
   const [loading, setLoading] = useState(true);

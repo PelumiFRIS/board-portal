@@ -35,10 +35,11 @@ class MeetingNotificationFlowTest extends IntegrationTestSupport {
     @Test
     void schedulingAMeetingEmailsActiveMembersInBcc() {
         AuthResponse admin = signup(uniqueEmail(), "Notify Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
 
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
 
         ArgumentCaptor<SimpleMailMessage> messageCaptor = ArgumentCaptor.forClass(SimpleMailMessage.class);
         verify(mailSender).send(messageCaptor.capture());
@@ -51,18 +52,19 @@ class MeetingNotificationFlowTest extends IntegrationTestSupport {
     @Test
     void committeeScopedMeetingEmailsOnlyCommitteeMembers() {
         AuthResponse admin = signup(uniqueEmail(), "Committee Notify Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         String memberAEmail = uniqueEmail();
         UserSummary memberA = createBoardMemberSummary(admin.accessToken(), memberAEmail);
         String memberBEmail = uniqueEmail();
         createBoardMemberSummary(admin.accessToken(), memberBEmail);
 
-        CommitteeSummary committee = createCommittee(admin.accessToken(), "Audit Committee");
-        addCommitteeMember(admin.accessToken(), committee.id(), memberA.id());
+        CommitteeSummary committee = createCommittee(companySecretary.accessToken(), "Audit Committee");
+        addCommitteeMember(companySecretary.accessToken(), committee.id(), memberA.id());
 
         Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
-                authedRequest(admin.accessToken(), new CreateMeetingRequest("Audit Committee Meeting", null, null,
+                authedRequest(companySecretary.accessToken(), new CreateMeetingRequest("Audit Committee Meeting", null, null,
                         start, start.plus(1, ChronoUnit.HOURS), committee.id(), defaultMeetingTypeId(admin.accessToken()))),
                 MeetingSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -80,8 +82,9 @@ class MeetingNotificationFlowTest extends IntegrationTestSupport {
         doThrow(new MailSendException("smtp down")).when(mailSender).send(any(SimpleMailMessage.class));
 
         AuthResponse admin = signup(uniqueEmail(), "Notify Failure Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         ResponseEntity<MeetingSummary> response = restTemplate.exchange(
-                "/api/meetings", HttpMethod.POST, authedRequest(admin.accessToken(), newMeetingRequest(admin.accessToken())),
+                "/api/meetings", HttpMethod.POST, authedRequest(companySecretary.accessToken(), newMeetingRequest(admin.accessToken())),
                 MeetingSummary.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);

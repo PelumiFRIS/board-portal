@@ -32,7 +32,7 @@ function EmptyMeetingsIcon() {
 
 export function MeetingsListPage() {
   const { user } = useAuth();
-  const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
+  const canManage = user?.role === "COMPANY_SECRETARY";
 
   const [meetings, setMeetings] = useState<MeetingSummary[]>([]);
   const [committees, setCommittees] = useState<CommitteeSummary[]>([]);

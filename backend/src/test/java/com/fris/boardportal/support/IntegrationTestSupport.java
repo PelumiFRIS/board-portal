@@ -3,8 +3,12 @@ package com.fris.boardportal.support;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fris.boardportal.auth.dto.AuthResponse;
+import com.fris.boardportal.auth.dto.LoginRequest;
 import com.fris.boardportal.meeting.dto.MeetingTypeSummary;
 import com.fris.boardportal.organization.dto.OrganizationSignupRequest;
+import com.fris.boardportal.user.Role;
+import com.fris.boardportal.user.dto.CreateUserRequest;
+import com.fris.boardportal.user.dto.UserSummary;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
@@ -51,6 +55,26 @@ public abstract class IntegrationTestSupport {
 
     protected String uniqueEmail() {
         return "user-" + UUID.randomUUID() + "@example.com";
+    }
+
+    /**
+     * Governance-content mutations (meetings, resolutions, documents, resources, committees,
+     * compliance filings, conflict declarations, meeting types, recordings, action items) are
+     * Company Secretary-only; Admin keeps account/tenant administration only. Use this wherever
+     * a test needs an actor who can create/edit/delete that content.
+     */
+    protected AuthResponse createCompanySecretaryAndLogin(String adminToken) {
+        String email = uniqueEmail();
+        ResponseEntity<UserSummary> response = restTemplate.exchange(
+                "/api/users", HttpMethod.POST,
+                authedRequest(adminToken, new CreateUserRequest("Board", "Secretary", email, "password123", Role.COMPANY_SECRETARY)),
+                UserSummary.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        ResponseEntity<AuthResponse> loginResponse = restTemplate.postForEntity(
+                "/api/auth/login", new LoginRequest(email, "password123"), AuthResponse.class);
+        assertThat(loginResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return loginResponse.getBody();
     }
 
     protected <T> HttpEntity<T> authedRequest(String token) {

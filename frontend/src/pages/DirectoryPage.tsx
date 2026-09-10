@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { listDirectory, updateUserProfile } from "../api/auth";
 import { extractErrorMessage } from "../api/client";
+import { onboardClient } from "../api/organizations";
 import { deleteUserPhoto, uploadUserPhoto } from "../api/userPhotos";
 import type { UserSummary } from "../api/types";
 import { Avatar } from "../components/Avatar";
 import { Sidebar } from "../components/Sidebar";
 import { TopBar } from "../components/TopBar";
+import { ROLE_LABELS } from "../constants/roles";
 import { useAuth } from "../context/AuthContext";
 
 export function DirectoryPage() {
@@ -24,6 +26,17 @@ export function DirectoryPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [removingPhotoId, setRemovingPhotoId] = useState<string | null>(null);
+
+  const [clientOrgName, setClientOrgName] = useState("");
+  const [clientFirstName, setClientFirstName] = useState("");
+  const [clientLastName, setClientLastName] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [onboarding, setOnboarding] = useState(false);
+  const [onboardError, setOnboardError] = useState<string | null>(null);
+  const [revealedOnboard, setRevealedOnboard] = useState<{ orgName: string; email: string; password: string } | null>(
+    null,
+  );
+  const [onboardCopied, setOnboardCopied] = useState(false);
 
   useEffect(() => {
     listDirectory()
@@ -77,6 +90,40 @@ export function DirectoryPage() {
     } finally {
       setRemovingPhotoId(null);
     }
+  }
+
+  async function handleOnboardClient(event: FormEvent) {
+    event.preventDefault();
+    setOnboardError(null);
+    setOnboarding(true);
+    try {
+      const result = await onboardClient({
+        organizationName: clientOrgName,
+        adminFirstName: clientFirstName,
+        adminLastName: clientLastName,
+        adminEmail: clientEmail,
+      });
+      setRevealedOnboard({
+        orgName: clientOrgName,
+        email: result.admin.email,
+        password: result.temporaryPassword,
+      });
+      setOnboardCopied(false);
+      setClientOrgName("");
+      setClientFirstName("");
+      setClientLastName("");
+      setClientEmail("");
+    } catch (err) {
+      setOnboardError(extractErrorMessage(err));
+    } finally {
+      setOnboarding(false);
+    }
+  }
+
+  async function handleCopyOnboard() {
+    if (!revealedOnboard) return;
+    await navigator.clipboard.writeText(revealedOnboard.password);
+    setOnboardCopied(true);
   }
 
   if (!user) return null;
@@ -162,7 +209,7 @@ export function DirectoryPage() {
                           {member.firstName} {member.lastName}
                         </strong>
                       </div>
-                      <div className="table-hint">{member.title || member.role}</div>
+                      <div className="table-hint">{member.title || ROLE_LABELS[member.role]}</div>
                     </div>
                   </div>
                   <p className="table-hint">{member.email}</p>
@@ -184,6 +231,54 @@ export function DirectoryPage() {
               );
             })}
           </div>
+        )}
+
+        {isAdmin && revealedOnboard && (
+          <section className="dashboard-section key-reveal">
+            <h2>{revealedOnboard.orgName} is onboarded</h2>
+            <p className="form-error">
+              Copy this password now &mdash; it won&apos;t be shown again. Share it with {revealedOnboard.email} directly.
+            </p>
+            <div className="key-reveal-value">
+              <code>{revealedOnboard.password}</code>
+              <button type="button" className="secondary small" onClick={handleCopyOnboard}>
+                {onboardCopied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+            <button type="button" className="secondary small" onClick={() => setRevealedOnboard(null)}>
+              Done
+            </button>
+          </section>
+        )}
+
+        {isAdmin && (
+          <section className="dashboard-section">
+            <h2>Onboard a client</h2>
+            <form className="add-user-form" onSubmit={handleOnboardClient}>
+              <label>
+                Organization name
+                <input value={clientOrgName} onChange={(e) => setClientOrgName(e.target.value)} required />
+              </label>
+              <div className="field-row">
+                <label>
+                  Admin first name
+                  <input value={clientFirstName} onChange={(e) => setClientFirstName(e.target.value)} required />
+                </label>
+                <label>
+                  Admin last name
+                  <input value={clientLastName} onChange={(e) => setClientLastName(e.target.value)} required />
+                </label>
+              </div>
+              <label>
+                Admin email
+                <input type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} required />
+              </label>
+              {onboardError && <p className="form-error">{onboardError}</p>}
+              <button type="submit" disabled={onboarding}>
+                {onboarding ? "Onboarding..." : "Onboard client"}
+              </button>
+            </form>
+          </section>
         )}
       </main>
     </div>

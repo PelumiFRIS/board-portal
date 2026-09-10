@@ -34,12 +34,13 @@ class MeetingTypeFlowTest extends IntegrationTestSupport {
     }
 
     @Test
-    void adminCanAddAndDeleteMeetingTypes() {
+    void companySecretaryCanAddAndDeleteMeetingTypes() {
         AuthResponse admin = signup(uniqueEmail(), "Meeting Type Manage Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
 
         ResponseEntity<MeetingTypeSummary> created = restTemplate.exchange(
                 "/api/meeting-types", HttpMethod.POST,
-                authedRequest(admin.accessToken(), new CreateMeetingTypeRequest("Strategy Retreat")),
+                authedRequest(companySecretary.accessToken(), new CreateMeetingTypeRequest("Strategy Retreat")),
                 MeetingTypeSummary.class);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(created.getBody().name()).isEqualTo("Strategy Retreat");
@@ -50,7 +51,7 @@ class MeetingTypeFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<Void> deleted = restTemplate.exchange(
                 "/api/meeting-types/" + created.getBody().id(), HttpMethod.DELETE,
-                authedRequest(admin.accessToken()), Void.class);
+                authedRequest(companySecretary.accessToken()), Void.class);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         ResponseEntity<MeetingTypeSummary[]> afterDelete = restTemplate.exchange(
@@ -84,28 +85,30 @@ class MeetingTypeFlowTest extends IntegrationTestSupport {
     @Test
     void deletingAMeetingTypeInUseIsRejected() {
         AuthResponse admin = signup(uniqueEmail(), "Meeting Type In Use Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         UUID typeId = defaultMeetingTypeId(admin.accessToken());
 
         Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
         ResponseEntity<MeetingSummary> meeting = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
-                authedRequest(admin.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new CreateMeetingRequest("Q4 Board Meeting", null, null, start, null, null, typeId)),
                 MeetingSummary.class);
         assertThat(meeting.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
         ResponseEntity<String> deleteAttempt = restTemplate.exchange(
-                "/api/meeting-types/" + typeId, HttpMethod.DELETE, authedRequest(admin.accessToken()), String.class);
+                "/api/meeting-types/" + typeId, HttpMethod.DELETE, authedRequest(companySecretary.accessToken()), String.class);
         assertThat(deleteAttempt.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
     void creatingADuplicateMeetingTypeNameIsRejected() {
         AuthResponse admin = signup(uniqueEmail(), "Meeting Type Duplicate Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
 
         ResponseEntity<String> duplicate = restTemplate.exchange(
                 "/api/meeting-types", HttpMethod.POST,
-                authedRequest(admin.accessToken(), new CreateMeetingTypeRequest("Board Meeting")), String.class);
+                authedRequest(companySecretary.accessToken(), new CreateMeetingTypeRequest("Board Meeting")), String.class);
         assertThat(duplicate.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 }

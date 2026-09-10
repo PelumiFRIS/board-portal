@@ -1,4 +1,4 @@
-export type Role = "ADMIN" | "BOARD_MEMBER" | "EXECUTIVE";
+export type Role = "ADMIN" | "BOARD_MEMBER" | "COMPANY_SECRETARY";
 export type UserStatus = "ACTIVE" | "DISABLED";
 
 export interface MemberCommitteeSummary {
@@ -312,7 +312,8 @@ export type AuditAction =
   | "RESOURCE_UPDATED"
   | "RESOURCE_DELETED"
   | "API_KEY_CREATED"
-  | "API_KEY_REVOKED";
+  | "API_KEY_REVOKED"
+  | "PASSWORD_RESET_BY_ADMIN";
 
 export type AuditEntityType =
   | "ORGANIZATION"
@@ -566,4 +567,20 @@ export interface CreateApiKeyPayload {
 export interface CreateApiKeyResponse {
   key: ApiKeySummary;
   rawKey: string;
+}
+
+export interface PasswordResetResponse {
+  temporaryPassword: string;
+}
+
+export interface OnboardClientPayload {
+  organizationName: string;
+  adminFirstName: string;
+  adminLastName: string;
+  adminEmail: string;
+}
+
+export interface OnboardClientResponse {
+  admin: UserSummary;
+  temporaryPassword: string;
 }

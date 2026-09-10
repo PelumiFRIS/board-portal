@@ -36,13 +36,14 @@ class ResolutionNotificationFlowTest extends IntegrationTestSupport {
     @Test
     void openingAResolutionEmailsActiveMembersInBcc() {
         AuthResponse admin = signup(uniqueEmail(), "Resolution Notify Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
-        ResolutionSummary resolution = createResolution(admin.accessToken(), meeting.id());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
+        ResolutionSummary resolution = createResolution(companySecretary.accessToken(), meeting.id());
 
         restTemplate.exchange("/api/resolutions/" + resolution.id() + "/open", HttpMethod.PATCH,
-                authedRequest(admin.accessToken()), ResolutionSummary.class);
+                authedRequest(companySecretary.accessToken()), ResolutionSummary.class);
 
         // scheduling the meeting above already triggers its own notification, so two sends are expected here
         ArgumentCaptor<SimpleMailMessage> messageCaptor = ArgumentCaptor.forClass(SimpleMailMessage.class);
@@ -60,12 +61,13 @@ class ResolutionNotificationFlowTest extends IntegrationTestSupport {
         doThrow(new MailSendException("smtp down")).when(mailSender).send(any(SimpleMailMessage.class));
 
         AuthResponse admin = signup(uniqueEmail(), "Resolution Notify Failure Org");
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
-        ResolutionSummary resolution = createResolution(admin.accessToken(), meeting.id());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
+        ResolutionSummary resolution = createResolution(companySecretary.accessToken(), meeting.id());
 
         ResponseEntity<ResolutionSummary> response = restTemplate.exchange(
                 "/api/resolutions/" + resolution.id() + "/open", HttpMethod.PATCH,
-                authedRequest(admin.accessToken()), ResolutionSummary.class);
+                authedRequest(companySecretary.accessToken()), ResolutionSummary.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     }

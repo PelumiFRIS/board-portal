@@ -7,6 +7,8 @@ import com.fris.boardportal.auth.dto.AuthResponse;
 import com.fris.boardportal.common.ApiException;
 import com.fris.boardportal.meeting.MeetingTypeOption;
 import com.fris.boardportal.meeting.MeetingTypeOptionRepository;
+import com.fris.boardportal.organization.dto.OrganizationOnboardRequest;
+import com.fris.boardportal.organization.dto.OrganizationOnboardResponse;
 import com.fris.boardportal.organization.dto.OrganizationSignupRequest;
 import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.security.JwtService;
@@ -14,6 +16,8 @@ import com.fris.boardportal.user.Role;
 import com.fris.boardportal.user.User;
 import com.fris.boardportal.user.UserRepository;
 import com.fris.boardportal.user.dto.UserSummary;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.List;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,6 +28,7 @@ public class OrganizationService {
 
     private static final List<String> DEFAULT_MEETING_TYPES = List.of(
             "Board Meeting", "Committee Meeting", "Executive/Management Meeting", "General Staff Meeting");
+    private static final int TEMPORARY_PASSWORD_BYTES = 18;
 
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
@@ -31,6 +36,7 @@ public class OrganizationService {
     private final JwtService jwtService;
     private final AuditLogService auditLogService;
     private final MeetingTypeOptionRepository meetingTypeOptionRepository;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     public OrganizationService(OrganizationRepository organizationRepository, UserRepository userRepository,
             PasswordEncoder passwordEncoder, JwtService jwtService, AuditLogService auditLogService,
@@ -71,5 +77,43 @@ public class OrganizationService {
 
         String token = jwtService.issueToken(admin.getId(), organization.getId(), admin.getEmail(), admin.getRole());
         return new AuthResponse(token, UserSummary.from(admin, organization.getName(), null, List.of()));
+    }
+
+    @Transactional
+    public OrganizationOnboardResponse onboardClient(AppUserPrincipal onboardingAdmin,
+            OrganizationOnboardRequest request) {
+        if (userRepository.existsByEmailIgnoreCase(request.adminEmail())) {
+            throw ApiException.conflict("An account with this email already exists");
+        }
+
+        Organization organization = Organization.create(request.organizationName());
+        organizationRepository.save(organization);
+
+        for (String typeName : DEFAULT_MEETING_TYPES) {
+            meetingTypeOptionRepository.save(MeetingTypeOption.create(organization.getId(), typeName));
+        }
+
+        String temporaryPassword = generateTemporaryPassword();
+        User admin = User.create(
+                organization.getId(),
+                request.adminEmail(),
+                passwordEncoder.encode(temporaryPassword),
+                request.adminFirstName(),
+                request.adminLastName(),
+                Role.ADMIN);
+        userRepository.save(admin);
+
+        auditLogService.record(onboardingAdmin, AuditAction.ORGANIZATION_SIGNUP, AuditEntityType.ORGANIZATION,
+                organization.getId(),
+                "Onboarded client organization \"" + organization.getName() + "\" and its admin account");
+
+        return new OrganizationOnboardResponse(
+                UserSummary.from(admin, organization.getName(), null, List.of()), temporaryPassword);
+    }
+
+    private String generateTemporaryPassword() {
+        byte[] bytes = new byte[TEMPORARY_PASSWORD_BYTES];
+        secureRandom.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 }

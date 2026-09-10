@@ -67,8 +67,11 @@ describe("ProtectedRoute", () => {
     expect(screen.getByText("Integrations")).toBeInTheDocument();
   });
 
-  it("allows an executive into a management-only route", () => {
-    mockedUseAuth.mockReturnValue({ user: baseUser("EXECUTIVE"), loading: false } as ReturnType<typeof useAuth>);
+  it("allows a company secretary into a management-only route", () => {
+    mockedUseAuth.mockReturnValue({
+      user: baseUser("COMPANY_SECRETARY"),
+      loading: false,
+    } as ReturnType<typeof useAuth>);
     renderAt("/audit", <ProtectedRoute requireManagement>Audit trail</ProtectedRoute>);
     expect(screen.getByText("Audit trail")).toBeInTheDocument();
   });

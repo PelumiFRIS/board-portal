@@ -55,42 +55,43 @@ class DashboardStatsFlowTest extends IntegrationTestSupport {
     @Test
     void statsReflectExactCountsAndRatesAcrossAllCategories() {
         AuthResponse admin = signup(uniqueEmail(), "Dashboard Stats Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         String memberEmail = uniqueEmail();
         UUID memberId = createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse member = login(memberEmail);
 
         // meetings: 1 scheduled, 1 completed, 1 cancelled
-        MeetingSummary m1 = scheduleMeeting(admin.accessToken(), "Scheduled Meeting");
-        MeetingSummary m2 = scheduleMeeting(admin.accessToken(), "Completed Meeting");
-        updateMeetingStatus(admin.accessToken(), m2.id(), MeetingStatus.COMPLETED);
-        MeetingSummary m3 = scheduleMeeting(admin.accessToken(), "Cancelled Meeting");
-        updateMeetingStatus(admin.accessToken(), m3.id(), MeetingStatus.CANCELLED);
+        MeetingSummary m1 = scheduleMeeting(companySecretary.accessToken(), "Scheduled Meeting");
+        MeetingSummary m2 = scheduleMeeting(companySecretary.accessToken(), "Completed Meeting");
+        updateMeetingStatus(companySecretary.accessToken(), m2.id(), MeetingStatus.COMPLETED);
+        MeetingSummary m3 = scheduleMeeting(companySecretary.accessToken(), "Cancelled Meeting");
+        updateMeetingStatus(companySecretary.accessToken(), m3.id(), MeetingStatus.CANCELLED);
 
         // resolutions: 1 draft, 1 open, 1 closed-passed, 1 closed-failed
-        createResolution(admin.accessToken(), m1.id(), "Draft Resolution");
-        ResolutionSummary open = createResolution(admin.accessToken(), m1.id(), "Open Resolution");
-        openResolution(admin.accessToken(), open.id());
-        ResolutionSummary willPass = createResolution(admin.accessToken(), m1.id(), "Passing Resolution");
-        openResolution(admin.accessToken(), willPass.id());
+        createResolution(companySecretary.accessToken(), m1.id(), "Draft Resolution");
+        ResolutionSummary open = createResolution(companySecretary.accessToken(), m1.id(), "Open Resolution");
+        openResolution(companySecretary.accessToken(), open.id());
+        ResolutionSummary willPass = createResolution(companySecretary.accessToken(), m1.id(), "Passing Resolution");
+        openResolution(companySecretary.accessToken(), willPass.id());
         castVote(admin.accessToken(), willPass.id(), VoteChoice.FOR);
-        closeResolution(admin.accessToken(), willPass.id());
-        ResolutionSummary willFail = createResolution(admin.accessToken(), m1.id(), "Failing Resolution");
-        openResolution(admin.accessToken(), willFail.id());
+        closeResolution(companySecretary.accessToken(), willPass.id());
+        ResolutionSummary willFail = createResolution(companySecretary.accessToken(), m1.id(), "Failing Resolution");
+        openResolution(companySecretary.accessToken(), willFail.id());
         castVote(admin.accessToken(), willFail.id(), VoteChoice.AGAINST);
-        closeResolution(admin.accessToken(), willFail.id());
+        closeResolution(companySecretary.accessToken(), willFail.id());
 
         // action items: 1 open-not-overdue, 1 open-overdue, 1 open-no-due-date, 1 done
-        createActionItem(admin.accessToken(), m1.id(), memberId, "Not overdue", LocalDate.now().plusDays(7));
-        createActionItem(admin.accessToken(), m1.id(), memberId, "Overdue", LocalDate.now().minusDays(3));
-        createActionItem(admin.accessToken(), m1.id(), memberId, "No due date", null);
-        ActionItemSummary willBeDone = createActionItem(admin.accessToken(), m1.id(), memberId, "Done", null);
-        updateActionItemStatus(admin.accessToken(), willBeDone.id(), ActionItemStatus.DONE);
+        createActionItem(companySecretary.accessToken(), m1.id(), memberId, "Not overdue", LocalDate.now().plusDays(7));
+        createActionItem(companySecretary.accessToken(), m1.id(), memberId, "Overdue", LocalDate.now().minusDays(3));
+        createActionItem(companySecretary.accessToken(), m1.id(), memberId, "No due date", null);
+        ActionItemSummary willBeDone = createActionItem(companySecretary.accessToken(), m1.id(), memberId, "Done", null);
+        updateActionItemStatus(companySecretary.accessToken(), willBeDone.id(), ActionItemStatus.DONE);
 
         // compliance filings: 1 pending-not-overdue, 1 pending-overdue, 1 submitted
-        createFiling(admin.accessToken(), "Future Filing", LocalDate.now().plusDays(30));
-        createFiling(admin.accessToken(), "Overdue Filing", LocalDate.now().minusDays(5));
-        ComplianceFilingSummary willSubmit = createFiling(admin.accessToken(), "Submitted Filing", LocalDate.now().plusDays(1));
-        submitFiling(admin.accessToken(), willSubmit.id());
+        createFiling(companySecretary.accessToken(), "Future Filing", LocalDate.now().plusDays(30));
+        createFiling(companySecretary.accessToken(), "Overdue Filing", LocalDate.now().minusDays(5));
+        ComplianceFilingSummary willSubmit = createFiling(companySecretary.accessToken(), "Submitted Filing", LocalDate.now().plusDays(1));
+        submitFiling(companySecretary.accessToken(), willSubmit.id());
 
         ResponseEntity<DashboardStats> response = restTemplate.exchange(
                 "/api/dashboard/stats", HttpMethod.GET, authedRequest(member.accessToken()), DashboardStats.class);

@@ -36,7 +36,7 @@ function filingStatusLabel(filing: ComplianceFilingSummary): "PENDING" | "SUBMIT
 export function CompliancePage() {
   const { user } = useAuth();
   const toast = useToast();
-  const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
+  const canManage = user?.role === "COMPANY_SECRETARY";
 
   const [filings, setFilings] = useState<ComplianceFilingSummary[]>([]);
   const [loading, setLoading] = useState(true);

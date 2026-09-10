@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { getDashboardStats } from "../api/dashboard";
 import { getUnreadCount } from "../api/messaging";
+import { ROLE_LABELS } from "../constants/roles";
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "./Avatar";
 
@@ -275,7 +276,7 @@ export function Sidebar() {
   if (!user) return null;
 
   const isAdmin = user.role === "ADMIN";
-  const canManage = isAdmin || user.role === "EXECUTIVE";
+  const canManage = isAdmin || user.role === "COMPANY_SECRETARY";
   const visibleNavItems = NAV_ITEMS.filter((item) => {
     if (item.adminOnly) return isAdmin;
     if (item.managementOnly) return canManage;
@@ -333,7 +334,7 @@ export function Sidebar() {
               <div className="sidebar-user-name">
                 {user.firstName} {user.lastName}
               </div>
-              <div className="sidebar-user-role">{user.role}</div>
+              <div className="sidebar-user-role">{ROLE_LABELS[user.role]}</div>
             </div>
           </div>
           <button className="sidebar-signout" onClick={logout}>

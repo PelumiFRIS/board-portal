@@ -29,7 +29,8 @@ class ActionItemFlowTest extends IntegrationTestSupport {
     @Test
     void nonAdminCannotCreateOrDeleteActionItems() {
         AuthResponse admin = signup(uniqueEmail(), "Restricted Action Items Org");
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
         String memberEmail = uniqueEmail();
         UUID memberId = createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse member = login(memberEmail);
@@ -41,18 +42,25 @@ class ActionItemFlowTest extends IntegrationTestSupport {
                 String.class);
         assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
-        ActionItemSummary item = createActionItem(admin.accessToken(), meeting.id(), memberId);
+        ActionItemSummary item = createActionItem(companySecretary.accessToken(), meeting.id(), memberId);
 
         ResponseEntity<String> deleteResponse = restTemplate.exchange(
                 "/api/action-items/" + item.id(), HttpMethod.DELETE,
                 authedRequest(member.accessToken()), String.class);
         assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        // admin has also lost content-management rights, same as any other non-company-secretary
+        ResponseEntity<String> adminDeleteResponse = restTemplate.exchange(
+                "/api/action-items/" + item.id(), HttpMethod.DELETE,
+                authedRequest(admin.accessToken()), String.class);
+        assertThat(adminDeleteResponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
     void assigneeCanToggleStatusButOtherMembersCannot() {
         AuthResponse admin = signup(uniqueEmail(), "Toggle Org");
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
 
         String assigneeEmail = uniqueEmail();
         UUID assigneeId = createBoardMember(admin.accessToken(), assigneeEmail);
@@ -62,7 +70,7 @@ class ActionItemFlowTest extends IntegrationTestSupport {
         createBoardMember(admin.accessToken(), otherEmail);
         AuthResponse other = login(otherEmail);
 
-        ActionItemSummary item = createActionItem(admin.accessToken(), meeting.id(), assigneeId);
+        ActionItemSummary item = createActionItem(companySecretary.accessToken(), meeting.id(), assigneeId);
         assertThat(item.status()).isEqualTo(ActionItemStatus.OPEN);
 
         // a different, non-assignee member cannot toggle it
@@ -80,22 +88,23 @@ class ActionItemFlowTest extends IntegrationTestSupport {
         assertThat(markedDone.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(markedDone.getBody().status()).isEqualTo(ActionItemStatus.DONE);
 
-        // admin can reopen it
+        // the company secretary can reopen it
         ResponseEntity<ActionItemSummary> reopened = restTemplate.exchange(
                 "/api/action-items/" + item.id() + "/status", HttpMethod.PATCH,
-                authedRequest(admin.accessToken(), new UpdateActionItemStatusRequest(ActionItemStatus.OPEN)),
+                authedRequest(companySecretary.accessToken(), new UpdateActionItemStatusRequest(ActionItemStatus.OPEN)),
                 ActionItemSummary.class);
         assertThat(reopened.getBody().status()).isEqualTo(ActionItemStatus.OPEN);
     }
 
     @Test
-    void actionItemAppearsOnItsMeetingAndCanBeDeletedByAdmin() {
+    void actionItemAppearsOnItsMeetingAndCanBeDeletedByCompanySecretary() {
         AuthResponse admin = signup(uniqueEmail(), "Meeting Integration Org");
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
         String memberEmail = uniqueEmail();
         UUID memberId = createBoardMember(admin.accessToken(), memberEmail);
 
-        ActionItemSummary item = createActionItem(admin.accessToken(), meeting.id(), memberId);
+        ActionItemSummary item = createActionItem(companySecretary.accessToken(), meeting.id(), memberId);
 
         ResponseEntity<MeetingDetail> detail = restTemplate.exchange(
                 "/api/meetings/" + meeting.id(), HttpMethod.GET,
@@ -105,25 +114,30 @@ class ActionItemFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<Void> deleted = restTemplate.exchange(
                 "/api/action-items/" + item.id(), HttpMethod.DELETE,
-                authedRequest(admin.accessToken()), Void.class);
+                authedRequest(companySecretary.accessToken()), Void.class);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
     @Test
-    void adminCanExportActionItemsCsvButNonAdminCannot() {
+    void companySecretaryCanExportActionItemsCsvButNonCompanySecretaryCannot() {
         AuthResponse admin = signup(uniqueEmail(), "Export Action Items Org");
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
         String memberEmail = uniqueEmail();
         UUID memberId = createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse member = login(memberEmail);
-        createActionItem(admin.accessToken(), meeting.id(), memberId);
+        createActionItem(companySecretary.accessToken(), meeting.id(), memberId);
 
         ResponseEntity<String> blocked = restTemplate.exchange(
                 "/api/action-items/export", HttpMethod.GET, authedRequest(member.accessToken()), String.class);
         assertThat(blocked.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
-        ResponseEntity<String> exported = restTemplate.exchange(
+        ResponseEntity<String> adminBlocked = restTemplate.exchange(
                 "/api/action-items/export", HttpMethod.GET, authedRequest(admin.accessToken()), String.class);
+        assertThat(adminBlocked.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ResponseEntity<String> exported = restTemplate.exchange(
+                "/api/action-items/export", HttpMethod.GET, authedRequest(companySecretary.accessToken()), String.class);
         assertThat(exported.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(exported.getHeaders().getContentType()).isNotNull();
         assertThat(exported.getHeaders().getContentType().toString()).contains("text/csv");
@@ -137,9 +151,10 @@ class ActionItemFlowTest extends IntegrationTestSupport {
     void adminCannotAccessActionItemFromAnotherOrganization() {
         AuthResponse orgAAdmin = signup(uniqueEmail(), "Action Items Org A");
         AuthResponse orgBAdmin = signup(uniqueEmail(), "Action Items Org B");
-        MeetingSummary orgBMeeting = scheduleMeeting(orgBAdmin.accessToken());
+        AuthResponse orgBCompanySecretary = createCompanySecretaryAndLogin(orgBAdmin.accessToken());
+        MeetingSummary orgBMeeting = scheduleMeeting(orgBCompanySecretary.accessToken());
         UUID orgBMemberId = createBoardMember(orgBAdmin.accessToken(), uniqueEmail());
-        ActionItemSummary orgBItem = createActionItem(orgBAdmin.accessToken(), orgBMeeting.id(), orgBMemberId);
+        ActionItemSummary orgBItem = createActionItem(orgBCompanySecretary.accessToken(), orgBMeeting.id(), orgBMemberId);
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/action-items/" + orgBItem.id() + "/status", HttpMethod.PATCH,

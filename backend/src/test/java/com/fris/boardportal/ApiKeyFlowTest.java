@@ -69,11 +69,13 @@ class ApiKeyFlowTest extends IntegrationTestSupport {
     @Test
     void rawKeyAuthenticatesAgainstAllFourPublicEndpointsScopedToItsOwnOrganization() {
         AuthResponse admin = signup(uniqueEmail(), "Public Api Org");
-        scheduleMeeting(admin.accessToken(), "Q4 Board Meeting");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        scheduleMeeting(companySecretary.accessToken(), "Q4 Board Meeting");
         CreateApiKeyResponse created = createApiKey(admin.accessToken(), "Integration Key");
 
         AuthResponse otherOrgAdmin = signup(uniqueEmail(), "Public Api Other Org");
-        scheduleMeeting(otherOrgAdmin.accessToken(), "Other Org Meeting");
+        AuthResponse otherOrgCompanySecretary = createCompanySecretaryAndLogin(otherOrgAdmin.accessToken());
+        scheduleMeeting(otherOrgCompanySecretary.accessToken(), "Other Org Meeting");
 
         ResponseEntity<MeetingSummary[]> meetings = restTemplate.exchange(
                 "/api/v1/meetings", HttpMethod.GET, apiKeyRequest(created.rawKey()), MeetingSummary[].class);

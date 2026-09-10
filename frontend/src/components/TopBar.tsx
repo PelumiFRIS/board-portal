@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { listActionItems } from "../api/actionItems";
 import { getUnreadCount, listConversations } from "../api/messaging";
 import type { ActionItemSummary, ConversationSummary } from "../api/types";
+import { ROLE_LABELS } from "../constants/roles";
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "./Avatar";
 import { NAV_ITEMS } from "./Sidebar";
@@ -148,7 +149,7 @@ export function TopBar() {
   }, []);
 
   const isAdmin = user?.role === "ADMIN";
-  const canManage = isAdmin || user?.role === "EXECUTIVE";
+  const canManage = isAdmin || user?.role === "COMPANY_SECRETARY";
   const matches = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.trim().toLowerCase();
@@ -292,7 +293,7 @@ export function TopBar() {
               <span className="topbar-user-name">
                 {user.firstName} {user.lastName}
               </span>
-              <span className="topbar-user-role">{user.role.replace("_", " ")}</span>
+              <span className="topbar-user-role">{ROLE_LABELS[user.role]}</span>
             </span>
             <ChevronIcon />
           </button>

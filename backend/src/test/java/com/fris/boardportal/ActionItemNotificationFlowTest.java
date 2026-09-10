@@ -36,13 +36,14 @@ class ActionItemNotificationFlowTest extends IntegrationTestSupport {
     @Test
     void assigningAnActionItemEmailsOnlyTheAssignee() {
         AuthResponse admin = signup(uniqueEmail(), "Action Item Notify Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         String assigneeEmail = uniqueEmail();
         UUID assigneeId = createBoardMember(admin.accessToken(), assigneeEmail);
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
 
         ResponseEntity<ActionItemSummary> response = restTemplate.exchange(
                 "/api/action-items", HttpMethod.POST,
-                authedRequest(admin.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new CreateActionItemRequest(meeting.id(), "Finalize the draft", null, assigneeId, null)),
                 ActionItemSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -65,12 +66,13 @@ class ActionItemNotificationFlowTest extends IntegrationTestSupport {
         doThrow(new MailSendException("smtp down")).when(mailSender).send(any(SimpleMailMessage.class));
 
         AuthResponse admin = signup(uniqueEmail(), "Action Item Notify Failure Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         UUID assigneeId = createBoardMember(admin.accessToken(), uniqueEmail());
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/action-items", HttpMethod.POST,
-                authedRequest(admin.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new CreateActionItemRequest(meeting.id(), "Finalize the draft", null, assigneeId, null)),
                 String.class);
 

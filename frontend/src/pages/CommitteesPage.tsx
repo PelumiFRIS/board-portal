@@ -31,7 +31,7 @@ function EmptyCommitteesIcon() {
 
 export function CommitteesPage() {
   const { user } = useAuth();
-  const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
+  const canManage = user?.role === "COMPANY_SECRETARY";
 
   const [committees, setCommittees] = useState<CommitteeSummary[]>([]);
   const [orgUsers, setOrgUsers] = useState<UserSummary[]>([]);

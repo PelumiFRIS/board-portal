@@ -20,7 +20,7 @@ export function ProtectedRoute({
     return <Navigate to="/login" replace />;
   }
   const isAdmin = user.role === "ADMIN";
-  const canManage = isAdmin || user.role === "EXECUTIVE";
+  const canManage = isAdmin || user.role === "COMPANY_SECRETARY";
   if (requireAdmin && !isAdmin) {
     return <Navigate to="/dashboard" replace />;
   }

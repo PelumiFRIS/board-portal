@@ -29,7 +29,8 @@ class ResolutionFlowTest extends IntegrationTestSupport {
     @Test
     void nonAdminCannotCreateOpenOrCloseResolutions() {
         AuthResponse admin = signup(uniqueEmail(), "Restricted Resolutions Org");
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse member = login(memberEmail);
@@ -40,7 +41,7 @@ class ResolutionFlowTest extends IntegrationTestSupport {
                 String.class);
         assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
-        ResolutionSummary resolution = createResolution(admin.accessToken(), meeting.id());
+        ResolutionSummary resolution = createResolution(companySecretary.accessToken(), meeting.id());
 
         ResponseEntity<String> openResponse = restTemplate.exchange(
                 "/api/resolutions/" + resolution.id() + "/open", HttpMethod.PATCH,
@@ -51,8 +52,9 @@ class ResolutionFlowTest extends IntegrationTestSupport {
     @Test
     void fullLifecycleWithMultipleVotersAndOutcomePassed() {
         AuthResponse admin = signup(uniqueEmail(), "Lifecycle Org");
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
-        ResolutionSummary created = createResolution(admin.accessToken(), meeting.id());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
+        ResolutionSummary created = createResolution(companySecretary.accessToken(), meeting.id());
         assertThat(created.status()).isEqualTo(ResolutionStatus.DRAFT);
 
         String memberAEmail = uniqueEmail();
@@ -68,7 +70,7 @@ class ResolutionFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<ResolutionSummary> opened = restTemplate.exchange(
                 "/api/resolutions/" + created.id() + "/open", HttpMethod.PATCH,
-                authedRequest(admin.accessToken()), ResolutionSummary.class);
+                authedRequest(companySecretary.accessToken()), ResolutionSummary.class);
         assertThat(opened.getBody().status()).isEqualTo(ResolutionStatus.OPEN);
 
         // admin votes FOR, then changes mind to AGAINST (re-cast should update, not duplicate)
@@ -92,7 +94,7 @@ class ResolutionFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<ResolutionSummary> closed = restTemplate.exchange(
                 "/api/resolutions/" + created.id() + "/close", HttpMethod.PATCH,
-                authedRequest(admin.accessToken()), ResolutionSummary.class);
+                authedRequest(companySecretary.accessToken()), ResolutionSummary.class);
         assertThat(closed.getBody().status()).isEqualTo(ResolutionStatus.CLOSED);
         assertThat(closed.getBody().outcome()).isEqualTo(ResolutionOutcome.PASSED);
 
@@ -103,17 +105,18 @@ class ResolutionFlowTest extends IntegrationTestSupport {
         // deleting a closed resolution is rejected
         ResponseEntity<String> deleteResponse = restTemplate.exchange(
                 "/api/resolutions/" + created.id(), HttpMethod.DELETE,
-                authedRequest(admin.accessToken()), String.class);
+                authedRequest(companySecretary.accessToken()), String.class);
         assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
     void tiedVoteFails() {
         AuthResponse admin = signup(uniqueEmail(), "Tie Org");
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
-        ResolutionSummary created = createResolution(admin.accessToken(), meeting.id());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
+        ResolutionSummary created = createResolution(companySecretary.accessToken(), meeting.id());
         restTemplate.exchange("/api/resolutions/" + created.id() + "/open", HttpMethod.PATCH,
-                authedRequest(admin.accessToken()), ResolutionSummary.class);
+                authedRequest(companySecretary.accessToken()), ResolutionSummary.class);
 
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
@@ -124,26 +127,31 @@ class ResolutionFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<ResolutionSummary> closed = restTemplate.exchange(
                 "/api/resolutions/" + created.id() + "/close", HttpMethod.PATCH,
-                authedRequest(admin.accessToken()), ResolutionSummary.class);
+                authedRequest(companySecretary.accessToken()), ResolutionSummary.class);
         assertThat(closed.getBody().outcome()).isEqualTo(ResolutionOutcome.FAILED);
     }
 
     @Test
-    void adminCanExportResolutionsCsvButNonAdminCannot() {
+    void companySecretaryCanExportResolutionsCsvButNonCompanySecretaryCannot() {
         AuthResponse admin = signup(uniqueEmail(), "Export Resolutions Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse member = login(memberEmail);
 
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
-        createResolution(admin.accessToken(), meeting.id());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
+        createResolution(companySecretary.accessToken(), meeting.id());
 
         ResponseEntity<String> blocked = restTemplate.exchange(
                 "/api/resolutions/export", HttpMethod.GET, authedRequest(member.accessToken()), String.class);
         assertThat(blocked.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
-        ResponseEntity<String> exported = restTemplate.exchange(
+        ResponseEntity<String> adminBlocked = restTemplate.exchange(
                 "/api/resolutions/export", HttpMethod.GET, authedRequest(admin.accessToken()), String.class);
+        assertThat(adminBlocked.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ResponseEntity<String> exported = restTemplate.exchange(
+                "/api/resolutions/export", HttpMethod.GET, authedRequest(companySecretary.accessToken()), String.class);
         assertThat(exported.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(exported.getHeaders().getContentType()).isNotNull();
         assertThat(exported.getHeaders().getContentType().toString()).contains("text/csv");
@@ -155,9 +163,10 @@ class ResolutionFlowTest extends IntegrationTestSupport {
     @Test
     void exportingResolutionsForOrgWithNoneReturnsHeaderOnlyCsv() {
         AuthResponse admin = signup(uniqueEmail(), "Empty Export Resolutions Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
 
         ResponseEntity<String> exported = restTemplate.exchange(
-                "/api/resolutions/export", HttpMethod.GET, authedRequest(admin.accessToken()), String.class);
+                "/api/resolutions/export", HttpMethod.GET, authedRequest(companySecretary.accessToken()), String.class);
         assertThat(exported.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(exported.getBody()).isEqualTo(
                 "Meeting,Title,Status,Outcome,For,Against,Abstain,Opened At,Closed At\n");
@@ -167,8 +176,9 @@ class ResolutionFlowTest extends IntegrationTestSupport {
     void adminCannotAccessResolutionFromAnotherOrganization() {
         AuthResponse orgAAdmin = signup(uniqueEmail(), "Resolutions Org A");
         AuthResponse orgBAdmin = signup(uniqueEmail(), "Resolutions Org B");
-        MeetingSummary orgBMeeting = scheduleMeeting(orgBAdmin.accessToken());
-        ResolutionSummary orgBResolution = createResolution(orgBAdmin.accessToken(), orgBMeeting.id());
+        AuthResponse orgBCompanySecretary = createCompanySecretaryAndLogin(orgBAdmin.accessToken());
+        MeetingSummary orgBMeeting = scheduleMeeting(orgBCompanySecretary.accessToken());
+        ResolutionSummary orgBResolution = createResolution(orgBCompanySecretary.accessToken(), orgBMeeting.id());
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/resolutions/" + orgBResolution.id(), HttpMethod.GET,

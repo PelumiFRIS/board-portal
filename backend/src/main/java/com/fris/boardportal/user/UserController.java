@@ -4,6 +4,7 @@ import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.user.dto.CalendarTokenResponse;
 import com.fris.boardportal.user.dto.ChangePasswordRequest;
 import com.fris.boardportal.user.dto.CreateUserRequest;
+import com.fris.boardportal.user.dto.PasswordResetResponse;
 import com.fris.boardportal.user.dto.UpdateUserRequest;
 import com.fris.boardportal.user.dto.UserSummary;
 import jakarta.validation.Valid;
@@ -85,6 +86,13 @@ public class UserController {
             @PathVariable UUID id) {
         userService.deletePhoto(principal, id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/reset-password")
+    @PreAuthorize("hasRole('ADMIN')")
+    public PasswordResetResponse resetPassword(@AuthenticationPrincipal AppUserPrincipal principal,
+            @PathVariable UUID id) {
+        return userService.resetPassword(principal, id);
     }
 
     @PostMapping("/me/password")

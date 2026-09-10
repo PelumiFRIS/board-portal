@@ -66,7 +66,7 @@ export function MeetingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const toast = useToast();
-  const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
+  const canManage = user?.role === "COMPANY_SECRETARY";
 
   const [meeting, setMeeting] = useState<MeetingDetailType | null>(null);
   const [loading, setLoading] = useState(true);

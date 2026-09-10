@@ -37,7 +37,7 @@ public class CommitteeController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResponseEntity<CommitteeSummary> create(@AuthenticationPrincipal AppUserPrincipal principal,
             @Valid @RequestBody CreateCommitteeRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -46,35 +46,35 @@ public class CommitteeController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public CommitteeSummary update(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id,
             @RequestBody UpdateCommitteeRequest request) {
         return committeeService.update(principal, id, request.name(), request.description());
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResponseEntity<Void> delete(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         committeeService.delete(principal, id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/members")
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public CommitteeSummary addMember(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id,
             @Valid @RequestBody AddCommitteeMemberRequest request) {
         return committeeService.addMember(principal, id, request.userId());
     }
 
     @DeleteMapping("/{id}/members/{userId}")
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public CommitteeSummary removeMember(@AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID id, @PathVariable UUID userId) {
         return committeeService.removeMember(principal, id, userId);
     }
 
     @PatchMapping("/{id}/members/{userId}/chair")
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public CommitteeSummary setChair(@AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID id, @PathVariable UUID userId) {
         return committeeService.setChair(principal, id, userId);

@@ -127,6 +127,28 @@ public class EmailNotificationService {
         }
     }
 
+    public void notifyPasswordResetByAdmin(User target) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(target.getEmail());
+        message.setSubject("Your password was reset");
+        message.setText(buildPasswordResetBody());
+
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            log.warn("Failed to send password-reset email for user {}", target.getId(), e);
+        }
+    }
+
+    private String buildPasswordResetBody() {
+        StringBuilder body = new StringBuilder();
+        body.append("An admin reset your password.\n\n");
+        body.append("Your admin will share your new temporary password with you separately. ");
+        body.append("Sign in with it and set a new password from your profile.\n");
+        body.append('\n').append(frontendUrl).append("/login");
+        return body.toString();
+    }
+
     private String buildProfileUpdateBody(List<String> changes) {
         StringBuilder body = new StringBuilder();
         body.append("An admin updated your profile.\n\n");

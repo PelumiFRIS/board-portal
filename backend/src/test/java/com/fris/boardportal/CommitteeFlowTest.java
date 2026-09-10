@@ -24,6 +24,7 @@ class CommitteeFlowTest extends IntegrationTestSupport {
     @Test
     void nonAdminCanViewButNotMutate() {
         AuthResponse admin = signup(uniqueEmail(), "Committee View Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         String memberEmail = uniqueEmail();
         UserSummary member = createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse memberAuth = login(memberEmail);
@@ -37,7 +38,13 @@ class CommitteeFlowTest extends IntegrationTestSupport {
                 authedRequest(memberAuth.accessToken(), new CreateCommitteeRequest("Audit", null, null)), String.class);
         assertThat(create.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
-        CommitteeSummary committee = createCommittee(admin.accessToken(), "Risk", null);
+        // admin has also lost committee-management rights; only the company secretary can create one
+        ResponseEntity<String> adminCreate = restTemplate.exchange(
+                "/api/committees", HttpMethod.POST,
+                authedRequest(admin.accessToken(), new CreateCommitteeRequest("Audit", null, null)), String.class);
+        assertThat(adminCreate.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        CommitteeSummary committee = createCommittee(companySecretary.accessToken(), "Risk", null);
 
         ResponseEntity<String> update = restTemplate.exchange(
                 "/api/committees/" + committee.id(), HttpMethod.PATCH,
@@ -66,20 +73,21 @@ class CommitteeFlowTest extends IntegrationTestSupport {
     }
 
     @Test
-    void adminCanManageMembershipAndOnlyOneChairAtATime() {
+    void companySecretaryCanManageMembershipAndOnlyOneChairAtATime() {
         AuthResponse admin = signup(uniqueEmail(), "Committee Chair Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         UserSummary memberA = createBoardMember(admin.accessToken(), uniqueEmail());
         UserSummary memberB = createBoardMember(admin.accessToken(), uniqueEmail());
 
-        CommitteeSummary committee = createCommittee(admin.accessToken(), "Audit Committee", "Oversees audits");
+        CommitteeSummary committee = createCommittee(companySecretary.accessToken(), "Audit Committee", "Oversees audits");
         assertThat(committee.members()).isEmpty();
 
-        committee = addMember(admin.accessToken(), committee.id(), memberA.id());
-        committee = addMember(admin.accessToken(), committee.id(), memberB.id());
+        committee = addMember(companySecretary.accessToken(), committee.id(), memberA.id());
+        committee = addMember(companySecretary.accessToken(), committee.id(), memberB.id());
         assertThat(committee.members()).hasSize(2);
         assertThat(committee.members()).noneMatch(m -> m.isChair());
 
-        committee = setChair(admin.accessToken(), committee.id(), memberA.id());
+        committee = setChair(companySecretary.accessToken(), committee.id(), memberA.id());
         assertThat(committee.members())
                 .filteredOn(m -> m.userId().equals(memberA.id()))
                 .allMatch(m -> m.isChair());
@@ -87,7 +95,7 @@ class CommitteeFlowTest extends IntegrationTestSupport {
                 .filteredOn(m -> m.userId().equals(memberB.id()))
                 .allMatch(m -> !m.isChair());
 
-        committee = setChair(admin.accessToken(), committee.id(), memberB.id());
+        committee = setChair(companySecretary.accessToken(), committee.id(), memberB.id());
         assertThat(committee.members())
                 .filteredOn(m -> m.userId().equals(memberB.id()))
                 .allMatch(m -> m.isChair());
@@ -97,13 +105,13 @@ class CommitteeFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<CommitteeSummary> afterRemove = restTemplate.exchange(
                 "/api/committees/" + committee.id() + "/members/" + memberA.id(), HttpMethod.DELETE,
-                authedRequest(admin.accessToken()), CommitteeSummary.class);
+                authedRequest(companySecretary.accessToken()), CommitteeSummary.class);
         assertThat(afterRemove.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(afterRemove.getBody().members()).extracting(m -> m.userId()).containsExactly(memberB.id());
 
         ResponseEntity<Void> deleted = restTemplate.exchange(
                 "/api/committees/" + committee.id(), HttpMethod.DELETE,
-                authedRequest(admin.accessToken()), Void.class);
+                authedRequest(companySecretary.accessToken()), Void.class);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         ResponseEntity<CommitteeSummary[]> list = restTemplate.exchange(
@@ -114,11 +122,12 @@ class CommitteeFlowTest extends IntegrationTestSupport {
     @Test
     void userSummaryReflectsCurrentMemberships() {
         AuthResponse admin = signup(uniqueEmail(), "Committee Summary Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         UserSummary member = createBoardMember(admin.accessToken(), uniqueEmail());
 
-        CommitteeSummary committee = createCommittee(admin.accessToken(), "Risk Committee", null);
-        addMember(admin.accessToken(), committee.id(), member.id());
-        setChair(admin.accessToken(), committee.id(), member.id());
+        CommitteeSummary committee = createCommittee(companySecretary.accessToken(), "Risk Committee", null);
+        addMember(companySecretary.accessToken(), committee.id(), member.id());
+        setChair(companySecretary.accessToken(), committee.id(), member.id());
 
         ResponseEntity<UserSummary[]> directory = restTemplate.exchange(
                 "/api/users/directory", HttpMethod.GET, authedRequest(admin.accessToken()), UserSummary[].class);
@@ -135,9 +144,11 @@ class CommitteeFlowTest extends IntegrationTestSupport {
     void committeesAreScopedToOrganization() {
         AuthResponse orgAAdmin = signup(uniqueEmail(), "Committee Org A");
         AuthResponse orgBAdmin = signup(uniqueEmail(), "Committee Org B");
+        AuthResponse orgACompanySecretary = createCompanySecretaryAndLogin(orgAAdmin.accessToken());
+        AuthResponse orgBCompanySecretary = createCompanySecretaryAndLogin(orgBAdmin.accessToken());
 
-        createCommittee(orgAAdmin.accessToken(), "Org A Committee", null);
-        createCommittee(orgBAdmin.accessToken(), "Org B Committee", null);
+        createCommittee(orgACompanySecretary.accessToken(), "Org A Committee", null);
+        createCommittee(orgBCompanySecretary.accessToken(), "Org B Committee", null);
 
         ResponseEntity<CommitteeSummary[]> orgAList = restTemplate.exchange(
                 "/api/committees", HttpMethod.GET, authedRequest(orgAAdmin.accessToken()), CommitteeSummary[].class);
@@ -147,9 +158,10 @@ class CommitteeFlowTest extends IntegrationTestSupport {
     @Test
     void subCommitteeCanBeCreatedUnderTopLevelCommittee() {
         AuthResponse admin = signup(uniqueEmail(), "Sub Committee Org");
-        CommitteeSummary parent = createCommittee(admin.accessToken(), "Audit Committee", null);
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        CommitteeSummary parent = createCommittee(companySecretary.accessToken(), "Audit Committee", null);
 
-        CommitteeSummary child = createCommittee(admin.accessToken(), "Audit Sub-Committee", null, parent.id());
+        CommitteeSummary child = createCommittee(companySecretary.accessToken(), "Audit Sub-Committee", null, parent.id());
         assertThat(child.parentCommitteeId()).isEqualTo(parent.id());
         assertThat(child.parentCommitteeName()).isEqualTo("Audit Committee");
 
@@ -164,12 +176,13 @@ class CommitteeFlowTest extends IntegrationTestSupport {
     @Test
     void subCommitteeUnderSubCommitteeIsRejected() {
         AuthResponse admin = signup(uniqueEmail(), "Nested Sub Committee Org");
-        CommitteeSummary parent = createCommittee(admin.accessToken(), "Audit Committee", null);
-        CommitteeSummary child = createCommittee(admin.accessToken(), "Audit Sub-Committee", null, parent.id());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        CommitteeSummary parent = createCommittee(companySecretary.accessToken(), "Audit Committee", null);
+        CommitteeSummary child = createCommittee(companySecretary.accessToken(), "Audit Sub-Committee", null, parent.id());
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/committees", HttpMethod.POST,
-                authedRequest(admin.accessToken(), new CreateCommitteeRequest("Grandchild", null, child.id())),
+                authedRequest(companySecretary.accessToken(), new CreateCommitteeRequest("Grandchild", null, child.id())),
                 String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -177,22 +190,23 @@ class CommitteeFlowTest extends IntegrationTestSupport {
     @Test
     void deletingCommitteeWithSubCommitteesIsRejected() {
         AuthResponse admin = signup(uniqueEmail(), "Delete Sub Committee Org");
-        CommitteeSummary parent = createCommittee(admin.accessToken(), "Audit Committee", null);
-        CommitteeSummary child = createCommittee(admin.accessToken(), "Audit Sub-Committee", null, parent.id());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        CommitteeSummary parent = createCommittee(companySecretary.accessToken(), "Audit Committee", null);
+        CommitteeSummary child = createCommittee(companySecretary.accessToken(), "Audit Sub-Committee", null, parent.id());
 
         ResponseEntity<String> blockedDelete = restTemplate.exchange(
                 "/api/committees/" + parent.id(), HttpMethod.DELETE,
-                authedRequest(admin.accessToken()), String.class);
+                authedRequest(companySecretary.accessToken()), String.class);
         assertThat(blockedDelete.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
         ResponseEntity<Void> deleteChild = restTemplate.exchange(
                 "/api/committees/" + child.id(), HttpMethod.DELETE,
-                authedRequest(admin.accessToken()), Void.class);
+                authedRequest(companySecretary.accessToken()), Void.class);
         assertThat(deleteChild.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         ResponseEntity<Void> deleteParent = restTemplate.exchange(
                 "/api/committees/" + parent.id(), HttpMethod.DELETE,
-                authedRequest(admin.accessToken()), Void.class);
+                authedRequest(companySecretary.accessToken()), Void.class);
         assertThat(deleteParent.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 

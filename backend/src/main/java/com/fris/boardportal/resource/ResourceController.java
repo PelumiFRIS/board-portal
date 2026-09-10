@@ -40,7 +40,7 @@ public class ResourceController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResponseEntity<ResourceSummary> create(@AuthenticationPrincipal AppUserPrincipal principal,
             @RequestParam ResourceCategory category, @RequestParam String title, @RequestParam String body,
             @RequestParam(required = false) MultipartFile file) {
@@ -59,14 +59,14 @@ public class ResourceController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResourceSummary update(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id,
             @RequestBody UpdateResourceRequest request) {
         return resourceService.update(principal, id, request.category(), request.title(), request.body());
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResponseEntity<Void> delete(@AuthenticationPrincipal AppUserPrincipal principal, @PathVariable UUID id) {
         resourceService.delete(principal, id);
         return ResponseEntity.noContent().build();

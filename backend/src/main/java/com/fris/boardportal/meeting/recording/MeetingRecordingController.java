@@ -38,7 +38,7 @@ public class MeetingRecordingController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResponseEntity<MeetingRecordingSummary> upload(@AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID meetingId, @RequestParam("file") MultipartFile file) {
         MeetingRecordingSummary created = meetingRecordingService.upload(principal, meetingId, file);
@@ -57,7 +57,7 @@ public class MeetingRecordingController {
     }
 
     @DeleteMapping("/{recordingId}")
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResponseEntity<Void> delete(@AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID meetingId, @PathVariable UUID recordingId) {
         meetingRecordingService.delete(principal, meetingId, recordingId);
@@ -65,7 +65,7 @@ public class MeetingRecordingController {
     }
 
     @PostMapping("/{recordingId}/transcript")
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public MeetingRecordingSummary generateTranscript(@AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID meetingId, @PathVariable UUID recordingId) {
         return meetingRecordingService.generateTranscript(principal, meetingId, recordingId);

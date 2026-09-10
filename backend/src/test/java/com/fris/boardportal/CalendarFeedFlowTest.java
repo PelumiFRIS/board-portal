@@ -58,9 +58,11 @@ class CalendarFeedFlowTest extends IntegrationTestSupport {
     void feedIsUnauthenticatedAndScopedToOwnOrganization() {
         AuthResponse admin = signup(uniqueEmail(), "Feed Org A");
         AuthResponse otherAdmin = signup(uniqueEmail(), "Feed Org B");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        AuthResponse otherCompanySecretary = createCompanySecretaryAndLogin(otherAdmin.accessToken());
 
-        scheduleMeeting(admin.accessToken(), "Org A Meeting");
-        scheduleMeeting(otherAdmin.accessToken(), "Org B Meeting");
+        scheduleMeeting(companySecretary.accessToken(), "Org A Meeting");
+        scheduleMeeting(otherCompanySecretary.accessToken(), "Org B Meeting");
 
         String token = restTemplate.exchange(
                 "/api/users/me/calendar-token", HttpMethod.GET, authedRequest(admin.accessToken()),

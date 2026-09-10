@@ -31,12 +31,13 @@ class DocumentRetentionAndSignatureFlowTest extends IntegrationTestSupport {
     private static final byte[] FILE_BYTES = "Board policy contents".getBytes(StandardCharsets.UTF_8);
 
     @Test
-    void adminCanSetAndClearRetentionButNonAdminCannot() {
+    void companySecretaryCanSetAndClearRetentionButNonCompanySecretaryCannot() {
         AuthResponse admin = signup(uniqueEmail(), "Retention Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse memberAuth = login(memberEmail);
-        DocumentSummary doc = uploadDocument(admin.accessToken(), "Policy Doc").getBody();
+        DocumentSummary doc = uploadDocument(companySecretary.accessToken(), "Policy Doc").getBody();
 
         ResponseEntity<String> blocked = restTemplate.exchange(
                 "/api/documents/" + doc.id() + "/retention", HttpMethod.PATCH,
@@ -44,16 +45,23 @@ class DocumentRetentionAndSignatureFlowTest extends IntegrationTestSupport {
                 String.class);
         assertThat(blocked.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
-        ResponseEntity<DocumentSummary> set = restTemplate.exchange(
+        // admin has also lost document-management rights; only the company secretary can set retention
+        ResponseEntity<String> adminBlocked = restTemplate.exchange(
                 "/api/documents/" + doc.id() + "/retention", HttpMethod.PATCH,
                 authedRequest(admin.accessToken(), Map.of("retentionUntil", "2027-01-01")),
+                String.class);
+        assertThat(adminBlocked.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ResponseEntity<DocumentSummary> set = restTemplate.exchange(
+                "/api/documents/" + doc.id() + "/retention", HttpMethod.PATCH,
+                authedRequest(companySecretary.accessToken(), Map.of("retentionUntil", "2027-01-01")),
                 DocumentSummary.class);
         assertThat(set.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(set.getBody().retentionUntil()).isEqualTo(LocalDate.of(2027, 1, 1));
 
         ResponseEntity<DocumentSummary> cleared = restTemplate.exchange(
                 "/api/documents/" + doc.id() + "/retention", HttpMethod.PATCH,
-                authedRequest(admin.accessToken(), Collections.singletonMap("retentionUntil", null)),
+                authedRequest(companySecretary.accessToken(), Collections.singletonMap("retentionUntil", null)),
                 DocumentSummary.class);
         assertThat(cleared.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(cleared.getBody().retentionUntil()).isNull();
@@ -62,10 +70,11 @@ class DocumentRetentionAndSignatureFlowTest extends IntegrationTestSupport {
     @Test
     void anyMemberCanSignAndSigningTwiceIsANoOp() {
         AuthResponse admin = signup(uniqueEmail(), "Signing Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse memberAuth = login(memberEmail);
-        DocumentSummary doc = uploadDocument(admin.accessToken(), "Minutes").getBody();
+        DocumentSummary doc = uploadDocument(companySecretary.accessToken(), "Minutes").getBody();
         assertThat(doc.signatureCount()).isEqualTo(0);
         assertThat(doc.signedByMe()).isFalse();
 
@@ -95,11 +104,13 @@ class DocumentRetentionAndSignatureFlowTest extends IntegrationTestSupport {
     void retentionAndSignaturesAreScopedToOrganization() {
         AuthResponse orgAAdmin = signup(uniqueEmail(), "Doc Org A");
         AuthResponse orgBAdmin = signup(uniqueEmail(), "Doc Org B");
-        DocumentSummary orgBDoc = uploadDocument(orgBAdmin.accessToken(), "Org B Doc").getBody();
+        AuthResponse orgACompanySecretary = createCompanySecretaryAndLogin(orgAAdmin.accessToken());
+        AuthResponse orgBCompanySecretary = createCompanySecretaryAndLogin(orgBAdmin.accessToken());
+        DocumentSummary orgBDoc = uploadDocument(orgBCompanySecretary.accessToken(), "Org B Doc").getBody();
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/documents/" + orgBDoc.id() + "/retention", HttpMethod.PATCH,
-                authedRequest(orgAAdmin.accessToken(), Map.of("retentionUntil", "2027-01-01")),
+                authedRequest(orgACompanySecretary.accessToken(), Map.of("retentionUntil", "2027-01-01")),
                 String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }

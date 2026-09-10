@@ -10,6 +10,7 @@ import com.fris.boardportal.organization.OrganizationRepository;
 import com.fris.boardportal.security.AppUserPrincipal;
 import com.fris.boardportal.user.dto.ChangePasswordRequest;
 import com.fris.boardportal.user.dto.CreateUserRequest;
+import com.fris.boardportal.user.dto.PasswordResetResponse;
 import com.fris.boardportal.user.dto.UpdateUserRequest;
 import com.fris.boardportal.user.dto.UserSummary;
 import java.awt.Color;
@@ -20,8 +21,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
@@ -41,6 +44,7 @@ public class UserService {
     private static final long MAX_PHOTO_SIZE_BYTES = 5L * 1024 * 1024;
     private static final int MAX_PHOTO_DIMENSION = 512;
     private static final float PHOTO_JPEG_QUALITY = 0.85f;
+    private static final int TEMPORARY_PASSWORD_BYTES = 18;
 
     private final UserRepository userRepository;
     private final UserPhotoRepository userPhotoRepository;
@@ -49,6 +53,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final AuditLogService auditLogService;
     private final EmailNotificationService emailNotificationService;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     public UserService(UserRepository userRepository, UserPhotoRepository userPhotoRepository,
             OrganizationRepository organizationRepository, CommitteeService committeeService,
@@ -176,6 +181,30 @@ public class UserService {
 
         auditLogService.record(principal, AuditAction.PASSWORD_CHANGED, AuditEntityType.USER, user.getId(),
                 "Changed their own password");
+    }
+
+    @Transactional
+    public PasswordResetResponse resetPassword(AppUserPrincipal admin, UUID targetUserId) {
+        User user = userRepository.findById(targetUserId)
+                .orElseThrow(() -> ApiException.notFound("User not found"));
+
+        String temporaryPassword = generateTemporaryPassword();
+        user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        user.setUpdatedAt(Instant.now());
+        userRepository.save(user);
+
+        auditLogService.record(admin, AuditAction.PASSWORD_RESET_BY_ADMIN, AuditEntityType.USER, user.getId(),
+                "Reset " + user.getFirstName() + " " + user.getLastName() + "'s password");
+
+        emailNotificationService.notifyPasswordResetByAdmin(user);
+
+        return new PasswordResetResponse(temporaryPassword);
+    }
+
+    private String generateTemporaryPassword() {
+        byte[] bytes = new byte[TEMPORARY_PASSWORD_BYTES];
+        secureRandom.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     @Transactional

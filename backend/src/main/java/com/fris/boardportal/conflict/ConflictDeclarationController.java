@@ -31,7 +31,7 @@ public class ConflictDeclarationController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','EXECUTIVE')")
+    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public List<ConflictDeclarationSummary> listAll(@AuthenticationPrincipal AppUserPrincipal principal) {
         return declarationService.listForOrganization(principal);
     }

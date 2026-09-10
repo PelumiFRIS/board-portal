@@ -23,6 +23,7 @@ class ComplianceFilingFlowTest extends IntegrationTestSupport {
     @Test
     void nonAdminCanViewButNotMutate() {
         AuthResponse admin = signup(uniqueEmail(), "Filing View Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse memberAuth = login(memberEmail);
@@ -39,7 +40,15 @@ class ComplianceFilingFlowTest extends IntegrationTestSupport {
                 String.class);
         assertThat(create.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
-        ComplianceFilingSummary filing = createFiling(admin.accessToken(), "SEC Return", LocalDate.now().plusDays(10));
+        // admin has also lost filing-management rights; only the company secretary can create one
+        ResponseEntity<String> adminCreate = restTemplate.exchange(
+                "/api/compliance-filings", HttpMethod.POST,
+                authedRequest(admin.accessToken(),
+                        new CreateComplianceFilingRequest("AGM Return", null, LocalDate.now().plusDays(30))),
+                String.class);
+        assertThat(adminCreate.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ComplianceFilingSummary filing = createFiling(companySecretary.accessToken(), "SEC Return", LocalDate.now().plusDays(10));
 
         ResponseEntity<String> update = restTemplate.exchange(
                 "/api/compliance-filings/" + filing.id(), HttpMethod.PATCH,
@@ -59,16 +68,17 @@ class ComplianceFilingFlowTest extends IntegrationTestSupport {
     }
 
     @Test
-    void adminCanCreateEditSubmitAndDeleteFilings() {
+    void companySecretaryCanCreateEditSubmitAndDeleteFilings() {
         AuthResponse admin = signup(uniqueEmail(), "Filing Admin Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
 
-        ComplianceFilingSummary filing = createFiling(admin.accessToken(), "CAC Annual Return", LocalDate.now().plusDays(5));
+        ComplianceFilingSummary filing = createFiling(companySecretary.accessToken(), "CAC Annual Return", LocalDate.now().plusDays(5));
         assertThat(filing.status()).isEqualTo(ComplianceFilingStatus.PENDING);
         assertThat(filing.submittedAt()).isNull();
 
         ResponseEntity<ComplianceFilingSummary> updated = restTemplate.exchange(
                 "/api/compliance-filings/" + filing.id(), HttpMethod.PATCH,
-                authedRequest(admin.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new UpdateComplianceFilingRequest("CAC Annual Return (Revised)", "Updated description", null)),
                 ComplianceFilingSummary.class);
         assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -77,15 +87,15 @@ class ComplianceFilingFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<ComplianceFilingSummary> submitted = restTemplate.exchange(
                 "/api/compliance-filings/" + filing.id() + "/submit", HttpMethod.PATCH,
-                authedRequest(admin.accessToken()), ComplianceFilingSummary.class);
+                authedRequest(companySecretary.accessToken()), ComplianceFilingSummary.class);
         assertThat(submitted.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(submitted.getBody().status()).isEqualTo(ComplianceFilingStatus.SUBMITTED);
         assertThat(submitted.getBody().submittedAt()).isNotNull();
-        assertThat(submitted.getBody().submittedByName()).isEqualTo("Ada Admin");
+        assertThat(submitted.getBody().submittedByName()).isEqualTo("Board Secretary");
 
         ResponseEntity<Void> deleted = restTemplate.exchange(
                 "/api/compliance-filings/" + filing.id(), HttpMethod.DELETE,
-                authedRequest(admin.accessToken()), Void.class);
+                authedRequest(companySecretary.accessToken()), Void.class);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         ResponseEntity<ComplianceFilingSummary[]> list = restTemplate.exchange(
@@ -98,9 +108,11 @@ class ComplianceFilingFlowTest extends IntegrationTestSupport {
     void filingsAreScopedToOrganization() {
         AuthResponse orgAAdmin = signup(uniqueEmail(), "Filing Org A");
         AuthResponse orgBAdmin = signup(uniqueEmail(), "Filing Org B");
+        AuthResponse orgACompanySecretary = createCompanySecretaryAndLogin(orgAAdmin.accessToken());
+        AuthResponse orgBCompanySecretary = createCompanySecretaryAndLogin(orgBAdmin.accessToken());
 
-        createFiling(orgAAdmin.accessToken(), "Org A Filing", LocalDate.now().plusDays(1));
-        createFiling(orgBAdmin.accessToken(), "Org B Filing", LocalDate.now().plusDays(1));
+        createFiling(orgACompanySecretary.accessToken(), "Org A Filing", LocalDate.now().plusDays(1));
+        createFiling(orgBCompanySecretary.accessToken(), "Org B Filing", LocalDate.now().plusDays(1));
 
         ResponseEntity<ComplianceFilingSummary[]> orgAList = restTemplate.exchange(
                 "/api/compliance-filings", HttpMethod.GET, authedRequest(orgAAdmin.accessToken()),

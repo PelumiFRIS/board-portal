@@ -53,7 +53,7 @@ function EmptyDocumentsIcon() {
 export function DocumentsListPage() {
   const { user } = useAuth();
   const toast = useToast();
-  const canManage = user?.role === "ADMIN" || user?.role === "EXECUTIVE";
+  const canManage = user?.role === "COMPANY_SECRETARY";
 
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [meetings, setMeetings] = useState<MeetingSummary[]>([]);

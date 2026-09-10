@@ -4,6 +4,7 @@ import type {
   ChangePasswordPayload,
   CreateUserPayload,
   LoginPayload,
+  PasswordResetResponse,
   SignupPayload,
   UpdateUserProfilePayload,
   UserStatus,
@@ -52,4 +53,9 @@ export async function updateUserProfile(userId: string, payload: UpdateUserProfi
 
 export async function changePassword(payload: ChangePasswordPayload): Promise<void> {
   await apiClient.post("/api/users/me/password", payload);
+}
+
+export async function resetUserPassword(userId: string): Promise<PasswordResetResponse> {
+  const { data } = await apiClient.post<PasswordResetResponse>(`/api/users/${userId}/reset-password`);
+  return data;
 }

@@ -37,9 +37,10 @@ import org.springframework.http.ResponseEntity;
 class MeetingFlowTest extends IntegrationTestSupport {
 
     @Test
-    void adminCanScheduleAndAnyOrgMemberCanView() {
+    void companySecretaryCanScheduleAndAnyOrgMemberCanView() {
         AuthResponse admin = signup(uniqueEmail(), "Board Co");
-        MeetingSummary created = scheduleMeeting(admin.accessToken());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary created = scheduleMeeting(companySecretary.accessToken());
 
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
@@ -69,25 +70,26 @@ class MeetingFlowTest extends IntegrationTestSupport {
     }
 
     @Test
-    void adminManagesAgendaItemsAndMinutes() {
+    void companySecretaryManagesAgendaItemsAndMinutes() {
         AuthResponse admin = signup(uniqueEmail(), "Agenda Org");
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
 
         ResponseEntity<AgendaItemDto> item = restTemplate.exchange(
                 "/api/meetings/" + meeting.id() + "/agenda-items", HttpMethod.POST,
-                authedRequest(admin.accessToken(), new CreateAgendaItemRequest("Approve budget", null, null)),
+                authedRequest(companySecretary.accessToken(), new CreateAgendaItemRequest("Approve budget", null, null)),
                 AgendaItemDto.class);
         assertThat(item.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
         ResponseEntity<AgendaItemDto> updatedItem = restTemplate.exchange(
                 "/api/meetings/" + meeting.id() + "/agenda-items/" + item.getBody().id(), HttpMethod.PATCH,
-                authedRequest(admin.accessToken(), new UpdateAgendaItemRequest("Approve FY26 budget", null, null)),
+                authedRequest(companySecretary.accessToken(), new UpdateAgendaItemRequest("Approve FY26 budget", null, null)),
                 AgendaItemDto.class);
         assertThat(updatedItem.getBody().title()).isEqualTo("Approve FY26 budget");
 
         ResponseEntity<MeetingDetail> completed = restTemplate.exchange(
                 "/api/meetings/" + meeting.id(), HttpMethod.PATCH,
-                authedRequest(admin.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new UpdateMeetingRequest(null, null, null, null, null, MeetingStatus.COMPLETED, "Budget approved unanimously.", null, null)),
                 MeetingDetail.class);
         assertThat(completed.getBody().status()).isEqualTo(MeetingStatus.COMPLETED);
@@ -96,21 +98,22 @@ class MeetingFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<Void> deleted = restTemplate.exchange(
                 "/api/meetings/" + meeting.id() + "/agenda-items/" + item.getBody().id(), HttpMethod.DELETE,
-                authedRequest(admin.accessToken()), Void.class);
+                authedRequest(companySecretary.accessToken()), Void.class);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
     @Test
     void anyOrgMemberCanDownloadMeetingRecordWithEscapedContent() {
         AuthResponse admin = signup(uniqueEmail(), "Meeting Record Org");
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse member = login(memberEmail);
 
         restTemplate.exchange(
                 "/api/meetings/" + meeting.id(), HttpMethod.PATCH,
-                authedRequest(admin.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new UpdateMeetingRequest(null, null, null, null, null, null,
                                 "Discussed <script>alert('x')</script> & approved the budget.", null, null)),
                 MeetingDetail.class);
@@ -130,7 +133,8 @@ class MeetingFlowTest extends IntegrationTestSupport {
     void meetingRecordExportIsScopedToOrganization() {
         AuthResponse orgAAdmin = signup(uniqueEmail(), "Meeting Record Org A");
         AuthResponse orgBAdmin = signup(uniqueEmail(), "Meeting Record Org B");
-        MeetingSummary orgBMeeting = scheduleMeeting(orgBAdmin.accessToken());
+        AuthResponse orgBCompanySecretary = createCompanySecretaryAndLogin(orgBAdmin.accessToken());
+        MeetingSummary orgBMeeting = scheduleMeeting(orgBCompanySecretary.accessToken());
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/meetings/" + orgBMeeting.id() + "/export", HttpMethod.GET,
@@ -143,7 +147,8 @@ class MeetingFlowTest extends IntegrationTestSupport {
     void adminCannotAccessMeetingFromAnotherOrganization() {
         AuthResponse orgAAdmin = signup(uniqueEmail(), "Meetings Org A");
         AuthResponse orgBAdmin = signup(uniqueEmail(), "Meetings Org B");
-        MeetingSummary orgBMeeting = scheduleMeeting(orgBAdmin.accessToken());
+        AuthResponse orgBCompanySecretary = createCompanySecretaryAndLogin(orgBAdmin.accessToken());
+        MeetingSummary orgBMeeting = scheduleMeeting(orgBCompanySecretary.accessToken());
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/meetings/" + orgBMeeting.id(), HttpMethod.GET,
@@ -155,10 +160,11 @@ class MeetingFlowTest extends IntegrationTestSupport {
     @Test
     void anyOrgMemberCanDownloadIcsButNotForAnotherOrgsMeeting() {
         AuthResponse admin = signup(uniqueEmail(), "Calendar Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         String memberEmail = uniqueEmail();
         createBoardMember(admin.accessToken(), memberEmail);
         AuthResponse member = login(memberEmail);
-        MeetingSummary meeting = scheduleMeeting(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
 
         ResponseEntity<String> ics = restTemplate.exchange(
                 "/api/meetings/" + meeting.id() + "/ics", HttpMethod.GET,
@@ -180,13 +186,14 @@ class MeetingFlowTest extends IntegrationTestSupport {
     @Test
     void meetingTypeRoundTripsThroughCreateAndUpdate() {
         AuthResponse admin = signup(uniqueEmail(), "Meeting Type Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
         UUID agmTypeId = defaultMeetingTypeId(admin.accessToken());
-        UUID egmTypeId = createMeetingType(admin.accessToken(), "EGM Type");
+        UUID egmTypeId = createMeetingType(companySecretary.accessToken(), "EGM Type");
 
         ResponseEntity<MeetingSummary> created = restTemplate.exchange(
                 "/api/meetings", HttpMethod.POST,
-                authedRequest(admin.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new CreateMeetingRequest("AGM 2026", null, null, start, null, null, agmTypeId)),
                 MeetingSummary.class);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -199,7 +206,7 @@ class MeetingFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<MeetingDetail> updated = restTemplate.exchange(
                 "/api/meetings/" + created.getBody().id(), HttpMethod.PATCH,
-                authedRequest(admin.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new UpdateMeetingRequest(null, null, null, null, null, null, null, null, egmTypeId)),
                 MeetingDetail.class);
         assertThat(updated.getBody().meetingTypeId()).isEqualTo(egmTypeId);
@@ -222,6 +229,7 @@ class MeetingFlowTest extends IntegrationTestSupport {
     @Test
     void allOrgMeetingTypesAreAccepted() {
         AuthResponse admin = signup(uniqueEmail(), "All Meeting Types Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         Instant start = Instant.now().plus(7, ChronoUnit.DAYS);
 
         ResponseEntity<MeetingTypeSummary[]> types = restTemplate.exchange(
@@ -232,7 +240,7 @@ class MeetingFlowTest extends IntegrationTestSupport {
         for (MeetingTypeSummary type : types.getBody()) {
             ResponseEntity<MeetingSummary> response = restTemplate.exchange(
                     "/api/meetings", HttpMethod.POST,
-                    authedRequest(admin.accessToken(),
+                    authedRequest(companySecretary.accessToken(),
                             new CreateMeetingRequest(type.name() + " Meeting", null, null, start, null, null, type.id())),
                     MeetingSummary.class);
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -253,19 +261,20 @@ class MeetingFlowTest extends IntegrationTestSupport {
     @Test
     void mattersArisingDistillsOpenActionItemsScopedByCommittee() {
         AuthResponse admin = signup(uniqueEmail(), "Matters Arising Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         String memberEmail = uniqueEmail();
         UUID memberId = createBoardMemberReturningId(admin.accessToken(), memberEmail);
 
-        MeetingSummary meetingA = scheduleMeeting(admin.accessToken(), "Meeting A", null);
+        MeetingSummary meetingA = scheduleMeeting(companySecretary.accessToken(), "Meeting A", null);
         ResponseEntity<ActionItemSummary> itemResponse = restTemplate.exchange(
                 "/api/action-items", HttpMethod.POST,
-                authedRequest(admin.accessToken(),
+                authedRequest(companySecretary.accessToken(),
                         new CreateActionItemRequest(meetingA.id(), "Follow up on audit", null, memberId, null)),
                 ActionItemSummary.class);
         assertThat(itemResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         UUID itemId = itemResponse.getBody().id();
 
-        MeetingSummary meetingB = scheduleMeeting(admin.accessToken(), "Meeting B", null);
+        MeetingSummary meetingB = scheduleMeeting(companySecretary.accessToken(), "Meeting B", null);
 
         // surfaces on a later org-wide meeting
         List<MatterArisingItem> forB = fetchMattersArising(admin.accessToken(), meetingB.id());
@@ -277,15 +286,15 @@ class MeetingFlowTest extends IntegrationTestSupport {
         assertThat(forA).extracting(MatterArisingItem::id).doesNotContain(itemId);
 
         // a committee-scoped meeting doesn't see the org-wide item
-        CommitteeSummary committee = createCommittee(admin.accessToken(), "Audit Committee");
-        MeetingSummary meetingC = scheduleMeeting(admin.accessToken(), "Meeting C", committee.id());
+        CommitteeSummary committee = createCommittee(companySecretary.accessToken(), "Audit Committee");
+        MeetingSummary meetingC = scheduleMeeting(companySecretary.accessToken(), "Meeting C", committee.id());
         List<MatterArisingItem> forC = fetchMattersArising(admin.accessToken(), meetingC.id());
         assertThat(forC).extracting(MatterArisingItem::id).doesNotContain(itemId);
 
         // marking it done removes it from matters arising
         restTemplate.exchange(
                 "/api/action-items/" + itemId + "/status", HttpMethod.PATCH,
-                authedRequest(admin.accessToken(), new UpdateActionItemStatusRequest(ActionItemStatus.DONE)),
+                authedRequest(companySecretary.accessToken(), new UpdateActionItemStatusRequest(ActionItemStatus.DONE)),
                 ActionItemSummary.class);
         List<MatterArisingItem> forBAfterDone = fetchMattersArising(admin.accessToken(), meetingB.id());
         assertThat(forBAfterDone).extracting(MatterArisingItem::id).doesNotContain(itemId);
@@ -311,12 +320,13 @@ class MeetingFlowTest extends IntegrationTestSupport {
     @Test
     void committeeIdFilterOnMeetingsList() {
         AuthResponse admin = signup(uniqueEmail(), "Committee Meetings Org");
-        CommitteeSummary committeeA = createCommittee(admin.accessToken(), "Audit Committee");
-        CommitteeSummary committeeB = createCommittee(admin.accessToken(), "Risk Committee");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        CommitteeSummary committeeA = createCommittee(companySecretary.accessToken(), "Audit Committee");
+        CommitteeSummary committeeB = createCommittee(companySecretary.accessToken(), "Risk Committee");
 
-        MeetingSummary meetingA = scheduleMeeting(admin.accessToken(), "Audit Meeting", committeeA.id());
-        scheduleMeeting(admin.accessToken(), "Risk Meeting", committeeB.id());
-        MeetingSummary orgWide = scheduleMeeting(admin.accessToken(), "Full Board Meeting", null);
+        MeetingSummary meetingA = scheduleMeeting(companySecretary.accessToken(), "Audit Meeting", committeeA.id());
+        scheduleMeeting(companySecretary.accessToken(), "Risk Meeting", committeeB.id());
+        MeetingSummary orgWide = scheduleMeeting(companySecretary.accessToken(), "Full Board Meeting", null);
 
         ResponseEntity<MeetingSummary[]> filtered = restTemplate.exchange(
                 "/api/meetings?committeeId=" + committeeA.id(), HttpMethod.GET,
