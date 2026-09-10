@@ -2,6 +2,7 @@ import type {
   ActionItemStatus,
   FilingStatus,
   MeetingStatus,
+  MinutesStatus,
   ResolutionOutcome,
   ResolutionStatus,
   UserStatus,
@@ -22,6 +23,7 @@ const CLASS_MAP: Record<string, string> = {
   PENDING: "badge-scheduled",
   SUBMITTED: "badge-active",
   OVERDUE: "badge-cancelled",
+  APPROVED: "badge-active",
 };
 
 const LABEL_MAP: Record<string, string> = {
@@ -31,7 +33,15 @@ const LABEL_MAP: Record<string, string> = {
 export function StatusBadge({
   status,
 }: {
-  status: UserStatus | MeetingStatus | ResolutionStatus | ResolutionOutcome | ActionItemStatus | FilingStatus | "OVERDUE";
+  status:
+    | UserStatus
+    | MeetingStatus
+    | MinutesStatus
+    | ResolutionStatus
+    | ResolutionOutcome
+    | ActionItemStatus
+    | FilingStatus
+    | "OVERDUE";
 }) {
   return <span className={`badge ${CLASS_MAP[status] ?? "badge-disabled"}`}>{LABEL_MAP[status] ?? status}</span>;
 }

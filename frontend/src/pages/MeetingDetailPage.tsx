@@ -90,6 +90,7 @@ export function MeetingDetailPage() {
 
   const [minutesDraft, setMinutesDraft] = useState("");
   const [savingMinutes, setSavingMinutes] = useState(false);
+  const [updatingMinutesStatus, setUpdatingMinutesStatus] = useState(false);
 
   const [recordings, setRecordings] = useState<MeetingRecordingSummary[]>([]);
   const [loadingRecordings, setLoadingRecordings] = useState(true);
@@ -367,6 +368,21 @@ export function MeetingDetailPage() {
       setActionError(extractErrorMessage(err));
     } finally {
       setSavingMinutes(false);
+    }
+  }
+
+  async function handleSetMinutesStatus(status: "DRAFT" | "APPROVED") {
+    if (!id) return;
+    setActionError(null);
+    setUpdatingMinutesStatus(true);
+    try {
+      const updated = await updateMeeting(id, { minutesStatus: status });
+      setMeeting(updated);
+      toast.success(status === "APPROVED" ? "Minutes approved." : "Minutes reverted to draft.");
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setUpdatingMinutesStatus(false);
     }
   }
 
@@ -990,7 +1006,9 @@ export function MeetingDetailPage() {
             </section>
 
             <section className="dashboard-section">
-              <h2>Minutes</h2>
+              <h2>
+                Minutes <StatusBadge status={meeting.minutesStatus} />
+              </h2>
               {canManage ? (
                 <>
                   <textarea
@@ -1000,12 +1018,43 @@ export function MeetingDetailPage() {
                     rows={6}
                     placeholder="Record minutes here..."
                   />
-                  <button onClick={handleSaveMinutes} disabled={savingMinutes}>
-                    {savingMinutes ? "Saving..." : "Save minutes"}
+                  <div className="field-row">
+                    <button onClick={handleSaveMinutes} disabled={savingMinutes}>
+                      {savingMinutes ? "Saving..." : "Save minutes"}
+                    </button>
+                    {meeting.minutesStatus === "DRAFT" ? (
+                      <button
+                        className="secondary"
+                        disabled={updatingMinutesStatus}
+                        onClick={() => handleSetMinutesStatus("APPROVED")}
+                      >
+                        {updatingMinutesStatus ? "Approving..." : "Approve minutes"}
+                      </button>
+                    ) : (
+                      <button
+                        className="secondary"
+                        disabled={updatingMinutesStatus}
+                        onClick={() => handleSetMinutesStatus("DRAFT")}
+                      >
+                        {updatingMinutesStatus ? "Reverting..." : "Revert to draft"}
+                      </button>
+                    )}
+                  </div>
+                  <p className="table-hint">
+                    {meeting.minutesStatus === "DRAFT"
+                      ? "Only you can see draft minutes. Approve them to make them visible to Directors."
+                      : "Approved minutes are visible to everyone and can be downloaded as a PDF."}
+                  </p>
+                </>
+              ) : meeting.minutesStatus === "APPROVED" ? (
+                <>
+                  <p>{meeting.minutesContent ?? "No minutes published yet."}</p>
+                  <button className="secondary small" onClick={handleExportRecord}>
+                    Download minutes (PDF)
                   </button>
                 </>
               ) : (
-                <p>{meeting.minutesContent ?? "No minutes published yet."}</p>
+                <p className="table-hint">Minutes are still being prepared by the Company Secretary.</p>
               )}
             </section>
 

@@ -11,6 +11,7 @@ import com.fris.boardportal.auth.dto.LoginRequest;
 import com.fris.boardportal.committee.dto.CommitteeSummary;
 import com.fris.boardportal.committee.dto.CreateCommitteeRequest;
 import com.fris.boardportal.meeting.MeetingStatus;
+import com.fris.boardportal.meeting.MinutesStatus;
 import com.fris.boardportal.meeting.dto.AgendaItemDto;
 import com.fris.boardportal.meeting.dto.CreateAgendaItemRequest;
 import com.fris.boardportal.meeting.dto.CreateMeetingRequest;
@@ -90,7 +91,7 @@ class MeetingFlowTest extends IntegrationTestSupport {
         ResponseEntity<MeetingDetail> completed = restTemplate.exchange(
                 "/api/meetings/" + meeting.id(), HttpMethod.PATCH,
                 authedRequest(companySecretary.accessToken(),
-                        new UpdateMeetingRequest(null, null, null, null, null, MeetingStatus.COMPLETED, "Budget approved unanimously.", null, null)),
+                        new UpdateMeetingRequest(null, null, null, null, null, MeetingStatus.COMPLETED, "Budget approved unanimously.", null, null, null)),
                 MeetingDetail.class);
         assertThat(completed.getBody().status()).isEqualTo(MeetingStatus.COMPLETED);
         assertThat(completed.getBody().minutesContent()).isEqualTo("Budget approved unanimously.");
@@ -100,6 +101,73 @@ class MeetingFlowTest extends IntegrationTestSupport {
                 "/api/meetings/" + meeting.id() + "/agenda-items/" + item.getBody().id(), HttpMethod.DELETE,
                 authedRequest(companySecretary.accessToken()), Void.class);
         assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    }
+
+    @Test
+    void draftMinutesAreHiddenFromEveryoneButTheCompanySecretaryUntilApproved() {
+        AuthResponse admin = signup(uniqueEmail(), "Minutes Lifecycle Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        String memberEmail = uniqueEmail();
+        createBoardMember(admin.accessToken(), memberEmail);
+        AuthResponse member = login(memberEmail);
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
+
+        restTemplate.exchange(
+                "/api/meetings/" + meeting.id(), HttpMethod.PATCH,
+                authedRequest(companySecretary.accessToken(),
+                        new UpdateMeetingRequest(null, null, null, null, null, null,
+                                "Draft: budget discussion ongoing.", null, null, null)),
+                MeetingDetail.class);
+
+        // new meetings start as DRAFT: the Company Secretary sees the content, everyone else gets it hidden
+        MeetingDetail asCompanySecretary = restTemplate.exchange(
+                "/api/meetings/" + meeting.id(), HttpMethod.GET, authedRequest(companySecretary.accessToken()),
+                MeetingDetail.class).getBody();
+        assertThat(asCompanySecretary.minutesStatus()).isEqualTo(MinutesStatus.DRAFT);
+        assertThat(asCompanySecretary.minutesContent()).isEqualTo("Draft: budget discussion ongoing.");
+
+        MeetingDetail asMemberWhileDraft = restTemplate.exchange(
+                "/api/meetings/" + meeting.id(), HttpMethod.GET, authedRequest(member.accessToken()),
+                MeetingDetail.class).getBody();
+        assertThat(asMemberWhileDraft.minutesStatus()).isEqualTo(MinutesStatus.DRAFT);
+        assertThat(asMemberWhileDraft.minutesContent()).isNull();
+
+        MeetingDetail asAdminWhileDraft = restTemplate.exchange(
+                "/api/meetings/" + meeting.id(), HttpMethod.GET, authedRequest(admin.accessToken()),
+                MeetingDetail.class).getBody();
+        assertThat(asAdminWhileDraft.minutesContent()).isNull();
+
+        // a board member can't approve minutes themselves
+        ResponseEntity<String> memberApprovalAttempt = restTemplate.exchange(
+                "/api/meetings/" + meeting.id(), HttpMethod.PATCH,
+                authedRequest(member.accessToken(),
+                        new UpdateMeetingRequest(null, null, null, null, null, null, null, MinutesStatus.APPROVED, null, null)),
+                String.class);
+        assertThat(memberApprovalAttempt.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        restTemplate.exchange(
+                "/api/meetings/" + meeting.id(), HttpMethod.PATCH,
+                authedRequest(companySecretary.accessToken(),
+                        new UpdateMeetingRequest(null, null, null, null, null, null, null, MinutesStatus.APPROVED, null, null)),
+                MeetingDetail.class);
+
+        MeetingDetail asMemberAfterApproval = restTemplate.exchange(
+                "/api/meetings/" + meeting.id(), HttpMethod.GET, authedRequest(member.accessToken()),
+                MeetingDetail.class).getBody();
+        assertThat(asMemberAfterApproval.minutesStatus()).isEqualTo(MinutesStatus.APPROVED);
+        assertThat(asMemberAfterApproval.minutesContent()).isEqualTo("Draft: budget discussion ongoing.");
+
+        // reverting to draft hides it again
+        restTemplate.exchange(
+                "/api/meetings/" + meeting.id(), HttpMethod.PATCH,
+                authedRequest(companySecretary.accessToken(),
+                        new UpdateMeetingRequest(null, null, null, null, null, null, null, MinutesStatus.DRAFT, null, null)),
+                MeetingDetail.class);
+
+        MeetingDetail asMemberAfterRevert = restTemplate.exchange(
+                "/api/meetings/" + meeting.id(), HttpMethod.GET, authedRequest(member.accessToken()),
+                MeetingDetail.class).getBody();
+        assertThat(asMemberAfterRevert.minutesContent()).isNull();
     }
 
     @Test
@@ -115,7 +183,8 @@ class MeetingFlowTest extends IntegrationTestSupport {
                 "/api/meetings/" + meeting.id(), HttpMethod.PATCH,
                 authedRequest(companySecretary.accessToken(),
                         new UpdateMeetingRequest(null, null, null, null, null, null,
-                                "Discussed <script>alert('x')</script> & approved the budget.", null, null)),
+                                "Discussed <script>alert('x')</script> & approved the budget.",
+                                MinutesStatus.APPROVED, null, null)),
                 MeetingDetail.class);
 
         ResponseEntity<String> exported = restTemplate.exchange(
@@ -127,6 +196,30 @@ class MeetingFlowTest extends IntegrationTestSupport {
         assertThat(exported.getBody()).contains("Q3 Board Meeting");
         assertThat(exported.getBody()).contains("&lt;script&gt;alert('x')&lt;/script&gt; &amp; approved");
         assertThat(exported.getBody()).doesNotContain("<script>alert");
+    }
+
+    @Test
+    void exportedRecordHidesDraftMinutesFromABoardMember() {
+        AuthResponse admin = signup(uniqueEmail(), "Draft Export Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
+        String memberEmail = uniqueEmail();
+        createBoardMember(admin.accessToken(), memberEmail);
+        AuthResponse member = login(memberEmail);
+
+        restTemplate.exchange(
+                "/api/meetings/" + meeting.id(), HttpMethod.PATCH,
+                authedRequest(companySecretary.accessToken(),
+                        new UpdateMeetingRequest(null, null, null, null, null, null,
+                                "Still-secret budget figures.", null, null, null)),
+                MeetingDetail.class);
+
+        ResponseEntity<String> exported = restTemplate.exchange(
+                "/api/meetings/" + meeting.id() + "/export", HttpMethod.GET,
+                authedRequest(member.accessToken()), String.class);
+        assertThat(exported.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(exported.getBody()).doesNotContain("Still-secret budget figures.");
+        assertThat(exported.getBody()).contains("Minutes are still being prepared by the Company Secretary.");
     }
 
     @Test
@@ -207,7 +300,7 @@ class MeetingFlowTest extends IntegrationTestSupport {
         ResponseEntity<MeetingDetail> updated = restTemplate.exchange(
                 "/api/meetings/" + created.getBody().id(), HttpMethod.PATCH,
                 authedRequest(companySecretary.accessToken(),
-                        new UpdateMeetingRequest(null, null, null, null, null, null, null, null, egmTypeId)),
+                        new UpdateMeetingRequest(null, null, null, null, null, null, null, null, null, egmTypeId)),
                 MeetingDetail.class);
         assertThat(updated.getBody().meetingTypeId()).isEqualTo(egmTypeId);
         assertThat(updated.getBody().meetingTypeName()).isEqualTo("EGM Type");

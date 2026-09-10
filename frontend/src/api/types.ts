@@ -123,6 +123,8 @@ export interface AgendaItem {
   description: string | null;
 }
 
+export type MinutesStatus = "DRAFT" | "APPROVED";
+
 export interface MeetingDetail {
   id: string;
   title: string;
@@ -132,6 +134,7 @@ export interface MeetingDetail {
   scheduledEnd: string | null;
   status: MeetingStatus;
   minutesContent: string | null;
+  minutesStatus: MinutesStatus;
   committeeId: string | null;
   meetingTypeId: string;
   meetingTypeName: string;
@@ -184,6 +187,7 @@ export interface UpdateMeetingPayload {
   scheduledEnd?: string;
   status?: MeetingStatus;
   minutesContent?: string;
+  minutesStatus?: MinutesStatus;
   committeeId?: string;
   meetingTypeId?: string;
 }

@@ -4,6 +4,7 @@ import com.fris.boardportal.actionitem.dto.ActionItemSummary;
 import com.fris.boardportal.document.dto.DocumentSummary;
 import com.fris.boardportal.meeting.Meeting;
 import com.fris.boardportal.meeting.MeetingStatus;
+import com.fris.boardportal.meeting.MinutesStatus;
 import com.fris.boardportal.resolution.dto.ResolutionSummary;
 import java.time.Instant;
 import java.util.List;
@@ -18,6 +19,7 @@ public record MeetingDetail(
         Instant scheduledEnd,
         MeetingStatus status,
         String minutesContent,
+        MinutesStatus minutesStatus,
         UUID committeeId,
         UUID meetingTypeId,
         String meetingTypeName,
@@ -26,8 +28,13 @@ public record MeetingDetail(
         List<ResolutionSummary> resolutions,
         List<ActionItemSummary> actionItems) {
 
+    /**
+     * @param minutesVisible whether the requester may see minutesContent — false for anyone but the
+     *                       Company Secretary while minutes are still DRAFT, per FRIS's governance model.
+     */
     public static MeetingDetail from(Meeting meeting, String meetingTypeName, List<AgendaItemDto> agendaItems,
-            List<DocumentSummary> documents, List<ResolutionSummary> resolutions, List<ActionItemSummary> actionItems) {
+            List<DocumentSummary> documents, List<ResolutionSummary> resolutions, List<ActionItemSummary> actionItems,
+            boolean minutesVisible) {
         return new MeetingDetail(
                 meeting.getId(),
                 meeting.getTitle(),
@@ -36,7 +43,8 @@ public record MeetingDetail(
                 meeting.getScheduledStart(),
                 meeting.getScheduledEnd(),
                 meeting.getStatus(),
-                meeting.getMinutesContent(),
+                minutesVisible ? meeting.getMinutesContent() : null,
+                meeting.getMinutesStatus(),
                 meeting.getCommitteeId(),
                 meeting.getMeetingTypeId(),
                 meetingTypeName,

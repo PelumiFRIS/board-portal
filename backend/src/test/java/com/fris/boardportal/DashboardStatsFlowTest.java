@@ -137,7 +137,7 @@ class DashboardStatsFlowTest extends IntegrationTestSupport {
     private void updateMeetingStatus(String adminToken, UUID meetingId, MeetingStatus status) {
         ResponseEntity<Object> response = restTemplate.exchange(
                 "/api/meetings/" + meetingId, HttpMethod.PATCH,
-                authedRequest(adminToken, new UpdateMeetingRequest(null, null, null, null, null, status, null, null, null)),
+                authedRequest(adminToken, new UpdateMeetingRequest(null, null, null, null, null, status, null, null, null, null)),
                 Object.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     }

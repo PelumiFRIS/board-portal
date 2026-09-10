@@ -49,6 +49,10 @@ public class Meeting {
     @Column(name = "minutes_content")
     private String minutesContent;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "minutes_status", nullable = false)
+    private MinutesStatus minutesStatus;
+
     @Column(name = "committee_id")
     private UUID committeeId;
 
@@ -77,6 +81,7 @@ public class Meeting {
         meeting.setScheduledStart(scheduledStart);
         meeting.setScheduledEnd(scheduledEnd);
         meeting.setStatus(MeetingStatus.SCHEDULED);
+        meeting.setMinutesStatus(MinutesStatus.DRAFT);
         meeting.setCommitteeId(committeeId);
         meeting.setMeetingTypeId(meetingTypeId);
         Instant now = Instant.now();

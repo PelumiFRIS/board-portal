@@ -21,6 +21,7 @@ import com.fris.boardportal.meeting.dto.UpdateMeetingRequest;
 import com.fris.boardportal.notification.EmailNotificationService;
 import com.fris.boardportal.resolution.ResolutionService;
 import com.fris.boardportal.security.AppUserPrincipal;
+import com.fris.boardportal.user.Role;
 import com.fris.boardportal.user.User;
 import com.fris.boardportal.user.UserRepository;
 import com.fris.boardportal.user.UserStatus;
@@ -165,7 +166,7 @@ public class MeetingService {
 
         html.append("<h2>Minutes</h2>");
         html.append("<div class=\"minutes\">")
-                .append(detail.minutesContent() != null ? htmlEscape(detail.minutesContent()) : "No minutes recorded.")
+                .append(minutesPlaceholderOrContent(detail))
                 .append("</div>");
 
         if (!detail.resolutions().isEmpty()) {
@@ -202,6 +203,15 @@ public class MeetingService {
 
         html.append("</body></html>");
         return html.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private String minutesPlaceholderOrContent(MeetingDetail detail) {
+        if (detail.minutesContent() != null) {
+            return htmlEscape(detail.minutesContent());
+        }
+        return detail.minutesStatus() == MinutesStatus.DRAFT
+                ? "Minutes are still being prepared by the Company Secretary."
+                : "No minutes recorded.";
     }
 
     private String htmlEscape(String value) {
@@ -352,6 +362,9 @@ public class MeetingService {
         if (request.minutesContent() != null) {
             meeting.setMinutesContent(request.minutesContent());
         }
+        if (request.minutesStatus() != null) {
+            meeting.setMinutesStatus(request.minutesStatus());
+        }
         if (request.committeeId() != null) {
             findCommitteeInOrg(admin, request.committeeId());
             meeting.setCommitteeId(request.committeeId());
@@ -422,6 +435,14 @@ public class MeetingService {
         var resolutions = resolutionService.listForMeeting(principal, meeting.getId());
         var actionItems = actionItemService.listForMeeting(principal, meeting.getId());
         String meetingTypeName = findMeetingTypeName(principal, meeting.getMeetingTypeId());
-        return MeetingDetail.from(meeting, meetingTypeName, agendaItems, documents, resolutions, actionItems);
+        return MeetingDetail.from(meeting, meetingTypeName, agendaItems, documents, resolutions, actionItems,
+                minutesVisible(meeting, principal));
+    }
+
+    /**
+     * Draft minutes are exclusive to the Company Secretary; once approved, everyone in the org can view them.
+     */
+    private boolean minutesVisible(Meeting meeting, AppUserPrincipal principal) {
+        return meeting.getMinutesStatus() == MinutesStatus.APPROVED || principal.getRole() == Role.COMPANY_SECRETARY;
     }
 }
