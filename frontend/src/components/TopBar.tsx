@@ -1,24 +1,33 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listActionItems } from "../api/actionItems";
+import { listComplianceFilings } from "../api/complianceFilings";
 import { getUnreadCount, listConversations } from "../api/messaging";
 import { listResolutions } from "../api/resolutions";
-import type { ActionItemSummary, ConversationSummary, ResolutionSummary } from "../api/types";
+import type { ActionItemSummary, ComplianceFilingSummary, ConversationSummary, ResolutionSummary } from "../api/types";
 import { ROLE_LABELS } from "../constants/roles";
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "./Avatar";
 import { NAV_ITEMS } from "./Sidebar";
 
 const UNREAD_POLL_MS = 25000;
+const FILING_DUE_SOON_DAYS = 7;
 
 interface NotificationEntry {
   key: string;
-  category: "MESSAGE" | "ACTION ITEM" | "RESOLUTION";
+  category: "MESSAGE" | "ACTION ITEM" | "RESOLUTION" | "COMPLIANCE";
   title: string;
   description: string;
   timestamp: string;
   to: string;
 }
+
+const NOTIF_TAG_CLASS: Record<NotificationEntry["category"], string> = {
+  MESSAGE: "message",
+  "ACTION ITEM": "action",
+  RESOLUTION: "resolution",
+  COMPLIANCE: "compliance",
+};
 
 function conversationDisplayName(conversation: ConversationSummary, selfId: string): string {
   if (conversation.title) return conversation.title;
@@ -110,6 +119,7 @@ export function TopBar() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [myActionItems, setMyActionItems] = useState<ActionItemSummary[]>([]);
   const [openResolutions, setOpenResolutions] = useState<ResolutionSummary[]>([]);
+  const [filings, setFilings] = useState<ComplianceFilingSummary[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -128,11 +138,12 @@ export function TopBar() {
   useEffect(() => {
     if (!notifOpen) return;
     setNotifLoading(true);
-    Promise.all([listConversations(), listActionItems(), listResolutions()])
-      .then(([convos, items, resolutions]) => {
+    Promise.all([listConversations(), listActionItems(), listResolutions(), listComplianceFilings()])
+      .then(([convos, items, resolutions, complianceFilings]) => {
         setConversations(convos);
         setMyActionItems(items);
         setOpenResolutions(resolutions);
+        setFilings(complianceFilings);
       })
       .catch(() => {})
       .finally(() => setNotifLoading(false));
@@ -206,10 +217,31 @@ export function TopBar() {
         to: `/meetings/${r.meetingId}`,
       }));
 
-    return [...messageEntries, ...actionEntries, ...resolutionEntries].sort(
+    const dayMs = 24 * 60 * 60 * 1000;
+    const filingEntries: NotificationEntry[] = filings
+      .filter((f) => f.status === "PENDING")
+      .map((f) => ({ f, daysUntilDue: Math.ceil((new Date(f.dueDate).getTime() - now) / dayMs) }))
+      .filter(({ daysUntilDue }) => daysUntilDue <= FILING_DUE_SOON_DAYS)
+      .map(({ f, daysUntilDue }) => ({
+        key: `filing-${f.id}`,
+        category: "COMPLIANCE" as const,
+        title: f.title,
+        description:
+          daysUntilDue < 0
+            ? `Overdue since ${new Date(f.dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+            : daysUntilDue === 0
+              ? "Due today"
+              : daysUntilDue === 1
+                ? "Due tomorrow"
+                : `Due in ${daysUntilDue} days`,
+        timestamp: f.dueDate,
+        to: "/compliance",
+      }));
+
+    return [...messageEntries, ...actionEntries, ...resolutionEntries, ...filingEntries].sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
-  }, [conversations, myActionItems, openResolutions, user]);
+  }, [conversations, myActionItems, openResolutions, filings, user]);
 
   function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter" && matches.length > 0) {
@@ -272,7 +304,9 @@ export function TopBar() {
               </div>
               <div className="topbar-notif-list">
                 {!notifLoading && notifications.length === 0 && (
-                  <div className="topbar-notif-empty">No new messages, action items, or resolutions to vote on.</div>
+                  <div className="topbar-notif-empty">
+                    No new messages, action items, resolutions to vote on, or filings due soon.
+                  </div>
                 )}
                 {notifications.map((item) => (
                   <button
@@ -284,11 +318,7 @@ export function TopBar() {
                       setNotifOpen(false);
                     }}
                   >
-                    <span
-                      className={`topbar-notif-tag topbar-notif-tag-${
-                        item.category === "MESSAGE" ? "message" : item.category === "RESOLUTION" ? "resolution" : "action"
-                      }`}
-                    >
+                    <span className={`topbar-notif-tag topbar-notif-tag-${NOTIF_TAG_CLASS[item.category]}`}>
                       {item.category}
                     </span>
                     <span className="topbar-notif-item-body">
@@ -308,6 +338,9 @@ export function TopBar() {
                 </Link>
                 <Link to="/resolutions" onClick={() => setNotifOpen(false)}>
                   All resolutions
+                </Link>
+                <Link to="/compliance" onClick={() => setNotifOpen(false)}>
+                  All filings
                 </Link>
               </div>
             </div>

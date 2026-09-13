@@ -902,6 +902,11 @@ code {
   color: var(--accent-brass);
 }
 
+.topbar-notif-tag-compliance {
+  background: var(--info-bg);
+  color: var(--info-text);
+}
+
 .topbar-notif-item-body {
   display: flex;
   flex-direction: column;
