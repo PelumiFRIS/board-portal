@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { Link, useNavigate } from "react-router-dom";
 import { listActionItems } from "../api/actionItems";
 import { getUnreadCount, listConversations } from "../api/messaging";
-import type { ActionItemSummary, ConversationSummary } from "../api/types";
+import { listResolutions } from "../api/resolutions";
+import type { ActionItemSummary, ConversationSummary, ResolutionSummary } from "../api/types";
 import { ROLE_LABELS } from "../constants/roles";
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "./Avatar";
@@ -12,7 +13,7 @@ const UNREAD_POLL_MS = 25000;
 
 interface NotificationEntry {
   key: string;
-  category: "MESSAGE" | "ACTION ITEM";
+  category: "MESSAGE" | "ACTION ITEM" | "RESOLUTION";
   title: string;
   description: string;
   timestamp: string;
@@ -107,7 +108,8 @@ export function TopBar() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [overdueItems, setOverdueItems] = useState<ActionItemSummary[]>([]);
+  const [myActionItems, setMyActionItems] = useState<ActionItemSummary[]>([]);
+  const [openResolutions, setOpenResolutions] = useState<ResolutionSummary[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -126,10 +128,11 @@ export function TopBar() {
   useEffect(() => {
     if (!notifOpen) return;
     setNotifLoading(true);
-    Promise.all([listConversations(), listActionItems()])
-      .then(([convos, items]) => {
+    Promise.all([listConversations(), listActionItems(), listResolutions()])
+      .then(([convos, items, resolutions]) => {
         setConversations(convos);
-        setOverdueItems(items);
+        setMyActionItems(items);
+        setOpenResolutions(resolutions);
       })
       .catch(() => {})
       .finally(() => setNotifLoading(false));
@@ -174,21 +177,39 @@ export function TopBar() {
       }));
 
     const now = Date.now();
-    const actionEntries: NotificationEntry[] = overdueItems
-      .filter((item) => item.assigneeId === user.id && item.status === "OPEN" && item.dueDate && new Date(item.dueDate).getTime() < now)
-      .map((item) => ({
-        key: `action-${item.id}`,
-        category: "ACTION ITEM",
-        title: item.title,
-        description: `Overdue since ${new Date(item.dueDate as string).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`,
-        timestamp: item.dueDate as string,
-        to: "/matters-arising",
+    const actionEntries: NotificationEntry[] = myActionItems
+      .filter((item) => item.assigneeId === user.id && item.status === "OPEN")
+      .map((item) => {
+        const isOverdue = item.dueDate != null && new Date(item.dueDate).getTime() < now;
+        return {
+          key: `action-${item.id}`,
+          category: "ACTION ITEM" as const,
+          title: item.title,
+          description: isOverdue
+            ? `Overdue since ${new Date(item.dueDate as string).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+            : item.dueDate
+              ? `Due ${new Date(item.dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+              : "Assigned to you",
+          timestamp: item.dueDate ?? item.createdAt,
+          to: "/matters-arising",
+        };
+      });
+
+    const resolutionEntries: NotificationEntry[] = openResolutions
+      .filter((r) => r.status === "OPEN" && r.myVote === null)
+      .map((r) => ({
+        key: `resolution-${r.id}`,
+        category: "RESOLUTION",
+        title: r.title,
+        description: "Needs your vote",
+        timestamp: r.openedAt ?? r.createdAt,
+        to: `/meetings/${r.meetingId}`,
       }));
 
-    return [...messageEntries, ...actionEntries].sort(
+    return [...messageEntries, ...actionEntries, ...resolutionEntries].sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
-  }, [conversations, overdueItems, user]);
+  }, [conversations, myActionItems, openResolutions, user]);
 
   function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter" && matches.length > 0) {
@@ -251,7 +272,7 @@ export function TopBar() {
               </div>
               <div className="topbar-notif-list">
                 {!notifLoading && notifications.length === 0 && (
-                  <div className="topbar-notif-empty">No new messages or overdue action items.</div>
+                  <div className="topbar-notif-empty">No new messages, action items, or resolutions to vote on.</div>
                 )}
                 {notifications.map((item) => (
                   <button
@@ -263,7 +284,11 @@ export function TopBar() {
                       setNotifOpen(false);
                     }}
                   >
-                    <span className={`topbar-notif-tag topbar-notif-tag-${item.category === "MESSAGE" ? "message" : "action"}`}>
+                    <span
+                      className={`topbar-notif-tag topbar-notif-tag-${
+                        item.category === "MESSAGE" ? "message" : item.category === "RESOLUTION" ? "resolution" : "action"
+                      }`}
+                    >
                       {item.category}
                     </span>
                     <span className="topbar-notif-item-body">
@@ -280,6 +305,9 @@ export function TopBar() {
                 </Link>
                 <Link to="/matters-arising" onClick={() => setNotifOpen(false)}>
                   All action items
+                </Link>
+                <Link to="/resolutions" onClick={() => setNotifOpen(false)}>
+                  All resolutions
                 </Link>
               </div>
             </div>

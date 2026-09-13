@@ -897,6 +897,11 @@ code {
   color: var(--danger);
 }
 
+.topbar-notif-tag-resolution {
+  background: #fdf3e0;
+  color: var(--accent-brass);
+}
+
 .topbar-notif-item-body {
   display: flex;
   flex-direction: column;
