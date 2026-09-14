@@ -337,6 +337,8 @@ public class MeetingService {
     @Transactional
     public MeetingDetail update(AppUserPrincipal admin, UUID meetingId, UpdateMeetingRequest request) {
         Meeting meeting = findMeetingInOrg(admin, meetingId);
+        boolean minutesJustApproved = request.minutesStatus() == MinutesStatus.APPROVED
+                && meeting.getMinutesStatus() != MinutesStatus.APPROVED;
 
         if (request.title() != null) {
             meeting.setTitle(request.title());
@@ -377,6 +379,10 @@ public class MeetingService {
         meetingRepository.save(meeting);
 
         auditLogService.record(admin, AuditAction.MEETING_UPDATED, AuditEntityType.MEETING, meeting.getId(), summary);
+
+        if (minutesJustApproved) {
+            emailNotificationService.notifyMinutesApproved(meeting, resolveRecipients(admin, meeting));
+        }
 
         return toDetail(meeting, admin);
     }

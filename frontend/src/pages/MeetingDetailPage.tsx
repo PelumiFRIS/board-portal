@@ -62,6 +62,12 @@ function formatDuration(totalSeconds: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+function toDatetimeLocalValue(iso: string): string {
+  const date = new Date(iso);
+  const offsetMs = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
 export function MeetingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -72,6 +78,12 @@ export function MeetingDetailPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const [reschedulingOpen, setReschedulingOpen] = useState(false);
+  const [rescheduleStart, setRescheduleStart] = useState("");
+  const [rescheduleEnd, setRescheduleEnd] = useState("");
+  const [rescheduleLocation, setRescheduleLocation] = useState("");
+  const [rescheduling, setRescheduling] = useState(false);
 
   const [newItemTitle, setNewItemTitle] = useState("");
   const [newItemDescription, setNewItemDescription] = useState("");
@@ -558,6 +570,36 @@ export function MeetingDetailPage() {
     }
   }
 
+  function handleOpenReschedule() {
+    if (!meeting) return;
+    setActionError(null);
+    setRescheduleStart(toDatetimeLocalValue(meeting.scheduledStart));
+    setRescheduleEnd(meeting.scheduledEnd ? toDatetimeLocalValue(meeting.scheduledEnd) : "");
+    setRescheduleLocation(meeting.location ?? "");
+    setReschedulingOpen(true);
+  }
+
+  async function handleSaveReschedule(event: FormEvent) {
+    event.preventDefault();
+    if (!id) return;
+    setActionError(null);
+    setRescheduling(true);
+    try {
+      const updated = await updateMeeting(id, {
+        scheduledStart: new Date(rescheduleStart).toISOString(),
+        scheduledEnd: rescheduleEnd ? new Date(rescheduleEnd).toISOString() : undefined,
+        location: rescheduleLocation || undefined,
+      });
+      setMeeting(updated);
+      setReschedulingOpen(false);
+      toast.success("Meeting rescheduled.");
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setRescheduling(false);
+    }
+  }
+
   async function handleDownloadIcs() {
     if (!id || !meeting) return;
     setActionError(null);
@@ -622,11 +664,49 @@ export function MeetingDetailPage() {
               </div>
               {canManage && meeting.status === "SCHEDULED" && (
                 <div className="field-row">
+                  <button className="secondary" onClick={handleOpenReschedule}>
+                    Reschedule
+                  </button>
                   <button onClick={() => handleStatusChange("COMPLETED")}>Mark completed</button>
                   <button className="secondary" onClick={() => handleStatusChange("CANCELLED")}>
                     Cancel meeting
                   </button>
                 </div>
+              )}
+              {reschedulingOpen && (
+                <form className="add-user-form" onSubmit={handleSaveReschedule}>
+                  <div className="field-row">
+                    <label>
+                      New start
+                      <input
+                        type="datetime-local"
+                        value={rescheduleStart}
+                        onChange={(e) => setRescheduleStart(e.target.value)}
+                        required
+                      />
+                    </label>
+                    <label>
+                      New end (optional)
+                      <input
+                        type="datetime-local"
+                        value={rescheduleEnd}
+                        onChange={(e) => setRescheduleEnd(e.target.value)}
+                      />
+                    </label>
+                  </div>
+                  <label>
+                    Location
+                    <input value={rescheduleLocation} onChange={(e) => setRescheduleLocation(e.target.value)} />
+                  </label>
+                  <div className="field-row">
+                    <button type="submit" disabled={rescheduling}>
+                      {rescheduling ? "Saving..." : "Save new time"}
+                    </button>
+                    <button type="button" className="secondary" onClick={() => setReschedulingOpen(false)}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
               )}
             </section>
 

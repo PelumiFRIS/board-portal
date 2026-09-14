@@ -6,6 +6,7 @@ import {
   closeResolution,
   createResolution,
   deleteResolution,
+  downloadResolutionsCsv,
   getResolution,
   listResolutions,
   openResolution,
@@ -54,6 +55,7 @@ export function ResolutionsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [votesById, setVotesById] = useState<Record<string, VoteRecord[]>>({});
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     Promise.all([listResolutions(), listMeetings()])
@@ -66,6 +68,18 @@ export function ResolutionsPage() {
   }, []);
 
   const meetingTitleById = new Map(meetings.map((m) => [m.id, m.title]));
+
+  async function handleDownload() {
+    setActionError(null);
+    setDownloading(true);
+    try {
+      await downloadResolutionsCsv();
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   function replaceResolution(updated: ResolutionSummary) {
     setResolutions((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
@@ -199,6 +213,9 @@ export function ResolutionsPage() {
         <div className="page-header">
           <h1>Resolutions</h1>
           <p>Every resolution across all meetings for {user.organizationName}</p>
+          <button className="secondary small" onClick={handleDownload} disabled={downloading}>
+            {downloading ? "Downloading..." : "Download CSV"}
+          </button>
         </div>
 
         <section className="dashboard-section">

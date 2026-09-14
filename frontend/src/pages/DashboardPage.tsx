@@ -63,6 +63,7 @@ function formatFileSize(bytes: number): string {
 
 function MemberDashboard() {
   const { user } = useAuth();
+  const canManage = user?.role === "COMPANY_SECRETARY";
   const [meetings, setMeetings] = useState<MeetingSummary[]>([]);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [resolutions, setResolutions] = useState<ResolutionSummary[]>([]);
@@ -155,9 +156,23 @@ function MemberDashboard() {
     .sort((a, b) => new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime())
     .slice(0, 3);
   const recentDocuments = documents.slice(0, 5);
+  const meetingsNeedingMinutes = canManage
+    ? meetings
+        .filter((m) => m.minutesStatus === "DRAFT" && m.status !== "CANCELLED")
+        .sort((a, b) => new Date(b.scheduledStart).getTime() - new Date(a.scheduledStart).getTime())
+        .slice(0, 3)
+    : [];
+  const recentApprovedMinutes = meetings
+    .filter((m) => m.minutesStatus === "APPROVED")
+    .sort((a, b) => new Date(b.scheduledStart).getTime() - new Date(a.scheduledStart).getTime())
+    .slice(0, 3);
 
   const nothingToShow =
-    needsVote.length === 0 && myActionItems.length === 0 && upcomingMeetings.length === 0 && recentDocuments.length === 0;
+    needsVote.length === 0 &&
+    myActionItems.length === 0 &&
+    upcomingMeetings.length === 0 &&
+    recentDocuments.length === 0 &&
+    meetingsNeedingMinutes.length === 0;
 
   if (nothingToShow) {
     return (
@@ -165,7 +180,7 @@ function MemberDashboard() {
         <div className="empty-hero">
           <AllCaughtUpIllustration />
           <h2>You&apos;re all caught up</h2>
-          <p>No action items, meetings, resolutions, or documents need your attention right now.</p>
+          <p>No action items, meetings, resolutions, minutes, or documents need your attention right now.</p>
           <div className="field-row">
             <Link to="/meetings">
               <button className="secondary small">View meetings</button>
@@ -235,6 +250,40 @@ function MemberDashboard() {
                   Abstain
                 </button>
               </div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {meetingsNeedingMinutes.length > 0 && (
+        <section className="dashboard-section">
+          <h2>Minutes awaiting approval</h2>
+          {meetingsNeedingMinutes.map((m) => (
+            <div key={m.id} className="agenda-item-row">
+              <div className="agenda-item-body">
+                <Link to={`/meetings/${m.id}`}>
+                  <strong>{m.title}</strong>
+                </Link>
+                <p>{new Date(m.scheduledStart).toLocaleDateString()}</p>
+              </div>
+              <StatusBadge status={m.minutesStatus} />
+            </div>
+          ))}
+        </section>
+      )}
+
+      {recentApprovedMinutes.length > 0 && (
+        <section className="dashboard-section">
+          <h2>Recent minutes</h2>
+          {recentApprovedMinutes.map((m) => (
+            <div key={m.id} className="agenda-item-row">
+              <div className="agenda-item-body">
+                <Link to={`/meetings/${m.id}`}>
+                  <strong>{m.title}</strong>
+                </Link>
+                <p>{new Date(m.scheduledStart).toLocaleDateString()}</p>
+              </div>
+              <StatusBadge status={m.minutesStatus} />
             </div>
           ))}
         </section>

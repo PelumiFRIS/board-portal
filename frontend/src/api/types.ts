@@ -111,6 +111,7 @@ export interface MeetingSummary {
   scheduledStart: string;
   scheduledEnd: string | null;
   status: MeetingStatus;
+  minutesStatus: MinutesStatus;
   committeeId: string | null;
   meetingTypeId: string;
   meetingTypeName: string;

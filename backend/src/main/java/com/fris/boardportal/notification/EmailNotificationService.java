@@ -51,6 +51,32 @@ public class EmailNotificationService {
         }
     }
 
+    public void notifyMinutesApproved(Meeting meeting, List<User> recipients) {
+        if (recipients.isEmpty()) {
+            return;
+        }
+        String[] bcc = recipients.stream().map(User::getEmail).toArray(String[]::new);
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setBcc(bcc);
+        message.setSubject("Minutes approved: " + meeting.getTitle());
+        message.setText(buildMinutesApprovedBody(meeting));
+
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            log.warn("Failed to send minutes-approved email for meeting {}", meeting.getId(), e);
+        }
+    }
+
+    private String buildMinutesApprovedBody(Meeting meeting) {
+        StringBuilder body = new StringBuilder();
+        body.append("The minutes for \"").append(meeting.getTitle()).append("\" have been approved and are now available to view and download.\n\n");
+        body.append(WHEN_FORMAT.format(meeting.getScheduledStart())).append(" UTC\n");
+        body.append('\n').append(frontendUrl).append("/meetings/").append(meeting.getId());
+        return body.toString();
+    }
+
     public void notifyResolutionOpened(Resolution resolution, String meetingTitle, List<User> recipients) {
         if (recipients.isEmpty()) {
             return;

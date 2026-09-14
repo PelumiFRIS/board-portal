@@ -9,8 +9,11 @@ import com.fris.boardportal.auth.dto.AuthResponse;
 import com.fris.boardportal.committee.dto.AddCommitteeMemberRequest;
 import com.fris.boardportal.committee.dto.CommitteeSummary;
 import com.fris.boardportal.committee.dto.CreateCommitteeRequest;
+import com.fris.boardportal.meeting.MinutesStatus;
 import com.fris.boardportal.meeting.dto.CreateMeetingRequest;
+import com.fris.boardportal.meeting.dto.MeetingDetail;
 import com.fris.boardportal.meeting.dto.MeetingSummary;
+import com.fris.boardportal.meeting.dto.UpdateMeetingRequest;
 import com.fris.boardportal.support.IntegrationTestSupport;
 import com.fris.boardportal.user.Role;
 import com.fris.boardportal.user.dto.CreateUserRequest;
@@ -19,6 +22,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -75,6 +79,48 @@ class MeetingNotificationFlowTest extends IntegrationTestSupport {
         SimpleMailMessage sent = messageCaptor.getValue();
         assertThat(sent.getBcc()).containsExactly(memberAEmail);
         assertThat(sent.getBcc()).doesNotContain(memberBEmail, admin.user().email());
+    }
+
+    @Test
+    void approvingMinutesEmailsActiveMembersButSavingDraftDoesNot() {
+        AuthResponse admin = signup(uniqueEmail(), "Minutes Notify Org");
+        AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
+        String memberEmail = uniqueEmail();
+        createBoardMember(admin.accessToken(), memberEmail);
+
+        MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
+        Mockito.clearInvocations(mailSender);
+
+        ResponseEntity<MeetingDetail> draftSave = restTemplate.exchange(
+                "/api/meetings/" + meeting.id(), HttpMethod.PATCH,
+                authedRequest(companySecretary.accessToken(),
+                        new UpdateMeetingRequest(null, null, null, null, null, null, "Draft text.", null, null, null)),
+                MeetingDetail.class);
+        assertThat(draftSave.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Mockito.verifyNoInteractions(mailSender);
+
+        ResponseEntity<MeetingDetail> approved = restTemplate.exchange(
+                "/api/meetings/" + meeting.id(), HttpMethod.PATCH,
+                authedRequest(companySecretary.accessToken(),
+                        new UpdateMeetingRequest(null, null, null, null, null, null, null, MinutesStatus.APPROVED, null, null)),
+                MeetingDetail.class);
+        assertThat(approved.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ArgumentCaptor<SimpleMailMessage> messageCaptor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(messageCaptor.capture());
+
+        SimpleMailMessage sent = messageCaptor.getValue();
+        assertThat(sent.getSubject()).contains("Minutes approved").contains(meeting.title());
+        assertThat(sent.getBcc()).contains(admin.user().email(), memberEmail);
+
+        Mockito.clearInvocations(mailSender);
+        ResponseEntity<MeetingDetail> revertedToDraft = restTemplate.exchange(
+                "/api/meetings/" + meeting.id(), HttpMethod.PATCH,
+                authedRequest(companySecretary.accessToken(),
+                        new UpdateMeetingRequest(null, null, null, null, null, null, null, MinutesStatus.DRAFT, null, null)),
+                MeetingDetail.class);
+        assertThat(revertedToDraft.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Mockito.verifyNoInteractions(mailSender);
     }
 
     @Test

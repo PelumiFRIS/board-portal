@@ -132,7 +132,7 @@ class ResolutionFlowTest extends IntegrationTestSupport {
     }
 
     @Test
-    void companySecretaryCanExportResolutionsCsvButNonCompanySecretaryCannot() {
+    void anyOrgMemberCanExportResolutionsCsv() {
         AuthResponse admin = signup(uniqueEmail(), "Export Resolutions Org");
         AuthResponse companySecretary = createCompanySecretaryAndLogin(admin.accessToken());
         String memberEmail = uniqueEmail();
@@ -142,13 +142,13 @@ class ResolutionFlowTest extends IntegrationTestSupport {
         MeetingSummary meeting = scheduleMeeting(companySecretary.accessToken());
         createResolution(companySecretary.accessToken(), meeting.id());
 
-        ResponseEntity<String> blocked = restTemplate.exchange(
+        ResponseEntity<String> memberExported = restTemplate.exchange(
                 "/api/resolutions/export", HttpMethod.GET, authedRequest(member.accessToken()), String.class);
-        assertThat(blocked.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(memberExported.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-        ResponseEntity<String> adminBlocked = restTemplate.exchange(
+        ResponseEntity<String> adminExported = restTemplate.exchange(
                 "/api/resolutions/export", HttpMethod.GET, authedRequest(admin.accessToken()), String.class);
-        assertThat(adminBlocked.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(adminExported.getStatusCode()).isEqualTo(HttpStatus.OK);
 
         ResponseEntity<String> exported = restTemplate.exchange(
                 "/api/resolutions/export", HttpMethod.GET, authedRequest(companySecretary.accessToken()), String.class);

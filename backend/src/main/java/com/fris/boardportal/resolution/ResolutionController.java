@@ -47,7 +47,6 @@ public class ResolutionController {
     }
 
     @GetMapping("/export")
-    @PreAuthorize("hasRole('COMPANY_SECRETARY')")
     public ResponseEntity<byte[]> export(@AuthenticationPrincipal AppUserPrincipal principal) {
         byte[] csv = resolutionService.exportCsv(principal);
         String filename = "resolutions-" + LocalDate.now() + ".csv";

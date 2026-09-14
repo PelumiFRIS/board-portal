@@ -2,6 +2,7 @@ package com.fris.boardportal.meeting.dto;
 
 import com.fris.boardportal.meeting.Meeting;
 import com.fris.boardportal.meeting.MeetingStatus;
+import com.fris.boardportal.meeting.MinutesStatus;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -12,6 +13,7 @@ public record MeetingSummary(
         Instant scheduledStart,
         Instant scheduledEnd,
         MeetingStatus status,
+        MinutesStatus minutesStatus,
         UUID committeeId,
         UUID meetingTypeId,
         String meetingTypeName) {
@@ -24,6 +26,7 @@ public record MeetingSummary(
                 meeting.getScheduledStart(),
                 meeting.getScheduledEnd(),
                 meeting.getStatus(),
+                meeting.getMinutesStatus(),
                 meeting.getCommitteeId(),
                 meeting.getMeetingTypeId(),
                 meetingTypeName);
