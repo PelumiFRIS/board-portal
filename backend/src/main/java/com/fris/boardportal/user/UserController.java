@@ -1,6 +1,7 @@
 package com.fris.boardportal.user;
 
 import com.fris.boardportal.security.AppUserPrincipal;
+import com.fris.boardportal.user.dto.BulkUserResult;
 import com.fris.boardportal.user.dto.CalendarTokenResponse;
 import com.fris.boardportal.user.dto.ChangePasswordRequest;
 import com.fris.boardportal.user.dto.CreateUserRequest;
@@ -63,6 +64,13 @@ public class UserController {
     public UserSummary updateUser(@AuthenticationPrincipal AppUserPrincipal principal,
             @PathVariable UUID id, @RequestBody UpdateUserRequest request) {
         return userService.updateUser(principal, id, request);
+    }
+
+    @PostMapping("/bulk")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<BulkUserResult> bulkCreateUsers(@AuthenticationPrincipal AppUserPrincipal principal,
+            @RequestParam("file") MultipartFile file) {
+        return userService.bulkCreateUsers(principal, file);
     }
 
     @PostMapping("/{id}/photo")

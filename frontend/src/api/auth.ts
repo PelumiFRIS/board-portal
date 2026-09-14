@@ -1,6 +1,7 @@
 import { apiClient } from "./client";
 import type {
   AuthResponse,
+  BulkUserResult,
   ChangePasswordPayload,
   CreateUserPayload,
   LoginPayload,
@@ -57,5 +58,14 @@ export async function changePassword(payload: ChangePasswordPayload): Promise<vo
 
 export async function resetUserPassword(userId: string): Promise<PasswordResetResponse> {
   const { data } = await apiClient.post<PasswordResetResponse>(`/api/users/${userId}/reset-password`);
+  return data;
+}
+
+export async function bulkCreateUsers(file: File): Promise<BulkUserResult[]> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await apiClient.post<BulkUserResult[]>("/api/users/bulk", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return data;
 }

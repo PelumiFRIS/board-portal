@@ -5,9 +5,11 @@ import com.fris.boardportal.audit.AuditEntityType;
 import com.fris.boardportal.audit.AuditLogService;
 import com.fris.boardportal.committee.CommitteeService;
 import com.fris.boardportal.common.ApiException;
+import com.fris.boardportal.common.CsvSupport;
 import com.fris.boardportal.notification.EmailNotificationService;
 import com.fris.boardportal.organization.OrganizationRepository;
 import com.fris.boardportal.security.AppUserPrincipal;
+import com.fris.boardportal.user.dto.BulkUserResult;
 import com.fris.boardportal.user.dto.ChangePasswordRequest;
 import com.fris.boardportal.user.dto.CreateUserRequest;
 import com.fris.boardportal.user.dto.PasswordResetResponse;
@@ -17,16 +19,21 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
@@ -110,6 +117,96 @@ public class UserService {
                 "Added " + user.getFirstName() + " " + user.getLastName() + " (" + user.getRole() + ")");
 
         return UserSummary.from(user, organizationName(admin.getOrganizationId()), null, List.of());
+    }
+
+    /**
+     * Expects a CSV with a header row containing First Name, Last Name, Email, and Role
+     * columns (any order, case-insensitive). A temporary password is generated per row —
+     * the CSV never carries passwords. Each row succeeds or fails independently so one bad
+     * row doesn't block the rest of the batch.
+     */
+    @Transactional
+    public List<BulkUserResult> bulkCreateUsers(AppUserPrincipal admin, MultipartFile file) {
+        List<String> lines;
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            lines = reader.lines().filter(line -> !line.isBlank()).toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to read uploaded file", e);
+        }
+        if (lines.isEmpty()) {
+            throw ApiException.badRequest("The file is empty");
+        }
+
+        Map<String, Integer> columnIndex = new HashMap<>();
+        List<String> header = CsvSupport.parseLine(lines.get(0));
+        for (int i = 0; i < header.size(); i++) {
+            columnIndex.put(normalizeHeader(header.get(i)), i);
+        }
+        Integer firstNameCol = columnIndex.get("firstname");
+        Integer lastNameCol = columnIndex.get("lastname");
+        Integer emailCol = columnIndex.get("email");
+        Integer roleCol = columnIndex.get("role");
+        if (firstNameCol == null || lastNameCol == null || emailCol == null || roleCol == null) {
+            throw ApiException.badRequest(
+                    "The file must have First Name, Last Name, Email, and Role columns");
+        }
+
+        List<BulkUserResult> results = new ArrayList<>();
+        for (int rowNum = 1; rowNum < lines.size(); rowNum++) {
+            List<String> fields = CsvSupport.parseLine(lines.get(rowNum));
+            String firstName = field(fields, firstNameCol);
+            String lastName = field(fields, lastNameCol);
+            String email = field(fields, emailCol);
+            String roleRaw = field(fields, roleCol);
+            Role role = parseRole(roleRaw);
+
+            if (firstName.isBlank() || lastName.isBlank() || email.isBlank()) {
+                results.add(BulkUserResult.failure(rowNum, firstName, lastName, email, role,
+                        "First name, last name, and email are required"));
+                continue;
+            }
+            if (role == null) {
+                results.add(BulkUserResult.failure(rowNum, firstName, lastName, email, null,
+                        "Unrecognized role \"" + roleRaw + "\" — use Board Member, Company Secretary, or Admin"));
+                continue;
+            }
+            if (userRepository.existsByEmailIgnoreCase(email)) {
+                results.add(BulkUserResult.failure(rowNum, firstName, lastName, email, role,
+                        "An account with this email already exists"));
+                continue;
+            }
+
+            String temporaryPassword = generateTemporaryPassword();
+            User user = User.create(admin.getOrganizationId(), email, passwordEncoder.encode(temporaryPassword),
+                    firstName, lastName, role);
+            userRepository.save(user);
+            auditLogService.record(admin, AuditAction.USER_CREATED, AuditEntityType.USER, user.getId(),
+                    "Added " + user.getFirstName() + " " + user.getLastName() + " (" + user.getRole()
+                            + ") via bulk upload");
+            results.add(BulkUserResult.success(rowNum, firstName, lastName, email, role, temporaryPassword));
+        }
+        return results;
+    }
+
+    private String field(List<String> fields, int index) {
+        return index < fields.size() ? fields.get(index) : "";
+    }
+
+    private String normalizeHeader(String header) {
+        return header.trim().toLowerCase().replace(" ", "");
+    }
+
+    private Role parseRole(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String normalized = raw.trim().toUpperCase().replace(" ", "_").replace("-", "_");
+        try {
+            return Role.valueOf(normalized);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     @Transactional

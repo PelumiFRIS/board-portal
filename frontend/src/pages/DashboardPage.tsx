@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { createUser, listOrganizationUsers, resetUserPassword, updateUserStatus } from "../api/auth";
+import { bulkCreateUsers, createUser, listOrganizationUsers, resetUserPassword, updateUserStatus } from "../api/auth";
 import { listActionItems, updateActionItemStatus } from "../api/actionItems";
 import { extractErrorMessage } from "../api/client";
 import { addCommitteeMember, createCommittee, listCommittees } from "../api/committees";
@@ -10,6 +10,7 @@ import { listMeetings } from "../api/meetings";
 import { castVote, listResolutions } from "../api/resolutions";
 import type {
   ActionItemSummary,
+  BulkUserResult,
   DashboardStats as DashboardStatsType,
   DocumentSummary,
   MeetingSummary,
@@ -357,6 +358,11 @@ export function DashboardPage() {
   const [revealedReset, setRevealedReset] = useState<{ name: string; password: string } | null>(null);
   const [resetCopied, setResetCopied] = useState(false);
 
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [bulkResults, setBulkResults] = useState<BulkUserResult[] | null>(null);
+
   useEffect(() => {
     if (!isAdmin) return;
     listOrganizationUsers()
@@ -429,6 +435,38 @@ export function DashboardPage() {
     } finally {
       setStatusUpdatingId(null);
     }
+  }
+
+  async function handleBulkUpload(event: FormEvent) {
+    event.preventDefault();
+    if (!bulkFile) return;
+    setBulkError(null);
+    setBulkUploading(true);
+    try {
+      const results = await bulkCreateUsers(bulkFile);
+      setBulkResults(results);
+      setBulkFile(null);
+      const created = results.filter((r) => r.created);
+      if (created.length > 0) {
+        const refreshed = await listOrganizationUsers();
+        setUsers(refreshed);
+      }
+    } catch (err) {
+      setBulkError(extractErrorMessage(err));
+    } finally {
+      setBulkUploading(false);
+    }
+  }
+
+  function handleDownloadTemplate() {
+    const csv = "First Name,Last Name,Email,Role\nAda,Lovelace,ada@example.com,Board Member\n";
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "members-template.csv";
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   if (!user) return null;
@@ -590,6 +628,59 @@ export function DashboardPage() {
                 {submitting ? "Adding..." : "Add member"}
               </button>
             </form>
+          </section>
+        )}
+
+        {isAdmin && (
+          <section className="dashboard-section">
+            <h2>Bulk upload members</h2>
+            <p>Add several members at once from a CSV file with First Name, Last Name, Email, and Role columns.</p>
+            <button type="button" className="secondary small" onClick={handleDownloadTemplate}>
+              Download a template
+            </button>
+            <form className="add-user-form" onSubmit={handleBulkUpload}>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={(e) => setBulkFile(e.target.files?.[0] ?? null)}
+              />
+              {bulkError && <p className="form-error">{bulkError}</p>}
+              <button type="submit" disabled={!bulkFile || bulkUploading}>
+                {bulkUploading ? "Uploading..." : "Upload"}
+              </button>
+            </form>
+            {bulkResults && (
+              <table className="user-table">
+                <thead>
+                  <tr>
+                    <th>Row</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bulkResults.map((r) => (
+                    <tr key={r.row}>
+                      <td>{r.row}</td>
+                      <td>
+                        {r.firstName} {r.lastName}
+                      </td>
+                      <td>{r.email}</td>
+                      <td>
+                        {r.created ? (
+                          <>
+                            Created &mdash; temporary password: <code>{r.temporaryPassword}</code>
+                          </>
+                        ) : (
+                          <span className="form-error">{r.error}</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </section>
         )}
       </main>

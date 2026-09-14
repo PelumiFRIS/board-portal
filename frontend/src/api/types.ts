@@ -589,3 +589,14 @@ export interface OnboardClientResponse {
   admin: UserSummary;
   temporaryPassword: string;
 }
+
+export interface BulkUserResult {
+  row: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: Role | null;
+  created: boolean;
+  temporaryPassword: string | null;
+  error: string | null;
+}
