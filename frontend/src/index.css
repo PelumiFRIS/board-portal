@@ -666,8 +666,8 @@ code {
 
 .main-content {
   flex: 1;
+  min-width: 0;
   padding: 44px 56px 64px;
-  max-width: 1120px;
 }
 
 /* Top bar */
