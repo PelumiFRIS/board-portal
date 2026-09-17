@@ -310,6 +310,47 @@ textarea::placeholder {
   color: var(--text-faint);
 }
 
+.password-input {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+.password-input input {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.password-toggle:hover {
+  color: var(--text-muted);
+  background: transparent;
+  transform: translateY(-50%);
+  box-shadow: none;
+}
+
+.password-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
 button {
   padding: 10px 18px;
   border: none;

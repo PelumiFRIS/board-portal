@@ -3,6 +3,7 @@ import { changePassword, updateUserProfile } from "../api/auth";
 import { extractErrorMessage } from "../api/client";
 import { deleteUserPhoto, uploadUserPhoto } from "../api/userPhotos";
 import { Avatar } from "../components/Avatar";
+import { PasswordInput } from "../components/PasswordInput";
 import { Sidebar } from "../components/Sidebar";
 import { TopBar } from "../components/TopBar";
 import { useAuth } from "../context/AuthContext";
@@ -137,31 +138,31 @@ export function ProfilePage() {
           <form className="add-user-form" onSubmit={handleChangePassword}>
             <label>
               Current password
-              <input
-                type="password"
+              <PasswordInput
                 value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
+                onChange={setCurrentPassword}
                 required
+                autoComplete="current-password"
               />
             </label>
             <label>
               New password
-              <input
-                type="password"
+              <PasswordInput
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                onChange={setNewPassword}
                 minLength={8}
                 required
+                autoComplete="new-password"
               />
             </label>
             <label>
               Confirm new password
-              <input
-                type="password"
+              <PasswordInput
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={setConfirmPassword}
                 minLength={8}
                 required
+                autoComplete="new-password"
               />
             </label>
             <button type="submit" disabled={changingPassword}>

@@ -29,6 +29,7 @@ import type {
 } from "../api/types";
 import { Avatar } from "../components/Avatar";
 import { DashboardStats } from "../components/DashboardStats";
+import { PasswordInput } from "../components/PasswordInput";
 import { Sidebar } from "../components/Sidebar";
 import { Skeleton } from "../components/Skeleton";
 import { TopBar } from "../components/TopBar";
@@ -654,12 +655,12 @@ export function DashboardPage() {
                 </label>
                 <label>
                   Temporary password
-                  <input
-                    type="password"
+                  <PasswordInput
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={setPassword}
                     minLength={8}
                     required
+                    autoComplete="new-password"
                   />
                 </label>
               </div>

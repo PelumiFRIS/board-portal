@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { extractErrorMessage, SESSION_EXPIRED_KEY } from "../api/client";
 import { AuthHero } from "../components/AuthHero";
+import { PasswordInput } from "../components/PasswordInput";
 import { useAuth } from "../context/AuthContext";
 
 export function LoginPage() {
@@ -50,7 +51,7 @@ export function LoginPage() {
           </label>
           <label>
             Password
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <PasswordInput value={password} onChange={setPassword} required autoComplete="current-password" />
           </label>
 
           {error && <p className="form-error">{error}</p>}

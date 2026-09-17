@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { extractErrorMessage } from "../api/client";
 import { AuthHero } from "../components/AuthHero";
+import { PasswordInput } from "../components/PasswordInput";
 import { useAuth } from "../context/AuthContext";
 
 export function SignupPage() {
@@ -58,12 +59,12 @@ export function SignupPage() {
           </label>
           <label>
             Password
-            <input
-              type="password"
+            <PasswordInput
               value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
+              onChange={setAdminPassword}
               minLength={8}
               required
+              autoComplete="new-password"
             />
           </label>
 
