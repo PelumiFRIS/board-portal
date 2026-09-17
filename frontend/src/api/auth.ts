@@ -6,6 +6,7 @@ import type {
   CreateUserPayload,
   LoginPayload,
   PasswordResetResponse,
+  Role,
   SignupPayload,
   UpdateUserProfilePayload,
   UserStatus,
@@ -39,6 +40,11 @@ export async function createUser(payload: CreateUserPayload): Promise<UserSummar
 
 export async function updateUserStatus(userId: string, status: UserStatus): Promise<UserSummary> {
   const { data } = await apiClient.patch<UserSummary>(`/api/users/${userId}`, { status });
+  return data;
+}
+
+export async function updateUserRole(userId: string, role: Role): Promise<UserSummary> {
+  const { data } = await apiClient.patch<UserSummary>(`/api/users/${userId}`, { role });
   return data;
 }
 

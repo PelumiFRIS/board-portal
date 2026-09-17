@@ -1,6 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { bulkCreateUsers, createUser, listOrganizationUsers, resetUserPassword, updateUserStatus } from "../api/auth";
+import {
+  bulkCreateUsers,
+  createUser,
+  listOrganizationUsers,
+  resetUserPassword,
+  updateUserRole,
+  updateUserStatus,
+} from "../api/auth";
 import { listActionItems, updateActionItemStatus } from "../api/actionItems";
 import { extractErrorMessage } from "../api/client";
 import { addCommitteeMember, createCommittee, listCommittees } from "../api/committees";
@@ -353,6 +360,8 @@ export function DashboardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null);
+  const [roleError, setRoleError] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
   const [resetError, setResetError] = useState<string | null>(null);
   const [revealedReset, setRevealedReset] = useState<{ name: string; password: string } | null>(null);
@@ -437,6 +446,20 @@ export function DashboardPage() {
     }
   }
 
+  async function handleRoleChange(target: UserSummary, nextRole: Role) {
+    if (nextRole === target.role) return;
+    setRoleError(null);
+    setRoleUpdatingId(target.id);
+    try {
+      const updated = await updateUserRole(target.id, nextRole);
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+    } catch (err) {
+      setRoleError(extractErrorMessage(err));
+    } finally {
+      setRoleUpdatingId(null);
+    }
+  }
+
   async function handleBulkUpload(event: FormEvent) {
     event.preventDefault();
     if (!bulkFile) return;
@@ -509,6 +532,7 @@ export function DashboardPage() {
             {usersError && <p className="form-error">{usersError}</p>}
             {statusError && <p className="form-error">{statusError}</p>}
             {resetError && <p className="form-error">{resetError}</p>}
+            {roleError && <p className="form-error">{roleError}</p>}
             {!loadingUsers && !usersError && (
               <div className="table-scroll">
               <table className="user-table">
@@ -531,7 +555,19 @@ export function DashboardPage() {
                         </div>
                       </td>
                       <td>{u.email}</td>
-                      <td>{ROLE_LABELS[u.role]}</td>
+                      <td>
+                        <select
+                          value={u.role}
+                          disabled={roleUpdatingId === u.id}
+                          onChange={(e) => handleRoleChange(u, e.target.value as Role)}
+                        >
+                          {ROLE_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {ROLE_LABELS[option]}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
                       <td>
                         <StatusBadge status={u.status} />
                       </td>
