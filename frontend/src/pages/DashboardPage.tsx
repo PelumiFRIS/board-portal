@@ -523,7 +523,7 @@ export function DashboardPage() {
         {statsError && <p className="form-error">{statsError}</p>}
         {stats && <DashboardStats stats={stats} />}
 
-        {!isAdmin && <MemberDashboard />}
+        {user.role !== "ADMIN" && <MemberDashboard />}
 
         {isAdmin && revealedReset && (
           <section className="dashboard-section key-reveal">
