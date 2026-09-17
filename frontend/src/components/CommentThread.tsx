@@ -7,7 +7,7 @@ import { Avatar } from "./Avatar";
 
 export function CommentThread({ entityType, entityId }: { entityType: CommentEntityType; entityId: string }) {
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = user?.role === "ADMIN" || user?.isAdmin === true;
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);

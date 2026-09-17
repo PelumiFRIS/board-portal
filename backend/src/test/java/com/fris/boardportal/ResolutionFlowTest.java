@@ -228,7 +228,7 @@ class ResolutionFlowTest extends IntegrationTestSupport {
     private void createBoardMember(String adminToken, String email) {
         restTemplate.exchange(
                 "/api/users", HttpMethod.POST,
-                authedRequest(adminToken, new CreateUserRequest("Board", "Member", email, "password123", Role.BOARD_MEMBER)),
+                authedRequest(adminToken, new CreateUserRequest("Board", "Member", email, "password123", Role.BOARD_MEMBER, null)),
                 UserSummary.class);
     }
 

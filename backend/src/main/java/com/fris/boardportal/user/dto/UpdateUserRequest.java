@@ -8,5 +8,6 @@ public record UpdateUserRequest(
         UserStatus status,
         String title,
         String phone,
-        String bio) {
+        String bio,
+        Boolean isAdmin) {
 }

@@ -11,7 +11,7 @@ vi.mock("../context/AuthContext", () => ({
 
 const mockedUseAuth = vi.mocked(useAuth);
 
-function baseUser(role: Role): UserSummary {
+function baseUser(role: Role, isAdmin = false): UserSummary {
   return {
     id: "user-1",
     firstName: "Ada",
@@ -26,6 +26,7 @@ function baseUser(role: Role): UserSummary {
     bio: null,
     committees: [],
     photoUpdatedAt: null,
+    isAdmin,
   };
 }
 
@@ -63,6 +64,15 @@ describe("ProtectedRoute", () => {
 
   it("renders the route for an admin hitting an admin-only route", () => {
     mockedUseAuth.mockReturnValue({ user: baseUser("ADMIN"), loading: false } as ReturnType<typeof useAuth>);
+    renderAt("/integrations", <ProtectedRoute requireAdmin>Integrations</ProtectedRoute>);
+    expect(screen.getByText("Integrations")).toBeInTheDocument();
+  });
+
+  it("renders the route for a company secretary with the additive isAdmin flag on an admin-only route", () => {
+    mockedUseAuth.mockReturnValue({
+      user: baseUser("COMPANY_SECRETARY", true),
+      loading: false,
+    } as ReturnType<typeof useAuth>);
     renderAt("/integrations", <ProtectedRoute requireAdmin>Integrations</ProtectedRoute>);
     expect(screen.getByText("Integrations")).toBeInTheDocument();
   });

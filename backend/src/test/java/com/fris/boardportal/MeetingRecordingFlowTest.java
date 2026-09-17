@@ -75,7 +75,7 @@ class MeetingRecordingFlowTest extends IntegrationTestSupport {
         restTemplate.exchange(
                 "/api/users", HttpMethod.POST,
                 authedRequest(admin.accessToken(),
-                        new CreateUserRequest("Board", "Member", memberEmail, "password123", Role.BOARD_MEMBER)),
+                        new CreateUserRequest("Board", "Member", memberEmail, "password123", Role.BOARD_MEMBER, null)),
                 UserSummary.class);
         String memberToken = restTemplate.postForEntity(
                         "/api/auth/login", new LoginRequest(memberEmail, "password123"), AuthResponse.class)

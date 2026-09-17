@@ -111,10 +111,12 @@ public class UserService {
                 request.firstName(),
                 request.lastName(),
                 request.role());
+        user.setAdmin(Boolean.TRUE.equals(request.isAdmin()));
         userRepository.save(user);
 
         auditLogService.record(admin, AuditAction.USER_CREATED, AuditEntityType.USER, user.getId(),
-                "Added " + user.getFirstName() + " " + user.getLastName() + " (" + user.getRole() + ")");
+                "Added " + user.getFirstName() + " " + user.getLastName() + " (" + user.getRole() + ")"
+                        + (user.isAdmin() ? " with additional Admin rights" : ""));
 
         return UserSummary.from(user, organizationName(admin.getOrganizationId()), null, List.of());
     }
@@ -211,14 +213,14 @@ public class UserService {
 
     @Transactional
     public UserSummary updateUser(AppUserPrincipal principal, UUID targetUserId, UpdateUserRequest request) {
-        boolean isAdmin = principal.getRole() == Role.ADMIN;
+        boolean isAdmin = principal.hasAdminAccess();
         boolean isSelf = targetUserId.equals(principal.getUserId());
 
         if (!isAdmin && !isSelf) {
             throw ApiException.forbidden("You can only edit your own profile");
         }
-        if (!isAdmin && (request.role() != null || request.status() != null)) {
-            throw ApiException.forbidden("Only an admin can change role or status");
+        if (!isAdmin && (request.role() != null || request.status() != null || request.isAdmin() != null)) {
+            throw ApiException.forbidden("Only an admin can change role, status, or admin rights");
         }
 
         User user = userRepository.findByIdAndOrganizationId(targetUserId, principal.getOrganizationId())
@@ -232,6 +234,10 @@ public class UserService {
         if (request.status() != null && request.status() != user.getStatus()) {
             changes.add("status to " + request.status());
             user.setStatus(request.status());
+        }
+        if (request.isAdmin() != null && request.isAdmin() != user.isAdmin()) {
+            changes.add(request.isAdmin() ? "granted additional Admin rights" : "removed additional Admin rights");
+            user.setAdmin(request.isAdmin());
         }
         if (request.title() != null && !request.title().equals(user.getTitle())) {
             changes.add("title");
@@ -395,7 +401,7 @@ public class UserService {
     }
 
     private void requireAdminOrSelf(AppUserPrincipal principal, UUID targetUserId) {
-        boolean isAdmin = principal.getRole() == Role.ADMIN;
+        boolean isAdmin = principal.hasAdminAccess();
         boolean isSelf = targetUserId.equals(principal.getUserId());
         if (!isAdmin && !isSelf) {
             throw ApiException.forbidden("You can only manage your own photo");

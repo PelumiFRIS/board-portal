@@ -96,7 +96,7 @@ class AuthAndUserFlowTest extends IntegrationTestSupport {
         ResponseEntity<UserSummary> created = restTemplate.exchange(
                 "/api/users", HttpMethod.POST,
                 authedRequest(admin.accessToken(),
-                        new CreateUserRequest("Board", "Member", uniqueEmail(), "password123", Role.BOARD_MEMBER)),
+                        new CreateUserRequest("Board", "Member", uniqueEmail(), "password123", Role.BOARD_MEMBER, null)),
                 UserSummary.class);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
@@ -112,7 +112,7 @@ class AuthAndUserFlowTest extends IntegrationTestSupport {
         restTemplate.exchange(
                 "/api/users", HttpMethod.POST,
                 authedRequest(admin.accessToken(),
-                        new CreateUserRequest("Board", "Member", memberEmail, "password123", Role.BOARD_MEMBER)),
+                        new CreateUserRequest("Board", "Member", memberEmail, "password123", Role.BOARD_MEMBER, null)),
                 UserSummary.class);
 
         ResponseEntity<AuthResponse> memberLogin = restTemplate.postForEntity(
@@ -132,7 +132,7 @@ class AuthAndUserFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/users/" + orgBAdmin.user().id(), HttpMethod.PATCH,
-                authedRequest(orgAAdmin.accessToken(), new UpdateUserRequest(null, UserStatus.DISABLED, null, null, null)),
+                authedRequest(orgAAdmin.accessToken(), new UpdateUserRequest(null, UserStatus.DISABLED, null, null, null, null)),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);

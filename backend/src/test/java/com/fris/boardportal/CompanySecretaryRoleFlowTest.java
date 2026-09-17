@@ -235,7 +235,7 @@ class CompanySecretaryRoleFlowTest extends IntegrationTestSupport {
         ResponseEntity<String> companySecretaryCreatesUser = restTemplate.exchange(
                 "/api/users", HttpMethod.POST,
                 authedRequest(companySecretary.accessToken(),
-                        new CreateUserRequest("Should", "Fail", uniqueEmail(), "password123", Role.BOARD_MEMBER)),
+                        new CreateUserRequest("Should", "Fail", uniqueEmail(), "password123", Role.BOARD_MEMBER, null)),
                 String.class);
         assertThat(companySecretaryCreatesUser.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
@@ -321,7 +321,7 @@ class CompanySecretaryRoleFlowTest extends IntegrationTestSupport {
         ResponseEntity<UserSummary> companySecretary = restTemplate.exchange(
                 "/api/users", HttpMethod.POST,
                 authedRequest(clientAdminLogin.getBody().accessToken(),
-                        new CreateUserRequest("New", "Secretary", uniqueEmail(), "password123", Role.COMPANY_SECRETARY)),
+                        new CreateUserRequest("New", "Secretary", uniqueEmail(), "password123", Role.COMPANY_SECRETARY, null)),
                 UserSummary.class);
         assertThat(companySecretary.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
@@ -356,7 +356,7 @@ class CompanySecretaryRoleFlowTest extends IntegrationTestSupport {
     private UserSummary createUser(String adminToken, String email, Role role) {
         ResponseEntity<UserSummary> response = restTemplate.exchange(
                 "/api/users", HttpMethod.POST,
-                authedRequest(adminToken, new CreateUserRequest("Test", "User", email, "password123", role)),
+                authedRequest(adminToken, new CreateUserRequest("Test", "User", email, "password123", role, null)),
                 UserSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();

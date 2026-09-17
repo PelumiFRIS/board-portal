@@ -162,7 +162,7 @@ export function TopBar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = user?.role === "ADMIN" || user?.isAdmin === true;
   const canManage = isAdmin || user?.role === "COMPANY_SECRETARY";
   const matches = useMemo(() => {
     if (!query.trim()) return [];

@@ -140,7 +140,7 @@ class ApiKeyFlowTest extends IntegrationTestSupport {
 
         restTemplate.exchange(
                 "/api/users/" + secondAdmin.id(), HttpMethod.PATCH,
-                authedRequest(orgAdmin.accessToken(), new UpdateUserRequest(null, UserStatus.DISABLED, null, null, null)),
+                authedRequest(orgAdmin.accessToken(), new UpdateUserRequest(null, UserStatus.DISABLED, null, null, null, null)),
                 UserSummary.class);
 
         ResponseEntity<String> afterDisable = restTemplate.exchange(
@@ -204,7 +204,7 @@ class ApiKeyFlowTest extends IntegrationTestSupport {
     private UserSummary createUser(String adminToken, String email, Role role) {
         ResponseEntity<UserSummary> response = restTemplate.exchange(
                 "/api/users", HttpMethod.POST,
-                authedRequest(adminToken, new CreateUserRequest("Board", "Member", email, "password123", role)),
+                authedRequest(adminToken, new CreateUserRequest("Board", "Member", email, "password123", role, null)),
                 UserSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();

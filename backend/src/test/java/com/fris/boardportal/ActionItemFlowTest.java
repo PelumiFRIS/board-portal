@@ -187,7 +187,7 @@ class ActionItemFlowTest extends IntegrationTestSupport {
     private UUID createBoardMember(String adminToken, String email) {
         ResponseEntity<UserSummary> response = restTemplate.exchange(
                 "/api/users", HttpMethod.POST,
-                authedRequest(adminToken, new CreateUserRequest("Board", "Member", email, "password123", Role.BOARD_MEMBER)),
+                authedRequest(adminToken, new CreateUserRequest("Board", "Member", email, "password123", Role.BOARD_MEMBER, null)),
                 UserSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody().id();

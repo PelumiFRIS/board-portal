@@ -48,6 +48,11 @@ export async function updateUserRole(userId: string, role: Role): Promise<UserSu
   return data;
 }
 
+export async function updateUserIsAdmin(userId: string, isAdmin: boolean): Promise<UserSummary> {
+  const { data } = await apiClient.patch<UserSummary>(`/api/users/${userId}`, { isAdmin });
+  return data;
+}
+
 export async function listDirectory(): Promise<UserSummary[]> {
   const { data } = await apiClient.get<UserSummary[]>("/api/users/directory");
   return data;

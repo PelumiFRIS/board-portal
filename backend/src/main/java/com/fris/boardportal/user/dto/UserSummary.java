@@ -20,7 +20,8 @@ public record UserSummary(
         String phone,
         String bio,
         List<MemberCommitteeSummary> committees,
-        Instant photoUpdatedAt) {
+        Instant photoUpdatedAt,
+        boolean isAdmin) {
 
     public static UserSummary from(User user, String organizationName, Instant photoUpdatedAt,
             List<MemberCommitteeSummary> committees) {
@@ -37,6 +38,7 @@ public record UserSummary(
                 user.getPhone(),
                 user.getBio(),
                 committees,
-                photoUpdatedAt);
+                photoUpdatedAt,
+                user.isAdmin());
     }
 }

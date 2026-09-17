@@ -12,7 +12,7 @@ import { useAuth } from "../context/AuthContext";
 
 export function DirectoryPage() {
   const { user, refreshUser } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = user?.role === "ADMIN" || user?.isAdmin === true;
 
   const [members, setMembers] = useState<UserSummary[]>([]);
   const [loading, setLoading] = useState(true);

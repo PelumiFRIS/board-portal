@@ -98,7 +98,7 @@ class DocumentFlowTest extends IntegrationTestSupport {
         restTemplate.exchange(
                 "/api/users", HttpMethod.POST,
                 authedRequest(admin.accessToken(), new CreateUserRequest(
-                        "Board", "Member", memberEmail, "password123", Role.BOARD_MEMBER)),
+                        "Board", "Member", memberEmail, "password123", Role.BOARD_MEMBER, null)),
                 Object.class);
         AuthResponse member = login(memberEmail);
 
@@ -223,7 +223,7 @@ class DocumentFlowTest extends IntegrationTestSupport {
         restTemplate.exchange(
                 "/api/users", HttpMethod.POST,
                 authedRequest(admin.accessToken(),
-                        new CreateUserRequest("Board", "Member", memberEmail, "password123", Role.BOARD_MEMBER)),
+                        new CreateUserRequest("Board", "Member", memberEmail, "password123", Role.BOARD_MEMBER, null)),
                 Object.class);
         AuthResponse member = login(memberEmail);
 

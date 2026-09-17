@@ -11,5 +11,6 @@ public record CreateUserRequest(
         @NotBlank String lastName,
         @NotBlank @Email String email,
         @NotBlank @Size(min = 8, message = "must be at least 8 characters") String password,
-        @NotNull Role role) {
+        @NotNull Role role,
+        Boolean isAdmin) {
 }

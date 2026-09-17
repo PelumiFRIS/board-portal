@@ -36,7 +36,7 @@ class UserNotificationFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<UserSummary> response = restTemplate.exchange(
                 "/api/users/" + member.id(), HttpMethod.PATCH,
-                authedRequest(admin.accessToken(), new UpdateUserRequest(null, null, "Treasurer", null, null)),
+                authedRequest(admin.accessToken(), new UpdateUserRequest(null, null, "Treasurer", null, null, null)),
                 UserSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
@@ -57,7 +57,7 @@ class UserNotificationFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<UserSummary> response = restTemplate.exchange(
                 "/api/users/" + member.id(), HttpMethod.PATCH,
-                authedRequest(memberAuth.accessToken(), new UpdateUserRequest(null, null, "Treasurer", null, null)),
+                authedRequest(memberAuth.accessToken(), new UpdateUserRequest(null, null, "Treasurer", null, null, null)),
                 UserSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
@@ -73,7 +73,7 @@ class UserNotificationFlowTest extends IntegrationTestSupport {
         // title is already null, so re-sending role/status unchanged (both null = no-op) should not notify
         ResponseEntity<UserSummary> response = restTemplate.exchange(
                 "/api/users/" + member.id(), HttpMethod.PATCH,
-                authedRequest(admin.accessToken(), new UpdateUserRequest(member.role(), member.status(), null, null, null)),
+                authedRequest(admin.accessToken(), new UpdateUserRequest(member.role(), member.status(), null, null, null, null)),
                 UserSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
@@ -89,7 +89,7 @@ class UserNotificationFlowTest extends IntegrationTestSupport {
 
         ResponseEntity<UserSummary> response = restTemplate.exchange(
                 "/api/users/" + member.id(), HttpMethod.PATCH,
-                authedRequest(admin.accessToken(), new UpdateUserRequest(null, null, "Treasurer", null, null)),
+                authedRequest(admin.accessToken(), new UpdateUserRequest(null, null, "Treasurer", null, null, null)),
                 UserSummary.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -98,7 +98,7 @@ class UserNotificationFlowTest extends IntegrationTestSupport {
     private UserSummary createBoardMember(String adminToken, String email) {
         ResponseEntity<UserSummary> response = restTemplate.exchange(
                 "/api/users", HttpMethod.POST,
-                authedRequest(adminToken, new CreateUserRequest("Board", "Member", email, "password123", Role.BOARD_MEMBER)),
+                authedRequest(adminToken, new CreateUserRequest("Board", "Member", email, "password123", Role.BOARD_MEMBER, null)),
                 UserSummary.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return response.getBody();

@@ -1435,6 +1435,21 @@ code {
   transition: background 0.1s ease;
 }
 
+.admin-flag-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.admin-flag-label input {
+  width: auto;
+}
+
 .user-table tbody tr:hover {
   background: var(--surface-tint);
 }

@@ -68,6 +68,15 @@ public class User {
     @Column(name = "last_active_at")
     private Instant lastActiveAt;
 
+    /**
+     * Additive, not exclusive with role: a BOARD_MEMBER or COMPANY_SECRETARY can
+     * also hold Admin rights (e.g. a small org where one person must cover both
+     * account administration and content management). See AppUserPrincipal's
+     * hasAdminAccess()/getAuthorities() for how this is granted alongside role.
+     */
+    @Column(name = "is_admin", nullable = false)
+    private boolean isAdmin;
+
     public static User create(UUID organizationId, String email, String passwordHash,
             String firstName, String lastName, Role role) {
         User user = new User();
@@ -79,6 +88,7 @@ public class User {
         user.setLastName(lastName);
         user.setRole(role);
         user.setStatus(UserStatus.ACTIVE);
+        user.setAdmin(false);
         Instant now = Instant.now();
         user.setCreatedAt(now);
         user.setUpdatedAt(now);

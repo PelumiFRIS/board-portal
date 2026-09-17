@@ -21,6 +21,7 @@ export interface UserSummary {
   bio: string | null;
   committees: MemberCommitteeSummary[];
   photoUpdatedAt: string | null;
+  isAdmin: boolean;
 }
 
 export interface UpdateUserProfilePayload {
@@ -86,6 +87,7 @@ export interface CreateUserPayload {
   email: string;
   password: string;
   role: Role;
+  isAdmin?: boolean;
 }
 
 export interface ApiErrorBody {

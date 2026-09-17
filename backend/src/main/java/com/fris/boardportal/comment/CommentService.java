@@ -10,7 +10,6 @@ import com.fris.boardportal.document.DocumentRepository;
 import com.fris.boardportal.meeting.MeetingRepository;
 import com.fris.boardportal.resolution.ResolutionRepository;
 import com.fris.boardportal.security.AppUserPrincipal;
-import com.fris.boardportal.user.Role;
 import com.fris.boardportal.user.UserRepository;
 import java.util.List;
 import java.util.UUID;
@@ -69,7 +68,7 @@ public class CommentService {
         Comment comment = commentRepository.findByIdAndOrganizationId(id, principal.getOrganizationId())
                 .orElseThrow(() -> ApiException.notFound("Comment not found"));
 
-        boolean isAdmin = principal.getRole() == Role.ADMIN;
+        boolean isAdmin = principal.hasAdminAccess();
         boolean isAuthor = comment.getAuthorId().equals(principal.getUserId());
         if (!isAdmin && !isAuthor) {
             throw ApiException.forbidden("Only the author or an admin can delete this comment");

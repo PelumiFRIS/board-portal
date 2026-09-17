@@ -5,6 +5,7 @@ import {
   createUser,
   listOrganizationUsers,
   resetUserPassword,
+  updateUserIsAdmin,
   updateUserRole,
   updateUserStatus,
 } from "../api/auth";
@@ -341,7 +342,7 @@ function MemberDashboard() {
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = user?.role === "ADMIN" || user?.isAdmin === true;
 
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [usersError, setUsersError] = useState<string | null>(null);
@@ -355,6 +356,7 @@ export function DashboardPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("BOARD_MEMBER");
+  const [newUserIsAdmin, setNewUserIsAdmin] = useState(false);
   const [committeeName, setCommitteeName] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -391,7 +393,7 @@ export function DashboardPage() {
     setFormError(null);
     setSubmitting(true);
     try {
-      const created = await createUser({ firstName, lastName, email, password, role });
+      const created = await createUser({ firstName, lastName, email, password, role, isAdmin: newUserIsAdmin });
       setUsers((prev) => [...prev, created]);
       if (committeeName) {
         const existing = await listCommittees();
@@ -404,6 +406,7 @@ export function DashboardPage() {
       setEmail("");
       setPassword("");
       setRole("BOARD_MEMBER");
+      setNewUserIsAdmin(false);
       setCommitteeName("");
     } catch (err) {
       setFormError(extractErrorMessage(err));
@@ -452,6 +455,19 @@ export function DashboardPage() {
     setRoleUpdatingId(target.id);
     try {
       const updated = await updateUserRole(target.id, nextRole);
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+    } catch (err) {
+      setRoleError(extractErrorMessage(err));
+    } finally {
+      setRoleUpdatingId(null);
+    }
+  }
+
+  async function handleIsAdminChange(target: UserSummary, nextIsAdmin: boolean) {
+    setRoleError(null);
+    setRoleUpdatingId(target.id);
+    try {
+      const updated = await updateUserIsAdmin(target.id, nextIsAdmin);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
     } catch (err) {
       setRoleError(extractErrorMessage(err));
@@ -567,6 +583,17 @@ export function DashboardPage() {
                             </option>
                           ))}
                         </select>
+                        {u.role !== "ADMIN" && (
+                          <label className="admin-flag-label">
+                            <input
+                              type="checkbox"
+                              checked={u.isAdmin}
+                              disabled={roleUpdatingId === u.id}
+                              onChange={(e) => handleIsAdminChange(u, e.target.checked)}
+                            />
+                            Also Admin
+                          </label>
+                        )}
                       </td>
                       <td>
                         <StatusBadge status={u.status} />
@@ -637,16 +664,28 @@ export function DashboardPage() {
                 </label>
               </div>
               <div className="field-row">
-                <label>
-                  Role
-                  <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
-                    {ROLE_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {ROLE_LABELS[option]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div style={{ flex: 1 }}>
+                  <label>
+                    Role
+                    <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
+                      {ROLE_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {ROLE_LABELS[option]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {role !== "ADMIN" && (
+                    <label className="admin-flag-label">
+                      <input
+                        type="checkbox"
+                        checked={newUserIsAdmin}
+                        onChange={(e) => setNewUserIsAdmin(e.target.checked)}
+                      />
+                      Also Admin
+                    </label>
+                  )}
+                </div>
                 <label>
                   Committee (optional)
                   <select value={committeeName} onChange={(e) => setCommitteeName(e.target.value)}>
